@@ -1,0 +1,32 @@
+{
+  "name": "technical-platform",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Centurion University Technical Assessment Platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev -w @technical-platform/api",
+    "dev:web": "npm run dev -w @technical-platform/web",
+    "build": "npm run build -w @technical-platform/shared && npm run build -w @technical-platform/api && npm run build -w @technical-platform/web",
+    "build:shared": "npm run build -w @technical-platform/shared",
+    "build:api": "npm run build -w @technical-platform/api",
+    "build:web": "npm run build -w @technical-platform/web",
+    "lint": "npm run lint -w @technical-platform/api && npm run lint -w @technical-platform/web",
+    "typecheck": "npm run typecheck -w @technical-platform/api && npm run typecheck -w @technical-platform/web",
+    "prisma:generate": "npm run prisma:generate -w @technical-platform/api",
+    "prisma:migrate": "npm run prisma:migrate -w @technical-platform/api",
+    "prisma:studio": "npm run prisma:studio -w @technical-platform/api",
+    "prisma:seed": "npm run prisma:seed -w @technical-platform/api"
+  },
+  "devDependencies": {
+    "prisma": "^7.10.0"
+  },
+  "overrides": {
+    "monaco-editor": {
+      "dompurify": "^3.4.14"
+    }
+  }
+}

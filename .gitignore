@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# prisma
+apps/api/prisma/dev.db
+apps/api/generated/
+
+# logs
+npm-debug.log*
+*.log
+logs/
+
+# editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# os
+.DS_Store
+Thumbs.db
+
+# test/coverage
+coverage/
+
+# vite
+apps/web/dist/
