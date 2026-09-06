@@ -18,6 +18,14 @@ export const EnvSchema = z.object({
   JWT_REFRESH_TTL: z.string().default('7d'),
 
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+
+  // Phase 6 — execution-service (docs/coding-engine.md). Bound to 127.0.0.1 on the
+  // execution-service side, so this only ever needs to be a loopback URL.
+  EXECUTION_SERVICE_URL: z.string().url().default('http://127.0.0.1:4100'),
+  EXECUTION_SERVICE_SHARED_SECRET: z.string().min(16, 'EXECUTION_SERVICE_SHARED_SECRET must be at least 16 characters'),
+  // Per docs/security.md §7 — no more than one Run/Submit per student per question
+  // within this window, to stop a scripted flood from starving the execution queue.
+  RUN_RATE_LIMIT_MS: z.coerce.number().int().nonnegative().default(2000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -89,3 +89,88 @@ export function saveAttemptDraft(attemptId: string, questionId: string, language
     { method: 'PUT', body: JSON.stringify({ language, code }) },
   );
 }
+
+// ---- Phase 6: Run Code (public test cases only — see docs/coding-engine.md) ----
+
+export type SubmissionStatus =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'ACCEPTED'
+  | 'WRONG_ANSWER'
+  | 'COMPILATION_ERROR'
+  | 'RUNTIME_ERROR'
+  | 'TIME_LIMIT_EXCEEDED'
+  | 'MEMORY_LIMIT_EXCEEDED'
+  | 'INTERNAL_ERROR';
+
+export interface TestCaseResultDto {
+  status: SubmissionStatus;
+  passed: boolean;
+  input?: string;
+  expectedOutput?: string;
+  actualOutput?: string;
+  runtimeMs: number | null;
+  memoryKb: number | null;
+  errorMessage?: string;
+  isHidden: boolean;
+}
+
+export interface SubmissionDetailDto {
+  id: string;
+  questionId: string;
+  kind: 'RUN' | 'SUBMIT';
+  language: ProgrammingLanguageCode;
+  status: SubmissionStatus;
+  score: number;
+  testsPassed: number;
+  testsTotal: number;
+  runtimeMs: number | null;
+  memoryKb: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+  testCases: TestCaseResultDto[];
+}
+
+export function runCode(attemptId: string, questionId: string, language: ProgrammingLanguageCode, code: string) {
+  return apiFetch<{ submissionId: string; status: SubmissionStatus; testsTotal: number }>(
+    `/attempts/${attemptId}/questions/${questionId}/run`,
+    { method: 'POST', body: JSON.stringify({ language, code }) },
+  );
+}
+
+export function getSubmission(submissionId: string) {
+  return apiFetch<SubmissionDetailDto>(`/submissions/${submissionId}`);
+}
+
+const TERMINAL_STATUSES: SubmissionStatus[] = [
+  'ACCEPTED',
+  'WRONG_ANSWER',
+  'COMPILATION_ERROR',
+  'RUNTIME_ERROR',
+  'TIME_LIMIT_EXCEEDED',
+  'MEMORY_LIMIT_EXCEEDED',
+  'INTERNAL_ERROR',
+];
+
+/** Polls GET /submissions/:id until it leaves PENDING/RUNNING (docs/coding-engine.md
+ * §3 — Run/Submit are async; the API returns immediately and the frontend polls
+ * for the result rather than the API blocking the HTTP request on execution). */
+export async function pollSubmission(
+  submissionId: string,
+  options: { intervalMs?: number; timeoutMs?: number; signal?: AbortSignal } = {},
+): Promise<SubmissionDetailDto> {
+  const intervalMs = options.intervalMs ?? 700;
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const deadline = Date.now() + timeoutMs;
+
+  while (true) {
+    if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    const result = await getSubmission(submissionId);
+    if (TERMINAL_STATUSES.includes(result.status)) return result;
+    if (Date.now() >= deadline) {
+      throw new Error('Timed out waiting for the result. Please try running again.');
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+}

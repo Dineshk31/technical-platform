@@ -567,6 +567,11 @@ model SubmissionTestResult {
   // denormalized for fast student-facing filtering
   isHidden      Boolean        @map("is_hidden")
   passed        Boolean
+  // per-test-case verdict (reuses SubmissionStatus — PENDING/RUNNING never apply here);
+  // the submission-level `status` is still the worst-case rollup used for authorization
+  // and history, this is what lets the API tell a WRONG_ANSWER apart from a
+  // TIME_LIMIT_EXCEEDED for one specific test case without re-parsing errorMessage text.
+  status        SubmissionStatus @default(PENDING)
   // only returned to student when isHidden = false
   actualOutput  String?        @map("actual_output")
   runtimeMs     Int?           @map("runtime_ms")

@@ -459,6 +459,130 @@ textarea {
   min-height: 0;
 }
 
+.exam-run-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.exam-run-status {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+.exam-run-status.error {
+  color: var(--color-error);
+}
+
+.exam-run-results {
+  flex: 0 0 auto;
+  max-height: 45%;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 0.85rem 1rem 1rem;
+}
+
+.exam-run-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.exam-status-pill {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.exam-status-pill.pass {
+  background: #e2f6e9;
+  color: #157a3f;
+}
+.exam-status-pill.fail {
+  background: #fbe4e2;
+  color: var(--color-error);
+}
+.exam-status-pill.pending {
+  background: #eceef1;
+  color: var(--color-muted);
+}
+
+.exam-error-block {
+  background: #fbe4e2;
+  border: 1px solid #f2b8b3;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+.exam-error-block h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  color: var(--color-error);
+}
+.exam-error-block pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: #7a1f1b;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.exam-test-case {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  margin-bottom: 0.6rem;
+  overflow: hidden;
+}
+.exam-test-case-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--color-bg);
+}
+.exam-test-case-head .meta {
+  font-weight: 400;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+.exam-test-case-body {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+}
+.exam-test-case-io {
+  margin-bottom: 0.5rem;
+}
+.exam-test-case-io strong {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+  margin-bottom: 0.15rem;
+}
+.exam-test-case-io pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, monospace;
+  background: var(--color-bg);
+  border-radius: 4px;
+  padding: 0.4rem 0.55rem;
+}
+
 .exam-no-execution-note {
   padding: 0.5rem 1rem;
   font-size: 0.78rem;

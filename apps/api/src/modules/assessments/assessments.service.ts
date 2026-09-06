@@ -660,13 +660,7 @@ export class AssessmentsService {
    * submits after time expiry"). A periodic cron sweep for attempts nobody is actively viewing is
    * Phase 8 scope — not needed yet since nothing besides this attempt's own owner can read it. */
   private async ensureAttemptFreshness(attempt: Attempt): Promise<Attempt> {
-    if (attempt.status === 'IN_PROGRESS' && new Date() > attempt.endsAt) {
-      return this.prisma.attempt.update({
-        where: { id: attempt.id },
-        data: { status: 'AUTO_SUBMITTED', submittedAt: new Date() },
-      });
-    }
-    return attempt;
+    return ensureAttemptFreshness(this.prisma, attempt);
   }
 
   private async getAssessmentOrThrow(id: string) {
@@ -722,6 +716,20 @@ function computeQuestionStatuses(
     }
   }
   return map;
+}
+
+/** Exported so SubmissionsService (Phase 6 — Run Code) can apply the same lazy
+ * expiry sweep on the attempt it's about to run code against, without duplicating
+ * this logic or introducing a service->service dependency for one shared helper.
+ * See the private wrapper method above for the doc comment on *why* this exists. */
+export async function ensureAttemptFreshness(prisma: PrismaService, attempt: Attempt): Promise<Attempt> {
+  if (attempt.status === 'IN_PROGRESS' && new Date() > attempt.endsAt) {
+    return prisma.attempt.update({
+      where: { id: attempt.id },
+      data: { status: 'AUTO_SUBMITTED', submittedAt: new Date() },
+    });
+  }
+  return attempt;
 }
 
 /** Exported so QuestionsService can keep an assessment's maxMarks correct when a

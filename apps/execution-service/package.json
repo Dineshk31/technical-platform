@@ -1,0 +1,29 @@
+{
+  "name": "@technical-platform/execution-service",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Standalone code execution service — compiles/runs untrusted student code out-of-process from the main API (see docs/coding-engine.md).",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pg": "^8.23.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "oxlint": "^1.58.0",
+    "tsx": "^4.23.13",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.2"
+  }
+}

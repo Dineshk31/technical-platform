@@ -9,12 +9,16 @@ import {
   getAttemptDrafts,
   getAttemptStatus,
   getStudentQuestions,
+  pollSubmission,
+  runCode,
   saveAttemptDraft,
   submitAttempt,
   type AttemptStatusDto,
   type CodeDraftDto,
   type StudentQuestionDto,
   type StudentQuestionsResponse,
+  type SubmissionDetailDto,
+  type SubmissionStatus,
 } from '../lib/attempts-api';
 import { DifficultyBadge } from '../components/ApprovalBadge';
 
@@ -28,6 +32,24 @@ const MONACO_LANGUAGE_ID: Record<ProgrammingLanguageCode, string> = {
 };
 
 type SaveState = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
+
+const RUN_STATUS_LABELS: Record<SubmissionStatus, string> = {
+  PENDING: 'Queued…',
+  RUNNING: 'Running…',
+  ACCEPTED: 'Accepted — all public tests passed',
+  WRONG_ANSWER: 'Wrong Answer',
+  COMPILATION_ERROR: 'Compilation Error',
+  RUNTIME_ERROR: 'Runtime Error',
+  TIME_LIMIT_EXCEEDED: 'Time Limit Exceeded',
+  MEMORY_LIMIT_EXCEEDED: 'Memory Limit Exceeded',
+  INTERNAL_ERROR: 'Execution failed — please try again',
+};
+
+function statusPillClass(status: SubmissionStatus): string {
+  if (status === 'ACCEPTED') return 'pass';
+  if (status === 'PENDING' || status === 'RUNNING') return 'pending';
+  return 'fail';
+}
 
 function draftKey(questionId: string, language: string): string {
   return `${questionId}::${language}`;
@@ -97,6 +119,12 @@ export function StudentExamPage() {
   useEffect(() => {
     editedByKeyRef.current = editedByKey;
   }, [editedByKey]);
+
+  // ---- Phase 6: Run Code state (keyed by questionId::language, same as drafts) ----
+  const [runningByKey, setRunningByKey] = useState<Record<string, boolean>>({});
+  const [runResultByKey, setRunResultByKey] = useState<Record<string, SubmissionDetailDto>>({});
+  const [runErrorByKey, setRunErrorByKey] = useState<Record<string, string>>({});
+  const runAbortRef = useRef<Record<string, AbortController>>({});
 
   const clockOffsetRef = useRef(0); // serverNow - localNow, applied so a skewed client clock can't matter
 
@@ -209,6 +237,9 @@ export function StudentExamPage() {
   const currentSaveState: SaveState = currentKey
     ? (saveStateByKey[currentKey] ?? (draftsByKey.has(currentKey) ? 'saved' : 'idle'))
     : 'idle';
+  const currentRunning = currentKey ? (runningByKey[currentKey] ?? false) : false;
+  const currentRunResult = currentKey ? runResultByKey[currentKey] : undefined;
+  const currentRunError = currentKey ? runErrorByKey[currentKey] : undefined;
 
   function flushPending(key: string) {
     const timer = saveTimersRef.current[key];
@@ -280,6 +311,37 @@ export function StudentExamPage() {
     const starter = resolveStarterCode(currentQuestion, currentLanguage);
     setEditedByKey((prev) => ({ ...prev, [currentKey]: starter }));
     void persist(currentKey, currentQuestion.questionId, currentLanguage, starter);
+  }
+
+  async function handleRunCode() {
+    if (!attemptId || !currentQuestion || !currentLanguage || !currentKey) return;
+    if (runningByKey[currentKey]) return; // one in-flight run per question/language slot
+
+    // Cancel any still-polling previous run for this exact slot (rapid double-click
+    // guard beyond the disabled-button state, and avoids a stale poll overwriting a
+    // newer result if the user runs again before the first poll finishes).
+    runAbortRef.current[currentKey]?.abort();
+    const controller = new AbortController();
+    runAbortRef.current[currentKey] = controller;
+
+    setRunningByKey((prev) => ({ ...prev, [currentKey]: true }));
+    setRunErrorByKey((prev) => {
+      const next = { ...prev };
+      delete next[currentKey];
+      return next;
+    });
+
+    try {
+      const { submissionId } = await runCode(attemptId, currentQuestion.questionId, currentLanguage, currentCode);
+      const result = await pollSubmission(submissionId, { signal: controller.signal });
+      setRunResultByKey((prev) => ({ ...prev, [currentKey]: result }));
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      const message = err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Failed to run code';
+      setRunErrorByKey((prev) => ({ ...prev, [currentKey]: message }));
+    } finally {
+      setRunningByKey((prev) => ({ ...prev, [currentKey]: false }));
+    }
   }
 
   // Mark the initial question visited once questions load.
@@ -470,9 +532,14 @@ export function StudentExamPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <SaveIndicator state={currentSaveState} />
                   {isActive && (
-                    <button type="button" className="btn-secondary btn-small" onClick={handleReset}>
-                      Reset code
-                    </button>
+                    <>
+                      <button type="button" className="btn-small" onClick={() => void handleRunCode()} disabled={currentRunning}>
+                        {currentRunning ? 'Running…' : 'Run Code'}
+                      </button>
+                      <button type="button" className="btn-secondary btn-small" onClick={handleReset}>
+                        Reset code
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -500,7 +567,15 @@ export function StudentExamPage() {
                   }}
                 />
               </div>
-              <div className="exam-no-execution-note">Running and submitting code will be available in a later phase.</div>
+              {currentRunError && <div className="exam-run-status error">{currentRunError}</div>}
+              {currentRunResult && !currentRunning ? (
+                <RunResultsPanel result={currentRunResult} />
+              ) : (
+                <div className="exam-no-execution-note">
+                  Run Code checks your solution against this question's public test cases only. Grading against hidden
+                  test cases happens when you submit the assessment.
+                </div>
+              )}
             </div>
           </main>
         ) : (
@@ -511,6 +586,71 @@ export function StudentExamPage() {
           </main>
         )}
       </div>
+    </div>
+  );
+}
+
+function RunResultsPanel({ result }: { result: SubmissionDetailDto }) {
+  const compileFailed = result.status === 'COMPILATION_ERROR';
+  return (
+    <div className="exam-run-results">
+      <div className="exam-run-summary">
+        <span className={`exam-status-pill ${statusPillClass(result.status)}`}>{RUN_STATUS_LABELS[result.status]}</span>
+        {!compileFailed && (
+          <span style={{ color: 'var(--color-muted)' }}>
+            {result.testsPassed} / {result.testsTotal} public tests passed
+          </span>
+        )}
+        {result.runtimeMs !== null && <span style={{ color: 'var(--color-muted)' }}>{result.runtimeMs} ms</span>}
+      </div>
+
+      {compileFailed && result.errorMessage && (
+        <div className="exam-error-block">
+          <h4>Compilation Error</h4>
+          <pre>{result.errorMessage}</pre>
+        </div>
+      )}
+
+      {!compileFailed &&
+        result.testCases.map((tc, i) => (
+          <div key={i} className="exam-test-case">
+            <div className="exam-test-case-head">
+              <span>
+                {tc.passed ? '✓' : '✗'} Test Case {i + 1}
+              </span>
+              <span className="meta">
+                {tc.passed ? 'Passed' : RUN_STATUS_LABELS[tc.status]}
+                {tc.runtimeMs !== null ? ` · ${tc.runtimeMs} ms` : ''}
+              </span>
+            </div>
+            <div className="exam-test-case-body">
+              {tc.input !== undefined && (
+                <div className="exam-test-case-io">
+                  <strong>Input</strong>
+                  <pre>{tc.input}</pre>
+                </div>
+              )}
+              {tc.expectedOutput !== undefined && (
+                <div className="exam-test-case-io">
+                  <strong>Expected Output</strong>
+                  <pre>{tc.expectedOutput}</pre>
+                </div>
+              )}
+              {tc.actualOutput !== undefined && (
+                <div className="exam-test-case-io">
+                  <strong>Your Output</strong>
+                  <pre>{tc.actualOutput}</pre>
+                </div>
+              )}
+              {tc.errorMessage && (
+                <div className="exam-test-case-io">
+                  <strong>{tc.status === 'TIME_LIMIT_EXCEEDED' ? 'Details' : 'Runtime Error'}</strong>
+                  <pre>{tc.errorMessage}</pre>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
     </div>
   );
 }
