@@ -9,15 +9,18 @@ import {
   getAttemptDrafts,
   getAttemptStatus,
   getStudentQuestions,
+  getSubmissionHistory,
   pollSubmission,
   runCode,
   saveAttemptDraft,
   submitAttempt,
+  submitCode,
   type AttemptStatusDto,
   type CodeDraftDto,
   type StudentQuestionDto,
   type StudentQuestionsResponse,
   type SubmissionDetailDto,
+  type SubmissionHistoryItemDto,
   type SubmissionStatus,
 } from '../lib/attempts-api';
 import { DifficultyBadge } from '../components/ApprovalBadge';
@@ -125,6 +128,17 @@ export function StudentExamPage() {
   const [runResultByKey, setRunResultByKey] = useState<Record<string, SubmissionDetailDto>>({});
   const [runErrorByKey, setRunErrorByKey] = useState<Record<string, string>>({});
   const runAbortRef = useRef<Record<string, AbortController>>({});
+
+  // ---- Phase 7: Submit Solution state (graded — public + hidden tests) ----
+  const [submittingByKey, setSubmittingByKey] = useState<Record<string, boolean>>({});
+  const [submitResultByKey, setSubmitResultByKey] = useState<Record<string, SubmissionDetailDto>>({});
+  const [submitErrorByKey, setSubmitErrorByKey] = useState<Record<string, string>>({});
+  const submitAbortRef = useRef<Record<string, AbortController>>({});
+
+  // ---- Phase 7: submission history, keyed by questionId only (spans all languages) ----
+  const [historyByQuestion, setHistoryByQuestion] = useState<Record<string, SubmissionHistoryItemDto[]>>({});
+  const [historyOpenByQuestion, setHistoryOpenByQuestion] = useState<Record<string, boolean>>({});
+  const [historyLoadingByQuestion, setHistoryLoadingByQuestion] = useState<Record<string, boolean>>({});
 
   const clockOffsetRef = useRef(0); // serverNow - localNow, applied so a skewed client clock can't matter
 
@@ -240,6 +254,12 @@ export function StudentExamPage() {
   const currentRunning = currentKey ? (runningByKey[currentKey] ?? false) : false;
   const currentRunResult = currentKey ? runResultByKey[currentKey] : undefined;
   const currentRunError = currentKey ? runErrorByKey[currentKey] : undefined;
+  const currentSubmitting = currentKey ? (submittingByKey[currentKey] ?? false) : false;
+  const currentSubmitResult = currentKey ? submitResultByKey[currentKey] : undefined;
+  const currentSubmitError = currentKey ? submitErrorByKey[currentKey] : undefined;
+  const currentHistory = currentQuestion ? (historyByQuestion[currentQuestion.questionId] ?? []) : [];
+  const currentHistoryOpen = currentQuestion ? (historyOpenByQuestion[currentQuestion.questionId] ?? false) : false;
+  const currentHistoryLoading = currentQuestion ? (historyLoadingByQuestion[currentQuestion.questionId] ?? false) : false;
 
   function flushPending(key: string) {
     const timer = saveTimersRef.current[key];
@@ -341,6 +361,65 @@ export function StudentExamPage() {
       setRunErrorByKey((prev) => ({ ...prev, [currentKey]: message }));
     } finally {
       setRunningByKey((prev) => ({ ...prev, [currentKey]: false }));
+    }
+  }
+
+  async function loadHistory(questionId: string) {
+    if (!attemptId) return;
+    setHistoryLoadingByQuestion((prev) => ({ ...prev, [questionId]: true }));
+    try {
+      const items = await getSubmissionHistory(attemptId, questionId);
+      setHistoryByQuestion((prev) => ({ ...prev, [questionId]: items }));
+    } catch {
+      // Best-effort — the history panel just stays empty/stale; not worth a hard error banner.
+    } finally {
+      setHistoryLoadingByQuestion((prev) => ({ ...prev, [questionId]: false }));
+    }
+  }
+
+  function toggleHistory() {
+    if (!currentQuestion) return;
+    const questionId = currentQuestion.questionId;
+    const nowOpen = !currentHistoryOpen;
+    setHistoryOpenByQuestion((prev) => ({ ...prev, [questionId]: nowOpen }));
+    if (nowOpen) void loadHistory(questionId);
+  }
+
+  async function handleSubmitSolution() {
+    if (!attemptId || !currentQuestion || !currentLanguage || !currentKey) return;
+    if (submittingByKey[currentKey]) return; // one in-flight submission per question/language slot
+    if (
+      !window.confirm(
+        `Submit this solution for "${currentQuestion.title}"? It will be judged against all test cases (including hidden ones) and recorded in your submission history.`,
+      )
+    ) {
+      return;
+    }
+
+    // Same rapid-resubmit guard as Run Code: cancel any still-polling previous
+    // submission for this exact slot.
+    submitAbortRef.current[currentKey]?.abort();
+    const controller = new AbortController();
+    submitAbortRef.current[currentKey] = controller;
+
+    setSubmittingByKey((prev) => ({ ...prev, [currentKey]: true }));
+    setSubmitErrorByKey((prev) => {
+      const next = { ...prev };
+      delete next[currentKey];
+      return next;
+    });
+
+    try {
+      const { submissionId } = await submitCode(attemptId, currentQuestion.questionId, currentLanguage, currentCode);
+      const result = await pollSubmission(submissionId, { signal: controller.signal });
+      setSubmitResultByKey((prev) => ({ ...prev, [currentKey]: result }));
+      void loadHistory(currentQuestion.questionId);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      const message = err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Failed to submit solution';
+      setSubmitErrorByKey((prev) => ({ ...prev, [currentKey]: message }));
+    } finally {
+      setSubmittingByKey((prev) => ({ ...prev, [currentKey]: false }));
     }
   }
 
@@ -531,10 +610,21 @@ export function StudentExamPage() {
                 </select>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <SaveIndicator state={currentSaveState} />
+                  <button type="button" className="btn-secondary btn-small" onClick={toggleHistory}>
+                    {currentHistoryOpen ? 'Hide history' : 'Submission history'}
+                  </button>
                   {isActive && (
                     <>
                       <button type="button" className="btn-small" onClick={() => void handleRunCode()} disabled={currentRunning}>
                         {currentRunning ? 'Running…' : 'Run Code'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-submit btn-small"
+                        onClick={() => void handleSubmitSolution()}
+                        disabled={currentSubmitting}
+                      >
+                        {currentSubmitting ? 'Judging…' : 'Submit Solution'}
                       </button>
                       <button type="button" className="btn-secondary btn-small" onClick={handleReset}>
                         Reset code
@@ -567,14 +657,28 @@ export function StudentExamPage() {
                   }}
                 />
               </div>
+              {currentHistoryOpen && (
+                <SubmissionHistoryPanel
+                  items={currentHistory}
+                  loading={currentHistoryLoading}
+                  marks={currentQuestion.marks}
+                />
+              )}
+              {currentSubmitError && <div className="exam-run-status error">{currentSubmitError}</div>}
+              {currentSubmitResult && !currentSubmitting && (
+                <ExecutionResultPanel title="Submission Result" result={currentSubmitResult} marks={currentQuestion.marks} />
+              )}
               {currentRunError && <div className="exam-run-status error">{currentRunError}</div>}
               {currentRunResult && !currentRunning ? (
-                <RunResultsPanel result={currentRunResult} />
+                <ExecutionResultPanel title="Run Result" result={currentRunResult} />
               ) : (
-                <div className="exam-no-execution-note">
-                  Run Code checks your solution against this question's public test cases only. Grading against hidden
-                  test cases happens when you submit the assessment.
-                </div>
+                !currentSubmitResult && (
+                  <div className="exam-no-execution-note">
+                    Run Code checks your solution against this question's public test cases only. Submit Solution grades
+                    it against every test case, including hidden ones — your final result for this question comes from
+                    your best Submit, not from Run Code.
+                  </div>
+                )
               )}
             </div>
           </main>
@@ -590,15 +694,35 @@ export function StudentExamPage() {
   );
 }
 
-function RunResultsPanel({ result }: { result: SubmissionDetailDto }) {
+/**
+ * Renders one execution result — used for both Run (public tests only, never
+ * has isHidden=true rows) and Submit (public + hidden). Hidden rows never
+ * carry input/expectedOutput/actualOutput (the API's DTO structurally omits
+ * them — see docs/security.md §2), so this component naturally shows "Hidden
+ * Test — Passed/Failed" with no I/O panels for those rows without needing any
+ * isHidden-specific branching of its own.
+ */
+function ExecutionResultPanel({ title, result, marks }: { title: string; result: SubmissionDetailDto; marks?: number }) {
   const compileFailed = result.status === 'COMPILATION_ERROR';
+  const isGraded = result.kind === 'SUBMIT';
+  const publicCases = result.testCases.filter((tc) => !tc.isHidden);
+  const hiddenCases = result.testCases.filter((tc) => tc.isHidden);
   return (
     <div className="exam-run-results">
       <div className="exam-run-summary">
+        <strong style={{ fontSize: '0.8rem' }}>{title}</strong>
         <span className={`exam-status-pill ${statusPillClass(result.status)}`}>{RUN_STATUS_LABELS[result.status]}</span>
         {!compileFailed && (
           <span style={{ color: 'var(--color-muted)' }}>
-            {result.testsPassed} / {result.testsTotal} public tests passed
+            {result.testsPassed} / {result.testsTotal} tests passed
+            {hiddenCases.length > 0
+              ? ` (${publicCases.filter((tc) => tc.passed).length}/${publicCases.length} public, ${hiddenCases.filter((tc) => tc.passed).length}/${hiddenCases.length} hidden)`
+              : ''}
+          </span>
+        )}
+        {isGraded && marks !== undefined && (
+          <span style={{ color: 'var(--color-muted)', fontWeight: 600 }}>
+            Score: {result.score} / {marks}
           </span>
         )}
         {result.runtimeMs !== null && <span style={{ color: 'var(--color-muted)' }}>{result.runtimeMs} ms</span>}
@@ -616,7 +740,7 @@ function RunResultsPanel({ result }: { result: SubmissionDetailDto }) {
           <div key={i} className="exam-test-case">
             <div className="exam-test-case-head">
               <span>
-                {tc.passed ? '✓' : '✗'} Test Case {i + 1}
+                {tc.passed ? '✓' : '✗'} {tc.isHidden ? `Hidden Test ${i + 1}` : `Test Case ${i + 1}`}
               </span>
               <span className="meta">
                 {tc.passed ? 'Passed' : RUN_STATUS_LABELS[tc.status]}
@@ -651,6 +775,52 @@ function RunResultsPanel({ result }: { result: SubmissionDetailDto }) {
             </div>
           </div>
         ))}
+    </div>
+  );
+}
+
+const HISTORY_KIND_LABEL: Record<'RUN' | 'SUBMIT', string> = { RUN: 'Run', SUBMIT: 'Submit' };
+
+/** Safe-by-construction: SubmissionHistoryItemDto has no field for hidden test
+ * input/output/actual output — there is nothing here that could leak them. */
+function SubmissionHistoryPanel({ items, loading, marks }: { items: SubmissionHistoryItemDto[]; loading: boolean; marks: number }) {
+  return (
+    <div className="exam-run-results exam-history-panel">
+      <strong style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>Submission history</strong>
+      {loading && <p style={{ color: 'var(--color-muted)', fontSize: '0.82rem' }}>Loading…</p>}
+      {!loading && items.length === 0 && (
+        <p style={{ color: 'var(--color-muted)', fontSize: '0.82rem' }}>No runs or submissions yet for this question.</p>
+      )}
+      {!loading && items.length > 0 && (
+        <table className="exam-history-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Language</th>
+              <th>Verdict</th>
+              <th>Tests</th>
+              <th>Score</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td>{HISTORY_KIND_LABEL[item.kind]}</td>
+                <td>{item.language}</td>
+                <td>
+                  <span className={`exam-status-pill ${statusPillClass(item.status)}`}>{RUN_STATUS_LABELS[item.status]}</span>
+                </td>
+                <td>
+                  {item.testsPassed}/{item.testsTotal}
+                </td>
+                <td>{item.kind === 'SUBMIT' ? `${item.score}/${marks}` : '—'}</td>
+                <td>{new Date(item.createdAt).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

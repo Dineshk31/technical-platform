@@ -24,9 +24,35 @@ export class SubmissionsController {
     return this.submissions.runCode(user.id, attemptId, questionId, body);
   }
 
+  // Phase 7 — final judging against public + hidden test cases. Same body shape
+  // as Run (language + code), same async accept-and-poll flow.
+  @Roles('STUDENT')
+  @Post('attempts/:attemptId/questions/:questionId/submit')
+  @HttpCode(HttpStatus.ACCEPTED)
+  submitCode(
+    @Param('attemptId') attemptId: string,
+    @Param('questionId') questionId: string,
+    @Body(new ZodValidationPipe(RunCodeSchema)) body: RunCodeInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.submissions.submitCode(user.id, attemptId, questionId, body);
+  }
+
   @Roles('STUDENT', 'ADMIN')
   @Get('submissions/:id')
   getSubmission(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.submissions.getSubmission(user, id);
+  }
+
+  // Phase 7 — safe submission history (both RUN and SUBMIT rows) for one
+  // question within one attempt. Attempt-scoped for the same reason as run/submit.
+  @Roles('STUDENT', 'ADMIN')
+  @Get('attempts/:attemptId/questions/:questionId/submissions')
+  getSubmissionHistory(
+    @Param('attemptId') attemptId: string,
+    @Param('questionId') questionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.submissions.getSubmissionHistory(user, attemptId, questionId);
   }
 }

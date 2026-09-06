@@ -139,6 +139,31 @@ export function runCode(attemptId: string, questionId: string, language: Program
   );
 }
 
+// ---- Phase 7: Submit Solution (public + hidden test cases, graded) ----
+
+export function submitCode(attemptId: string, questionId: string, language: ProgrammingLanguageCode, code: string) {
+  return apiFetch<{ submissionId: string; status: SubmissionStatus; testsTotal: number }>(
+    `/attempts/${attemptId}/questions/${questionId}/submit`,
+    { method: 'POST', body: JSON.stringify({ language, code }) },
+  );
+}
+
+export interface SubmissionHistoryItemDto {
+  id: string;
+  kind: 'RUN' | 'SUBMIT';
+  language: ProgrammingLanguageCode;
+  status: SubmissionStatus;
+  score: number;
+  testsPassed: number;
+  testsTotal: number;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export function getSubmissionHistory(attemptId: string, questionId: string) {
+  return apiFetch<SubmissionHistoryItemDto[]>(`/attempts/${attemptId}/questions/${questionId}/submissions`);
+}
+
 export function getSubmission(submissionId: string) {
   return apiFetch<SubmissionDetailDto>(`/submissions/${submissionId}`);
 }
