@@ -7,6 +7,7 @@ export * from './schemas/assessment.schema.js';
 export * from './schemas/question.schema.js';
 export * from './schemas/draft.schema.js';
 export * from './schemas/execution.schema.js';
+export * from './schemas/result.schema.js';
 export * from './types/auth.types.js';
 export * from './types/api-error.types.js';
 export * from './types/pagination.types.js';

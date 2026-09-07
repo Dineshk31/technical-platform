@@ -24,6 +24,7 @@ import {
   type SubmissionStatus,
 } from '../lib/attempts-api';
 import { DifficultyBadge } from '../components/ApprovalBadge';
+import { statusPillClass } from '../lib/verdict';
 
 const STATUS_POLL_MS = 15_000;
 const SAVE_DEBOUNCE_MS = 1500;
@@ -47,12 +48,6 @@ const RUN_STATUS_LABELS: Record<SubmissionStatus, string> = {
   MEMORY_LIMIT_EXCEEDED: 'Memory Limit Exceeded',
   INTERNAL_ERROR: 'Execution failed — please try again',
 };
-
-function statusPillClass(status: SubmissionStatus): string {
-  if (status === 'ACCEPTED') return 'pass';
-  if (status === 'PENDING' || status === 'RUNNING') return 'pending';
-  return 'fail';
-}
 
 function draftKey(questionId: string, language: string): string {
   return `${questionId}::${language}`;
@@ -474,9 +469,16 @@ export function StudentExamPage() {
               {submitting ? 'Submitting…' : 'Submit assessment'}
             </button>
           ) : (
-            <Link to="/student">
-              <button className="btn-secondary">Back to dashboard</button>
-            </Link>
+            <>
+              {attemptId && (
+                <Link to={`/student/attempts/${attemptId}/result`}>
+                  <button className="btn-secondary">View result</button>
+                </Link>
+              )}
+              <Link to="/student">
+                <button className="btn-secondary">Back to dashboard</button>
+              </Link>
+            </>
           )}
         </div>
       </div>

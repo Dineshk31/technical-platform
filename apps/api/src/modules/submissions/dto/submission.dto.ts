@@ -1,3 +1,5 @@
+import { isGradedAcceptance } from '../../scoring/scoring.util.js';
+
 type TestResultWithCase = {
   testCaseId: string;
   isHidden: boolean;
@@ -51,7 +53,7 @@ export function toSubmissionDetail(submission: SubmissionWithResults, marks: num
     kind: submission.kind,
     language: submission.language,
     status: submission.status,
-    score: submission.kind === 'SUBMIT' && submission.status === 'ACCEPTED' ? marks : 0,
+    score: isGradedAcceptance(submission.kind, submission.status) ? marks : 0,
     testsPassed: submission.testsPassed,
     testsTotal: submission.testsTotal,
     runtimeMs: submission.runtimeMs,
@@ -101,7 +103,7 @@ export function toSubmissionSummary(submission: SubmissionSummarySource, marks: 
     kind: submission.kind,
     language: submission.language,
     status: submission.status,
-    score: submission.kind === 'SUBMIT' && submission.status === 'ACCEPTED' ? marks : 0,
+    score: isGradedAcceptance(submission.kind, submission.status) ? marks : 0,
     testsPassed: submission.testsPassed,
     testsTotal: submission.testsTotal,
     createdAt: submission.createdAt,

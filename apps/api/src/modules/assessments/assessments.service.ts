@@ -13,6 +13,7 @@ import type {
 } from '@technical-platform/shared';
 import { Prisma, type Attempt } from '../../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { finalizeAttempt } from '../results/results.service.js';
 import { toAdminAssessmentDetail, toAdminAssessmentListItem, toNum, toStudentAssessmentDetail, toStudentAssignedListItem } from './dto/assessment.dto.js';
 import { computeEffectiveStatus } from './utils/assessment-status.util.js';
 
@@ -574,9 +575,12 @@ export class AssessmentsService {
     };
   }
 
-  /** Early finish — a lifecycle transition only. No score is computed here: with no code
-   * execution or MCQs built yet (Phases 5/11), there is nothing to score. Full finalization
-   * (docs/assessment-system.md §5, ResultsService) is Phase 8. */
+  /** Early finish, requested by the student before time expires. The actual
+   * status transition + score computation is delegated to
+   * `ResultsService.finalizeAttempt` (Phase 8, docs/assessment-system.md §5) —
+   * this method's own job is just the ownership/freshness/state checks that
+   * produce the right 404/409 before finalizing, exactly as every other
+   * attempt-scoped write in this service does. */
   async submitAttempt(studentId: string, assessmentId: string) {
     const attempt = await this.prisma.attempt.findUnique({
       where: { assessmentId_userId: { assessmentId, userId: studentId } },
@@ -586,10 +590,8 @@ export class AssessmentsService {
     if (fresh.status !== 'IN_PROGRESS') {
       throw new ConflictException('This attempt has already been finalized');
     }
-    const updated = await this.prisma.attempt.update({
-      where: { id: fresh.id },
-      data: { status: 'SUBMITTED', submittedAt: new Date() },
-    });
+    await finalizeAttempt(this.prisma, fresh.id, 'MANUAL');
+    const updated = await this.prisma.attempt.findUniqueOrThrow({ where: { id: fresh.id } });
     return { id: updated.id, status: updated.status, submittedAt: updated.submittedAt };
   }
 

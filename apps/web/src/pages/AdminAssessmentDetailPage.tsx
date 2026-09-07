@@ -75,6 +75,11 @@ export function AdminAssessmentDetailPage() {
       {actionError && <p className="form-error">{actionError}</p>}
 
       <div className="action-row">
+        {!isDraft && (
+          <Link to={`/admin/assessments/${assessment.id}/results`}>
+            <button className="btn-secondary">View results</button>
+          </Link>
+        )}
         {isDraft && (
           <button onClick={() => void runAction(() => publishAssessment(assessment.id))}>Publish</button>
         )}

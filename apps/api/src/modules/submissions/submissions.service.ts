@@ -2,7 +2,7 @@ import { ConflictException, HttpException, HttpStatus, Injectable, NotFoundExcep
 import { ConfigService } from '@nestjs/config';
 import type { AuthenticatedUser, RunCodeInput } from '@technical-platform/shared';
 import { ensureAttemptFreshness } from '../assessments/assessments.service.js';
-import { toNum } from '../assessments/dto/assessment.dto.js';
+import { resolveQuestionMarks } from '../scoring/scoring.util.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ExecutionClientService } from '../execution-client/execution-client.service.js';
 import { toSubmissionDetail, toSubmissionSummary } from './dto/submission.dto.js';
@@ -222,14 +222,15 @@ export class SubmissionsService {
   }
 
   /**
-   * The marks this question is worth *in this specific assessment*
-   * (assessmentQuestion.marksOverride, falling back to questions.marks) —
-   * looked up here rather than trusted from anywhere upstream, and only ever
-   * for SUBMIT kind, since Run is never graded. This is deliberately computed
-   * by the API at read time rather than written by execution-service: the
-   * execution-service's restricted DB role has no grant on `questions`
-   * (see docs/security.md §4), so it structurally cannot know a question's
-   * marks — scoring-by-marks has to happen on this side of that boundary.
+   * The marks this question is worth *in this specific assessment*, via the
+   * single shared `resolveQuestionMarks` rule (also used by Phase 8's
+   * ResultsService — see `scoring/scoring.util.ts`) — looked up here rather
+   * than trusted from anywhere upstream, and only ever for SUBMIT kind, since
+   * Run is never graded. This is deliberately computed by the API at read
+   * time rather than written by execution-service: the execution-service's
+   * restricted DB role has no grant on `questions` (see docs/security.md §4),
+   * so it structurally cannot know a question's marks — scoring-by-marks has
+   * to happen on this side of that boundary.
    */
   private async getEffectiveMarks(assessmentId: string, questionId: string): Promise<number> {
     const assessmentQuestion = await this.prisma.assessmentQuestion.findFirst({
@@ -237,6 +238,6 @@ export class SubmissionsService {
       include: { question: { select: { marks: true } } },
     });
     if (!assessmentQuestion) return 0;
-    return toNum(assessmentQuestion.marksOverride ?? assessmentQuestion.question.marks);
+    return resolveQuestionMarks(assessmentQuestion.marksOverride, assessmentQuestion.question.marks);
   }
 }

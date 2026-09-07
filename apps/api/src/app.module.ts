@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { validateEnv } from './config/env.schema.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
@@ -11,6 +12,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { AssessmentsModule } from './modules/assessments/assessments.module.js';
 import { QuestionsModule } from './modules/questions/questions.module.js';
 import { SubmissionsModule } from './modules/submissions/submissions.module.js';
+import { ResultsModule } from './modules/results/results.module.js';
 
 @Module({
   imports: [
@@ -19,6 +21,9 @@ import { SubmissionsModule } from './modules/submissions/submissions.module.js';
     // `node dist/main.js` from apps/api) — the same file the Prisma CLI reads by
     // default, so there is exactly one .env for the API to keep in sync.
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Phase 8 — powers ExpirySweepService's `@Cron` (docs/assessment-system.md
+    // §3, mechanism 2). In-process only, no external scheduler/broker.
+    ScheduleModule.forRoot(),
     PrismaModule,
     HealthModule,
     AuthModule,
@@ -26,6 +31,7 @@ import { SubmissionsModule } from './modules/submissions/submissions.module.js';
     AssessmentsModule,
     QuestionsModule,
     SubmissionsModule,
+    ResultsModule,
   ],
   providers: [
     // Order matters: JwtAuthGuard establishes req.user first, RolesGuard then checks it.

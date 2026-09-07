@@ -79,9 +79,16 @@ export function StudentAssessmentDetailPage() {
         {error && <p className="form-error">{error}</p>}
 
         {existingAttemptId ? (
-          <Link to={`/student/attempts/${existingAttemptId}`}>
-            <button>Resume assessment</button>
-          </Link>
+          <div className="action-row">
+            <Link to={`/student/attempts/${existingAttemptId}`}>
+              <button>{assessment.status === 'ACTIVE' ? 'Resume assessment' : 'Review assessment'}</button>
+            </Link>
+            {(assessment.status === 'COMPLETED' || assessment.status === 'ARCHIVED') && (
+              <Link to={`/student/attempts/${existingAttemptId}/result`}>
+                <button className="btn-secondary">View result</button>
+              </Link>
+            )}
+          </div>
         ) : assessment.status === 'ACTIVE' ? (
           <button onClick={() => void handleStart()} disabled={starting}>
             {starting ? 'Starting…' : 'Start assessment'}
