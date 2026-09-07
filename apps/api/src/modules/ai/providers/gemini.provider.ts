@@ -10,7 +10,11 @@ import {
   type AIProviderResult,
 } from '@technical-platform/shared';
 
-const TIMEOUT_MS = 20_000;
+// A full coding-question batch (examples, public+hidden test cases, reference
+// solutions, starter templates) is a large structured-output payload — measured
+// ~35s for a real single-question generation against the live API, so a shorter
+// timeout just wasted retries on requests that were still succeeding, only slowly.
+const TIMEOUT_MS = 60_000;
 const MAX_ATTEMPTS = 3; // 1 initial + 2 retries, per docs/ai-integration.md §3
 const RETRY_BASE_DELAY_MS = 500;
 // Raw response text is stored for audit only (never trusted, never shown to students);
@@ -35,7 +39,7 @@ export class GeminiProvider implements AIProvider {
 
   constructor(config: ConfigService) {
     const apiKey = config.get<string>('GEMINI_API_KEY');
-    this.model = config.get<string>('GEMINI_MODEL') ?? 'gemini-2.5-flash';
+    this.model = config.get<string>('GEMINI_MODEL') ?? 'gemini-3.6-flash';
     this.client = apiKey ? new GoogleGenAI({ apiKey }) : null;
   }
 

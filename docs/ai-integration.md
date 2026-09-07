@@ -61,7 +61,10 @@ QuestionGenerationService.generate(adminId, request)
         → GeminiProvider builds the prompt (see §4), calls Gemini with
           responseMimeType: "application/json" and an explicit JSON schema (Gemini
           structured output mode — the model is constrained to the schema at generation
-          time, which is the first validation layer), wraps the call with timeout (20s),
+          time, which is the first validation layer), wraps the call with timeout (60s —
+          a full batch's structured output, including test cases and reference solutions,
+          measured ~35s for a single question against the live API, so a shorter timeout
+          wasted retries on slow-but-succeeding calls),
           retry (up to 2 retries, exponential backoff on 429/5xx only, never on 4xx client
           errors), and structured logging of latency/outcome
     5. Re-validate every returned candidate against AIGeneratedCodingQuestionSchema (Zod) —

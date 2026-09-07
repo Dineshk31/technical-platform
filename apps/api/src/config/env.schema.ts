@@ -33,7 +33,7 @@ export const EnvSchema = z.object({
   // An empty string (e.g. `GEMINI_API_KEY=` left blank in .env) is treated the same as
   // unset, since dotenv parses a blank assignment as `''`, not `undefined`.
   GEMINI_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
-  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+  GEMINI_MODEL: z.string().min(1).default('gemini-3.6-flash'),
   // Per-admin throttle on POST /ai/questions/generate (docs/security.md §7), independent
   // of the identical-request dedupe window in QuestionGenerationService.
   AI_GENERATION_RATE_LIMIT_MS: z.coerce.number().int().nonnegative().default(3000),
