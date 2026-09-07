@@ -69,6 +69,7 @@ export interface ListQuestionsParams {
   topic?: string;
   approvalStatus?: string;
   language?: string;
+  source?: string;
 }
 
 function toQueryString(params: ListQuestionsParams): string {

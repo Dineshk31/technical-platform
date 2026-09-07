@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CODING_TOPICS, DIFFICULTY_LEVELS, APPROVAL_STATUS_CODES } from '@technical-platform/shared';
+import { CODING_TOPICS, DIFFICULTY_LEVELS, APPROVAL_STATUS_CODES, QUESTION_SOURCE_CODES } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { listQuestions, type QuestionListItem } from '../lib/questions-api';
 import { ApprovalBadge, DifficultyBadge } from '../components/ApprovalBadge';
@@ -11,6 +11,7 @@ export function AdminQuestionBankPage() {
   const [difficulty, setDifficulty] = useState('');
   const [topic, setTopic] = useState('');
   const [approvalStatus, setApprovalStatus] = useState('');
+  const [source, setSource] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +24,7 @@ export function AdminQuestionBankPage() {
         difficulty: difficulty || undefined,
         topic: topic || undefined,
         approvalStatus: approvalStatus || undefined,
+        source: source || undefined,
         pageSize: 50,
       });
       setQuestions(result.data);
@@ -36,7 +38,7 @@ export function AdminQuestionBankPage() {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty, topic, approvalStatus]);
+  }, [difficulty, topic, approvalStatus, source]);
 
   return (
     <div className="dashboard-body">
@@ -46,9 +48,14 @@ export function AdminQuestionBankPage() {
 
       <div className="page-header">
         <h1 style={{ margin: 0 }}>Question Bank</h1>
-        <Link to="/admin/questions/new">
-          <button>Create question</button>
-        </Link>
+        <div className="action-row" style={{ marginBottom: 0 }}>
+          <Link to="/admin/questions/ai-generate">
+            <button className="btn-secondary">Generate with AI</button>
+          </Link>
+          <Link to="/admin/questions/new">
+            <button>Create question</button>
+          </Link>
+        </div>
       </div>
 
       <div className="card">
@@ -79,6 +86,14 @@ export function AdminQuestionBankPage() {
           <select value={approvalStatus} onChange={(e) => setApprovalStatus(e.target.value)}>
             <option value="">All statuses</option>
             {APPROVAL_STATUS_CODES.map((s) => (
+              <option key={s} value={s}>
+                {s.replace('_', ' ')}
+              </option>
+            ))}
+          </select>
+          <select value={source} onChange={(e) => setSource(e.target.value)}>
+            <option value="">All sources</option>
+            {QUESTION_SOURCE_CODES.map((s) => (
               <option key={s} value={s}>
                 {s.replace('_', ' ')}
               </option>

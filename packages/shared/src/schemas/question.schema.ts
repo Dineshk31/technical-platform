@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { APPROVAL_STATUS_CODES, CODING_TOPICS, DIFFICULTY_LEVELS, PROGRAMMING_LANGUAGES } from '../enums/question.enum.js';
+import {
+  APPROVAL_STATUS_CODES,
+  CODING_TOPICS,
+  DIFFICULTY_LEVELS,
+  PROGRAMMING_LANGUAGES,
+  QUESTION_SOURCE_CODES,
+} from '../enums/question.enum.js';
 
 const ExampleSchema = z.object({
   input: z.string().trim().min(1).max(5000),
@@ -7,7 +13,7 @@ const ExampleSchema = z.object({
   explanation: z.string().trim().max(5000).optional(),
 });
 
-const TestCaseInputSchema = z.object({
+export const TestCaseInputSchema = z.object({
   input: z.string().min(1).max(20000),
   expectedOutput: z.string().min(1).max(20000),
 });
@@ -28,7 +34,10 @@ const ReferenceSolutionsSchema = languageCodeMapSchema('Reference solution');
 // generic per-language template (packages/shared/src/utils/starter-templates.ts).
 const StarterTemplatesSchema = languageCodeMapSchema('Starter template');
 
-const CodingQuestionFieldsSchema = z.object({
+// Exported so the AI generation schema (schemas/ai.schema.ts) can extend the exact
+// same field set instead of redefining it — one definition, not two that could drift
+// (docs/ai-integration.md §5).
+export const CodingQuestionFieldsSchema = z.object({
   title: z.string().trim().min(1).max(200),
   problemStatement: z.string().trim().min(1).max(20000),
   inputFormat: z.string().trim().min(1).max(5000),
@@ -71,6 +80,7 @@ export const ListQuestionsQuerySchema = z.object({
   topic: z.enum(CODING_TOPICS).optional(),
   approvalStatus: z.enum(APPROVAL_STATUS_CODES).optional(),
   language: z.enum(PROGRAMMING_LANGUAGES).optional(),
+  source: z.enum(QUESTION_SOURCE_CODES).optional(),
 });
 export type ListQuestionsQueryInput = z.infer<typeof ListQuestionsQuerySchema>;
 

@@ -62,12 +62,24 @@ Student-facing question read is never a direct `/questions/:id` call — student
 
 ## 5. AI Question Generation
 
+**Implemented as a strict preview-before-save workflow** (built in Phase 9) — a
+deliberate refinement of this section's original sketch, which described
+`generate` inserting directly into `questions`. Nothing is ever written to
+`questions`/`coding_questions` until the admin calls `save` explicitly with the
+drafts they selected (edited or not); `generate` only writes an audit row to
+`ai_generation_requests` (prompt, raw response, validated drafts, per-item
+validation failures). See `ai-integration.md` §3/§8 for the full flow.
+
 | Method | Path | Role | Description |
 |---|---|---|---|
-| POST | `/ai/questions/generate` | ADMIN | body: `{ sectionType: "CODING", topic, difficulty, count, language?, marks?, timeLimit?, memoryLimit? }`. Synchronously calls Gemini (small batch, admin-facing, acceptable latency), validates output against the shared Zod schema, inserts rows into `questions`/`coding_questions`/... with `approval_status = PENDING_REVIEW`, and returns the created question IDs + an `ai_generation_requests.id`. |
-| GET | `/ai/questions/requests/:id` | ADMIN | status/result of a generation request (useful if the frontend polls instead of waiting on the synchronous call) |
-| GET | `/ai/questions/pending` | ADMIN | shorthand for `GET /questions?source=AI_GENERATED&status=PENDING_REVIEW` |
-| POST | `/ai/questions/:id/regenerate` | ADMIN | re-runs generation with the same parameters, replacing the pending question (keeps `ai_generation_requests` history) |
+| POST | `/ai/questions/generate` | ADMIN | body: `{ topic, difficulty, language, count, concepts?, additionalInstructions?, marks?, timeLimitSeconds?, memoryLimitMb? }`. Synchronously calls Gemini (small batch, admin-facing, acceptable latency), re-validates every candidate against the shared Zod schema (`AIGeneratedCodingQuestionSchema`), and returns a **preview**: `{ requestId, generated: [...], failed: [{ index, issues }] }`. No `questions` row is created by this call. |
+| GET | `/ai/questions/requests/:id` | ADMIN | re-fetches a stored preview (the validated drafts + failures persisted on the `ai_generation_requests` row) — lets the admin reload the review page without re-calling Gemini. |
+| POST | `/ai/questions/requests/:id/save` | ADMIN | body: `{ questions: CreateCodingQuestionInput[] }` — the admin's selected (and optionally edited) drafts. Each one is validated and inserted exactly as a manually created question would be (`QuestionsService.create`), with `source = AI_GENERATED`, `approval_status = PENDING_REVIEW`, and `ai_generation_request_id` set. Returns the created question IDs. This is the **only** endpoint that ever writes an AI-originated row into `questions`. |
+
+Per-admin request throttling (`AI_GENERATION_RATE_LIMIT_MS`) and an identical-request
+dedupe window (60s) both guard `generate`; a deduped request returns the prior
+`ai_generation_requests` result without calling Gemini again and is therefore never
+rate-limited itself — see `ai-integration.md` §6.
 
 This is the **only** module allowed to call Gemini — see `ai-integration.md`.
 

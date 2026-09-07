@@ -26,6 +26,17 @@ export const EnvSchema = z.object({
   // Per docs/security.md §7 — no more than one Run/Submit per student per question
   // within this window, to stop a scripted flood from starving the execution queue.
   RUN_RATE_LIMIT_MS: z.coerce.number().int().nonnegative().default(2000),
+
+  // Phase 9 — AI question generation (docs/ai-integration.md). Optional and unvalidated
+  // beyond non-emptiness: a deployment that hasn't set up Gemini yet should still boot;
+  // GeminiProvider reports AI_PROVIDER_NOT_CONFIGURED per-request instead of failing here.
+  // An empty string (e.g. `GEMINI_API_KEY=` left blank in .env) is treated the same as
+  // unset, since dotenv parses a blank assignment as `''`, not `undefined`.
+  GEMINI_API_KEY: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(1).optional()),
+  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+  // Per-admin throttle on POST /ai/questions/generate (docs/security.md §7), independent
+  // of the identical-request dedupe window in QuestionGenerationService.
+  AI_GENERATION_RATE_LIMIT_MS: z.coerce.number().int().nonnegative().default(3000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

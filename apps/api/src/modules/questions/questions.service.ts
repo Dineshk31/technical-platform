@@ -7,7 +7,7 @@ import type {
   UpdateCodingQuestionInput,
   UpdateTestCaseInput,
 } from '@technical-platform/shared';
-import { Prisma, type ProgrammingLanguage } from '../../../generated/prisma/index.js';
+import { Prisma, type ProgrammingLanguage, type QuestionSource } from '../../../generated/prisma/index.js';
 import { recomputeMaxMarks } from '../assessments/assessments.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { toAdminQuestionDetail, toAdminQuestionListItem } from './dto/question.dto.js';
@@ -30,7 +30,11 @@ const LIST_INCLUDE = {
 export class QuestionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(adminId: string, input: CreateCodingQuestionInput) {
+  async create(
+    adminId: string,
+    input: CreateCodingQuestionInput,
+    options?: { source?: QuestionSource; aiGenerationRequestId?: string },
+  ) {
     const referenceSolutionEntries = Object.entries(input.referenceSolutions);
     const starterTemplateEntries = Object.entries(input.starterTemplates);
 
@@ -42,10 +46,11 @@ export class QuestionsService {
         topics: input.topics,
         tags: input.tags,
         marks: input.marks,
-        source: 'MANUAL',
-        // Manually authored questions still go through review before they can be
-        // attached to an assessment (AssessmentsService.attachQuestion requires
-        // APPROVED) — see docs/question-system.md §2 and this phase's approval workflow.
+        source: options?.source ?? 'MANUAL',
+        aiGenerationRequestId: options?.aiGenerationRequestId,
+        // Manually authored (and AI-generated) questions alike go through review
+        // before they can be attached to an assessment (AssessmentsService.attachQuestion
+        // requires APPROVED) — see docs/question-system.md §2/§4.
         approvalStatus: 'PENDING_REVIEW',
         createdById: adminId,
         codingQuestion: {
@@ -103,6 +108,7 @@ export class QuestionsService {
       ...(query.topic ? { topics: { has: query.topic } } : {}),
       ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
       ...(query.language ? { codingQuestion: { languages: { some: { language: query.language } } } } : {}),
+      ...(query.source ? { source: query.source } : {}),
     };
 
     const [items, total] = await Promise.all([

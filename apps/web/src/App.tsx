@@ -7,6 +7,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminAssessmentDetailPage } from './pages/AdminAssessmentDetailPage';
 import { AdminQuestionBankPage } from './pages/AdminQuestionBankPage';
 import { AdminQuestionFormPage } from './pages/AdminQuestionFormPage';
+import { AdminAIGeneratorPage } from './pages/AdminAIGeneratorPage';
 import { AdminResultsPage } from './pages/AdminResultsPage';
 import { AdminResultDetailPage } from './pages/AdminResultDetailPage';
 import { StudentDashboardPage } from './pages/StudentDashboardPage';
@@ -57,6 +58,14 @@ export default function App() {
         element={
           <ProtectedRoute allow={['ADMIN']}>
             <AdminQuestionFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/questions/ai-generate"
+        element={
+          <ProtectedRoute allow={['ADMIN']}>
+            <AdminAIGeneratorPage />
           </ProtectedRoute>
         }
       />

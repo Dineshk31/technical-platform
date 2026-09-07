@@ -31,21 +31,29 @@ Difficulty is a strict enum (`EASY`/`MEDIUM`/`HARD`) since scoring/filtering log
 ## 4. AI-generated question workflow
 
 ```
-Admin selects: section=Coding, topic=Dynamic Programming, difficulty=MEDIUM, count=5
+Admin selects: topic=Dynamic Programming, difficulty=MEDIUM, language=PYTHON, count=5
         │
         ▼
+POST /ai/questions/generate
 QuestionGenerationService → AIProvider (GeminiProvider)
-        │  (structured JSON, validated against shared Zod schema)
+        │  (structured JSON, re-validated against shared Zod schema)
         ▼
-ai_generation_requests row (status, raw_response, prompt_snapshot)
-        │  for each valid item:
+ai_generation_requests row (status, raw_response = {drafts, failed}, prompt_snapshot)
+        │
+        ▼
+PREVIEW response: { requestId, generated: [...], failed: [...] } — nothing in
+`questions` yet. Admin UI shows each draft for review/edit/discard.
+        │  admin selects which drafts to keep (editing any field first, if desired)
+        ▼
+POST /ai/questions/requests/:requestId/save   { questions: [...] }
+        │  for each selected draft, via the SAME QuestionsService.create() manual
+        │  questions use:
         ▼
 questions + coding_questions (+ test_cases + reference_solutions)
-   approval_status = PENDING_REVIEW, source = AI_GENERATED
+   approval_status = PENDING_REVIEW, source = AI_GENERATED, ai_generation_request_id set
         │
         ▼
 Admin Review UI  ──edit──▶ PATCH /questions/:id
-                 ──regenerate──▶ POST /ai/questions/:id/regenerate
                  ──reject──▶ POST /questions/:id/review {status: REJECTED}
                  ──approve──▶ POST /questions/:id/review {status: APPROVED}
         │
@@ -53,11 +61,11 @@ Admin Review UI  ──edit──▶ PATCH /questions/:id
 Question Bank (approval_status = APPROVED) ──▶ attachable to any assessment
 ```
 
-**A generated question is never directly usable in an exam.** `assessment_questions` insertion (`POST /assessments/:id/sections/:sectionId/questions`) is rejected with `422` if the target question's `approval_status !== APPROVED`, regardless of source — this one check is what makes the "AI output can't become a live exam question" rule impossible to bypass, rather than relying on the admin UI to hide the option.
+**A generated question is never directly usable in an exam — and isn't even in the question bank until explicitly saved.** Two independent gates enforce this: (1) `save` is the only code path that ever inserts an AI-originated row into `questions`, and it happens only in direct response to that explicit admin action; (2) even after saving, `assessment_questions` insertion (`POST /assessments/:id/sections/:sectionId/questions`) is rejected with `422` if the target question's `approval_status !== APPROVED`, regardless of source — this second check is what makes "AI output can't become a live exam question" impossible to bypass even if the first gate were ever weakened, rather than relying on the admin UI alone.
 
-Every field of a generated question — including test cases and the reference solution — is editable through the same `PATCH /questions/:id` endpoint used for manual questions; there is no separate "AI question" edit form, which keeps the codebase from forking question-editing logic by source.
+Every field of a generated question — including test cases and the reference solution — is editable, both before saving (directly in the preview) and after saving through the same `PATCH /questions/:id` endpoint used for manual questions; there is no separate "AI question" edit form, which keeps the codebase from forking question-editing logic by source.
 
-Malformed Gemini output (fails Zod validation) never reaches the `questions` table at all: `ai_generation_requests.status` is set to `FAILED` with `error_message`, and nothing is inserted. See `ai-integration.md` for validation details.
+Malformed Gemini output (fails Zod validation) never becomes a saveable draft: it's excluded from `generated` and reported in `failed: [{ index, issues }]` in the preview response instead, and `ai_generation_requests.status` is `FAILED` only when *every* candidate in the batch failed validation (a partial success — e.g. 4 of 5 valid — is `SUCCESS` with one entry in `failed`). See `ai-integration.md` for validation details.
 
 ## 5. Technical MCQ model
 

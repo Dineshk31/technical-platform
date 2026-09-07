@@ -35,7 +35,7 @@ This is an **examination system**, not a learning platform. Every architectural 
 | Frontend | **React 18 + TypeScript + Vite**, TanStack Query (server state), React Router, Tailwind CSS | Vite gives fast dev iteration; TanStack Query removes hand-rolled loading/error/cache state for API calls; Tailwind keeps a "serious university platform" look consistent without a heavy design-system dependency. |
 | Code editor | **Monaco Editor** (the engine behind VS Code) | Industry-standard choice for competitive-programming-style editors (syntax highlighting, line numbers, multi-language support) without building an editor from scratch. |
 | Code execution | Standalone **execution-service** (separate Node/TS process), local-process sandboxing (no Docker) | See `coding-engine.md`. Kept as its own deployable unit from day one so it can be replaced by a real sandbox/remote judge later without touching the API. |
-| AI | Google **Gemini API** via `@google/generative-ai`, wrapped behind an `AIProvider` interface | See `ai-integration.md`. |
+| AI | Google **Gemini API** via `@google/genai`, wrapped behind an `AIProvider` interface | See `ai-integration.md`. |
 | Monorepo tooling | **npm workspaces** | Already available with the installed npm 10 — no extra dependency (Turborepo/Nx/pnpm) is justified for a 3-app monorepo at this stage. |
 | Testing | **Vitest** (unit) + **Supertest** (API integration) | Vitest is TS-native and fast; reusing it across `apps/api`, `apps/execution-service`, and `apps/web` avoids a second test runner. |
 | API docs | OpenAPI generated from Zod schemas (`@asteasolutions/zod-to-openapi`) | Single source of truth (the Zod schema) drives both runtime validation and published API docs — no manual drift. |
