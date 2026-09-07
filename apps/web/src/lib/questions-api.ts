@@ -59,6 +59,15 @@ export interface QuestionDetail {
   updatedAt: string;
   reviews: { id: string; status: string; notes: string | null; reviewedBy: { id: string; name: string } | null; createdAt: string }[];
   attachedToAssessments: { id: string; title: string; status: string }[];
+  aiGenerationRequest: {
+    id: string;
+    topic: string;
+    difficulty: string;
+    countRequested: number;
+    status: string;
+    createdAt: string;
+    requestedBy: { id: string; name: string };
+  } | null;
 }
 
 export interface ListQuestionsParams {

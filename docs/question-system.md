@@ -67,6 +67,8 @@ Every field of a generated question — including test cases and the reference s
 
 Malformed Gemini output (fails Zod validation) never becomes a saveable draft: it's excluded from `generated` and reported in `failed: [{ index, issues }]` in the preview response instead, and `ai_generation_requests.status` is `FAILED` only when *every* candidate in the batch failed validation (a partial success — e.g. 4 of 5 valid — is `SUCCESS` with one entry in `failed`). See `ai-integration.md` for validation details.
 
+**AI review queue (Phase 10):** there is no separate "pending AI questions" resource or endpoint — the admin UI's "AI Review Queue" is `GET /questions?source=AI_GENERATED&approvalStatus=PENDING_REVIEW`, a plain filtered view of the same Question Bank list every question (manual or AI) already lives in. Approve/reject/edit for an AI-generated question go through the exact same `POST /questions/:id/review` and `PATCH /questions/:id` endpoints Phase 3 built for manual questions — Phase 10 added no new review endpoints, only the filtered queue view and (in the admin detail response) a summary of the `ai_generation_requests` row that produced the question — topic/difficulty/requestedBy/when, shown for review context — never `prompt_snapshot` or `raw_response`, which stay debug-only.
+
 ## 5. Technical MCQ model
 
 Types: `SINGLE_CHOICE`, `MULTIPLE_CHOICE`, `CODE_OUTPUT` (a code snippet + "what does this print" options), `SCENARIO` (a short scenario description + options) — modeled as one `mcq_type` enum rather than separate tables, since all four share the same options/correctness/explanation shape; only rendering differs (driven by `code_snippet` being present or not, and `mcq_type` for single vs. multi-select input control on the frontend).

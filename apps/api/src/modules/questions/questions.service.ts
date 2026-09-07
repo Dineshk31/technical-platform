@@ -19,6 +19,10 @@ const DETAIL_INCLUDE = {
   },
   reviews: { include: { reviewedBy: { select: { id: true, name: true } } } },
   assessmentQuestions: { include: { section: { include: { assessment: { select: { id: true, title: true, status: true } } } } } },
+  // Phase 10 review context: which generation request produced this question, if any
+  // (source = AI_GENERATED). Deliberately excludes promptSnapshot/rawResponse — those
+  // stay debug/audit-only, not part of the routine review view.
+  aiGenerationRequest: { include: { requestedBy: { select: { id: true, name: true } } } },
 } satisfies Prisma.QuestionInclude;
 
 const LIST_INCLUDE = {

@@ -70,6 +70,7 @@ describe('AI question generation (e2e)', () => {
 
   const userIds: string[] = [];
   const questionIds: string[] = [];
+  const assessmentIds: string[] = [];
   let adminCounter = 0;
 
   beforeAll(async () => {
@@ -106,6 +107,9 @@ describe('AI question generation (e2e)', () => {
   });
 
   afterAll(async () => {
+    // Assessment deletion cascades to its sections and assessmentQuestions (schema.prisma
+    // onDelete: Cascade), which must go before questions/users to satisfy FK constraints.
+    await prisma.assessment.deleteMany({ where: { id: { in: assessmentIds } } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.aiGenerationRequest.deleteMany({ where: { requestedById: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -366,6 +370,203 @@ describe('AI question generation (e2e)', () => {
         .send(validGenerateBody({ topic: 'Heaps', count: 1 }));
       expect(res.status).toBe(429);
       expect(res.body.error.code).toBe('RATE_LIMITED');
+    });
+  });
+
+  // ============================================================
+  // Phase 10 — review, approval, and assessment eligibility for
+  // AI-generated questions. These endpoints (POST /questions/:id/review,
+  // GET /questions with source/approvalStatus filters) are Phase 3's
+  // existing review system — Phase 10 doesn't add new ones, it verifies
+  // AI-generated questions flow through them correctly. Each scenario uses
+  // its own fresh admin (see createAdmin above) to avoid rate-limit collisions.
+  // ============================================================
+
+  describe('Phase 10: review, approval, and assessment eligibility for AI-generated questions', () => {
+    async function generateAndSave(token: string, topic: string, draftOverrides: Record<string, unknown> = {}) {
+      fakeProvider.nextResult = { success: true, promptSnapshot: 'p', rawResponseText: '[]', data: [validDraft(draftOverrides)] };
+      const generated = await request(server)
+        .post('/api/v1/ai/questions/generate')
+        .set('Authorization', `Bearer ${token}`)
+        .send(validGenerateBody({ topic, count: 1 }));
+      const { solutionApproach: _solutionApproach, ...toSave } = generated.body.generated[0];
+      const saved = await request(server)
+        .post(`/api/v1/ai/questions/requests/${generated.body.requestId}/save`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ questions: [toSave] });
+      const questionId = saved.body.created[0] as string;
+      questionIds.push(questionId);
+      return questionId;
+    }
+
+    async function createDraftAssessment(token: string, title: string) {
+      const now = Date.now();
+      const res = await request(server)
+        .post('/api/v1/assessments')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          title,
+          durationMinutes: 30,
+          startAt: new Date(now + 60 * 60 * 1000).toISOString(),
+          endAt: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
+        });
+      assessmentIds.push(res.body.id);
+      const section = await request(server)
+        .post(`/api/v1/assessments/${res.body.id}/sections`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ title: 'Section 1', sectionType: 'CODING' });
+      return { assessmentId: res.body.id as string, sectionId: section.body.sections[0].id as string };
+    }
+
+    it('a freshly saved AI-generated question starts PENDING_REVIEW and shows up in the AI Review Queue filter', async () => {
+      const { token } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Arrays', { title: `Queue Check ${runId}` });
+
+      const queue = await request(server)
+        .get('/api/v1/questions?source=AI_GENERATED&approvalStatus=PENDING_REVIEW')
+        .set('Authorization', `Bearer ${token}`);
+      expect(queue.status).toBe(200);
+      expect(queue.body.data.some((q: { id: string }) => q.id === questionId)).toBe(true);
+    });
+
+    it('a PENDING_REVIEW AI-generated question cannot be attached to an assessment (422)', async () => {
+      const { token } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Strings', { title: `Pending Attach ${runId}` });
+      const { assessmentId, sectionId } = await createDraftAssessment(token, `AI Pending Attach ${runId}`);
+
+      const res = await request(server)
+        .post(`/api/v1/assessments/${assessmentId}/sections/${sectionId}/questions`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ questionId });
+      expect(res.status).toBe(422);
+    });
+
+    it('approving an AI-generated question transitions PENDING_REVIEW -> APPROVED and records the reviewer + notes', async () => {
+      const { token, id: reviewerId } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Hashing', { title: `Approve Flow ${runId}` });
+
+      const res = await request(server)
+        .post(`/api/v1/questions/${questionId}/review`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'APPROVED', notes: 'Looks correct, approving' });
+      expect(res.status).toBe(201);
+      expect(res.body.approvalStatus).toBe('APPROVED');
+      expect(res.body.reviews[0]).toEqual(
+        expect.objectContaining({ status: 'APPROVED', notes: 'Looks correct, approving', reviewedBy: expect.objectContaining({ id: reviewerId }) }),
+      );
+    });
+
+    it('an APPROVED AI-generated question can then be attached to an assessment, following the normal rules', async () => {
+      const { token } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Sorting', { title: `Approved Attach ${runId}` });
+      await request(server).post(`/api/v1/questions/${questionId}/review`).set('Authorization', `Bearer ${token}`).send({ status: 'APPROVED' });
+
+      const { assessmentId, sectionId } = await createDraftAssessment(token, `AI Approved Attach ${runId}`);
+      const res = await request(server)
+        .post(`/api/v1/assessments/${assessmentId}/sections/${sectionId}/questions`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ questionId });
+      expect(res.status).toBe(201);
+    });
+
+    it('rejecting an AI-generated question sets REJECTED and it remains ineligible for attachment', async () => {
+      const { token } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Searching', { title: `Reject Flow ${runId}` });
+
+      const review = await request(server)
+        .post(`/api/v1/questions/${questionId}/review`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'REJECTED', notes: 'Duplicate of an existing question' });
+      expect(review.status).toBe(201);
+      expect(review.body.approvalStatus).toBe('REJECTED');
+
+      const { assessmentId, sectionId } = await createDraftAssessment(token, `AI Rejected Attach ${runId}`);
+      const attach = await request(server)
+        .post(`/api/v1/assessments/${assessmentId}/sections/${sectionId}/questions`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ questionId });
+      expect(attach.status).toBe(422);
+    });
+
+    it('an AI-generated question missing a hidden test case cannot be approved (422) — same rule as manual questions', async () => {
+      const { token } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Binary Search', { title: `Invalid Approve ${runId}` });
+
+      const detail = await request(server).get(`/api/v1/questions/${questionId}`).set('Authorization', `Bearer ${token}`);
+      const hiddenId = detail.body.hiddenTestCases[0].id;
+      await request(server).delete(`/api/v1/questions/${questionId}/test-cases/${hiddenId}`).set('Authorization', `Bearer ${token}`);
+
+      const res = await request(server)
+        .post(`/api/v1/questions/${questionId}/review`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'APPROVED' });
+      expect(res.status).toBe(422);
+      expect(res.body.error.details.some((d: { field: string }) => d.field === 'hiddenTestCases')).toBe(true);
+    });
+
+    it('a STUDENT cannot approve, reject, view the review queue, or view a review detail for an AI-generated question', async () => {
+      const { token } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Stacks', { title: `Student Blocked ${runId}` });
+
+      const approve = await request(server)
+        .post(`/api/v1/questions/${questionId}/review`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ status: 'APPROVED' });
+      expect(approve.status).toBe(403);
+
+      const reject = await request(server)
+        .post(`/api/v1/questions/${questionId}/review`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ status: 'REJECTED' });
+      expect(reject.status).toBe(403);
+
+      const queue = await request(server)
+        .get('/api/v1/questions?source=AI_GENERATED&approvalStatus=PENDING_REVIEW')
+        .set('Authorization', `Bearer ${studentToken}`);
+      expect(queue.status).toBe(403);
+
+      const detail = await request(server).get(`/api/v1/questions/${questionId}`).set('Authorization', `Bearer ${studentToken}`);
+      expect(detail.status).toBe(403);
+    });
+
+    it('the admin detail view surfaces the linked AI generation context without leaking the prompt or raw response', async () => {
+      const { token, id: requesterId } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Queues', { title: `AI Context ${runId}` });
+
+      const detail = await request(server).get(`/api/v1/questions/${questionId}`).set('Authorization', `Bearer ${token}`);
+      expect(detail.body.aiGenerationRequest).toEqual(
+        expect.objectContaining({ topic: 'Queues', difficulty: 'MEDIUM', requestedBy: expect.objectContaining({ id: requesterId }) }),
+      );
+      expect(detail.body.aiGenerationRequest.promptSnapshot).toBeUndefined();
+      expect(detail.body.aiGenerationRequest.rawResponse).toBeUndefined();
+    });
+
+    it('a manually created question has no aiGenerationRequest in its detail view', async () => {
+      const { token } = await createAdmin();
+      const manual = await request(server)
+        .post('/api/v1/questions/coding')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          title: `Manual Question ${runId}`,
+          problemStatement: 'Do a thing.',
+          inputFormat: 'n',
+          outputFormat: 'the answer',
+          constraints: [],
+          examples: [{ input: '1', output: '1' }],
+          difficulty: 'EASY',
+          topics: ['Arrays'],
+          tags: [],
+          marks: 10,
+          timeLimitSeconds: 2,
+          memoryLimitMb: 256,
+          supportedLanguages: ['PYTHON'],
+          publicTestCases: [{ input: '1', expectedOutput: '1' }],
+          hiddenTestCases: [{ input: '2', expectedOutput: '2' }],
+          referenceSolutions: { PYTHON: 'print(1)' },
+        });
+      questionIds.push(manual.body.id);
+      expect(manual.body.source).toBe('MANUAL');
+      expect(manual.body.aiGenerationRequest).toBeNull();
     });
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  AiGenerationRequest,
   Assessment,
   AssessmentQuestion,
   AssessmentSection,
@@ -24,6 +25,11 @@ type AttachedAssessmentLink = AssessmentQuestion & {
   section: AssessmentSection & { assessment: Pick<Assessment, 'id' | 'title' | 'status'> };
 };
 
+type GenerationRequestWithRequester = Pick<
+  AiGenerationRequest,
+  'id' | 'topic' | 'difficulty' | 'countRequested' | 'status' | 'createdAt'
+> & { requestedBy: Pick<User, 'id' | 'name'> };
+
 export type AdminQuestionDetailSource = Question & {
   createdBy: Pick<User, 'id' | 'name' | 'email'>;
   codingQuestion:
@@ -36,6 +42,7 @@ export type AdminQuestionDetailSource = Question & {
     | null;
   reviews: ReviewWithReviewer[];
   assessmentQuestions: AttachedAssessmentLink[];
+  aiGenerationRequest: GenerationRequestWithRequester | null;
 };
 
 /**
@@ -90,6 +97,17 @@ export function toAdminQuestionDetail(q: AdminQuestionDetailSource) {
         createdAt: r.createdAt,
       })),
     attachedToAssessments: dedupeAssessments(q.assessmentQuestions),
+    aiGenerationRequest: q.aiGenerationRequest
+      ? {
+          id: q.aiGenerationRequest.id,
+          topic: q.aiGenerationRequest.topic,
+          difficulty: q.aiGenerationRequest.difficulty,
+          countRequested: q.aiGenerationRequest.countRequested,
+          status: q.aiGenerationRequest.status,
+          createdAt: q.aiGenerationRequest.createdAt,
+          requestedBy: q.aiGenerationRequest.requestedBy,
+        }
+      : null,
   };
 }
 

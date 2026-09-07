@@ -248,6 +248,9 @@ export function AdminAIGeneratorPage() {
               </li>
             ))}
           </ul>
+          <Link to="/admin/questions?source=AI_GENERATED&approvalStatus=PENDING_REVIEW">
+            <button className="btn-secondary btn-small">Go to AI Review Queue</button>
+          </Link>
         </div>
       )}
 
