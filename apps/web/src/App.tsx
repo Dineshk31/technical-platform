@@ -7,6 +7,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminAssessmentDetailPage } from './pages/AdminAssessmentDetailPage';
 import { AdminQuestionBankPage } from './pages/AdminQuestionBankPage';
 import { AdminQuestionFormPage } from './pages/AdminQuestionFormPage';
+import { AdminMcqFormPage } from './pages/AdminMcqFormPage';
 import { AdminAIGeneratorPage } from './pages/AdminAIGeneratorPage';
 import { AdminResultsPage } from './pages/AdminResultsPage';
 import { AdminResultDetailPage } from './pages/AdminResultDetailPage';
@@ -66,6 +67,22 @@ export default function App() {
         element={
           <ProtectedRoute allow={['ADMIN']}>
             <AdminAIGeneratorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/questions/mcq/new"
+        element={
+          <ProtectedRoute allow={['ADMIN']}>
+            <AdminMcqFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/questions/mcq/:id/edit"
+        element={
+          <ProtectedRoute allow={['ADMIN']}>
+            <AdminMcqFormPage />
           </ProtectedRoute>
         }
       />

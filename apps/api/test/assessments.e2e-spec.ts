@@ -286,11 +286,16 @@ describe('Assessments (e2e)', () => {
       sectionId = res.body.sections[0].id;
     });
 
-    it('rejects an MCQ section (Phase 2 is CODING-only)', async () => {
+    // MCQ sections are valid as of Phase 11 (see test/mcq.e2e-spec.ts for full MCQ
+    // section/attachment coverage, using its own assessment fixture) — this block keeps
+    // `assessmentA` CODING-only throughout so the publish/lock lifecycle tests below stay
+    // about exactly one section, and instead checks that a genuinely-invalid sectionType
+    // is still rejected.
+    it('rejects an invalid sectionType (400)', async () => {
       const res = await request(server)
         .post(`/api/v1/assessments/${assessmentA}/sections`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ title: 'Section MCQ', sectionType: 'MCQ' });
+        .send({ title: 'Section X', sectionType: 'ESSAY' });
       expect(res.status).toBe(400);
     });
 

@@ -13,10 +13,13 @@ import {
   pollSubmission,
   runCode,
   saveAttemptDraft,
+  saveMcqAnswer,
   submitAttempt,
   submitCode,
   type AttemptStatusDto,
   type CodeDraftDto,
+  type StudentCodingQuestionDto,
+  type StudentMcqQuestionDto,
   type StudentQuestionDto,
   type StudentQuestionsResponse,
   type SubmissionDetailDto,
@@ -53,7 +56,7 @@ function draftKey(questionId: string, language: string): string {
   return `${questionId}::${language}`;
 }
 
-function resolveStarterCode(question: StudentQuestionDto, language: ProgrammingLanguageCode): string {
+function resolveStarterCode(question: StudentCodingQuestionDto, language: ProgrammingLanguageCode): string {
   return question.starterCode[language] ?? getGenericStarterCode(language);
 }
 
@@ -135,6 +138,12 @@ export function StudentExamPage() {
   const [historyOpenByQuestion, setHistoryOpenByQuestion] = useState<Record<string, boolean>>({});
   const [historyLoadingByQuestion, setHistoryLoadingByQuestion] = useState<Record<string, boolean>>({});
 
+  // ---- Phase 11: MCQ answer state, keyed by questionId. Saved immediately on selection
+  // (a discrete click, unlike code's continuous typing) — no debounce needed. ----
+  const [mcqSelectionByQuestion, setMcqSelectionByQuestion] = useState<Record<string, string[]>>({});
+  const [mcqSavingByQuestion, setMcqSavingByQuestion] = useState<Record<string, boolean>>({});
+  const [mcqErrorByQuestion, setMcqErrorByQuestion] = useState<Record<string, string>>({});
+
   const clockOffsetRef = useRef(0); // serverNow - localNow, applied so a skewed client clock can't matter
 
   const refreshStatus = useCallback(async (aid: string) => {
@@ -164,6 +173,14 @@ export function StudentExamPage() {
         if (cancelled) return;
         setQuestionsData(questions);
         setDraftsByKey(new Map(drafts.map((d) => [draftKey(d.questionId, d.language), d])));
+        setMcqSelectionByQuestion(
+          Object.fromEntries(
+            questions.sections
+              .flatMap((s) => s.questions)
+              .filter((q): q is StudentMcqQuestionDto => q.type === 'MCQ')
+              .map((q) => [q.questionId, q.selectedOptionIds]),
+          ),
+        );
 
         const firstQuestion = questions.sections[0]?.questions[0];
         if (firstQuestion) setCurrentQuestionId(firstQuestion.id);
@@ -230,13 +247,14 @@ export function StudentExamPage() {
   );
   const currentIndex = flatQuestions.findIndex((q) => q.id === currentQuestionId);
   const currentQuestion = currentIndex >= 0 ? flatQuestions[currentIndex] : null;
-  const currentLanguage: ProgrammingLanguageCode | null = currentQuestion
-    ? (languageByQuestion[currentQuestion.questionId] ?? (currentQuestion.supportedLanguages[0] as ProgrammingLanguageCode))
-    : null;
+  const currentLanguage: ProgrammingLanguageCode | null =
+    currentQuestion && currentQuestion.type === 'CODING'
+      ? (languageByQuestion[currentQuestion.questionId] ?? (currentQuestion.supportedLanguages[0] as ProgrammingLanguageCode))
+      : null;
   const currentKey = currentQuestion && currentLanguage ? draftKey(currentQuestion.questionId, currentLanguage) : null;
 
   const currentCode = useMemo(() => {
-    if (!currentQuestion || !currentLanguage || !currentKey) return '';
+    if (!currentQuestion || currentQuestion.type !== 'CODING' || !currentLanguage || !currentKey) return '';
     if (editedByKey[currentKey] !== undefined) return editedByKey[currentKey];
     const draft = draftsByKey.get(currentKey);
     if (draft) return draft.code;
@@ -306,6 +324,45 @@ export function StudentExamPage() {
     }
   }
 
+  /** Single-choice: selecting a new option replaces the answer. Multi-choice: toggles
+   * one option within the current selection. Saved immediately — the server evaluates
+   * and stores correctness right away (docs/assessment-system.md §4), but this response
+   * never reports it back (Part 3/14) — the UI only reflects "saved", not "correct". */
+  async function handleMcqOptionToggle(question: StudentMcqQuestionDto, optionId: string) {
+    if (!assessmentId || !isActive) return;
+    const current = mcqSelectionByQuestion[question.questionId] ?? [];
+    const isMulti = question.mcqType === 'MULTIPLE_CHOICE';
+    const next = isMulti
+      ? current.includes(optionId)
+        ? current.filter((id) => id !== optionId)
+        : [...current, optionId]
+      : current.includes(optionId)
+        ? []
+        : [optionId];
+
+    setMcqSelectionByQuestion((prev) => ({ ...prev, [question.questionId]: next }));
+    setMcqSavingByQuestion((prev) => ({ ...prev, [question.questionId]: true }));
+    setMcqErrorByQuestion((prev) => {
+      const rest = { ...prev };
+      delete rest[question.questionId];
+      return rest;
+    });
+    try {
+      const result = await saveMcqAnswer(assessmentId, question.questionId, next);
+      setMcqSelectionByQuestion((prev) => ({ ...prev, [question.questionId]: result.selectedOptionIds }));
+    } catch (err) {
+      setMcqErrorByQuestion((prev) => ({
+        ...prev,
+        [question.questionId]: err instanceof ApiError ? err.message : 'Failed to save your answer',
+      }));
+      // Roll back to what the server last confirmed so the UI never shows an unsaved
+      // selection as if it were persisted.
+      setMcqSelectionByQuestion((prev) => ({ ...prev, [question.questionId]: current }));
+    } finally {
+      setMcqSavingByQuestion((prev) => ({ ...prev, [question.questionId]: false }));
+    }
+  }
+
   function changeLanguage(language: ProgrammingLanguageCode) {
     if (!currentQuestion) return;
     if (currentKey) flushPending(currentKey);
@@ -313,7 +370,7 @@ export function StudentExamPage() {
   }
 
   function handleReset() {
-    if (!currentQuestion || !currentLanguage || !currentKey) return;
+    if (!currentQuestion || currentQuestion.type !== 'CODING' || !currentLanguage || !currentKey) return;
     if (
       !window.confirm(
         `Reset your ${currentLanguage} code for "${currentQuestion.title}" to the starter template? This cannot be undone.`,
@@ -521,7 +578,22 @@ export function StudentExamPage() {
           ))}
         </nav>
 
-        {currentQuestion && currentLanguage ? (
+        {currentQuestion && currentQuestion.type === 'MCQ' ? (
+          <main className="exam-main">
+            <McqQuestionPanel
+              question={currentQuestion}
+              selectedOptionIds={mcqSelectionByQuestion[currentQuestion.questionId] ?? []}
+              saving={mcqSavingByQuestion[currentQuestion.questionId] ?? false}
+              error={mcqErrorByQuestion[currentQuestion.questionId]}
+              isActive={isActive}
+              onToggle={(optionId) => void handleMcqOptionToggle(currentQuestion, optionId)}
+              canGoPrev={currentIndex > 0}
+              canGoNext={currentIndex < flatQuestions.length - 1}
+              onPrev={() => selectQuestion(flatQuestions[currentIndex - 1].id)}
+              onNext={() => selectQuestion(flatQuestions[currentIndex + 1].id)}
+            />
+          </main>
+        ) : currentQuestion && currentLanguage ? (
           <main className="exam-main">
             <div className="exam-problem-panel">
               <div className="page-header">
@@ -840,4 +912,91 @@ function SaveIndicator({ state }: { state: SaveState }) {
     default:
       return <span className="save-indicator" />;
   }
+}
+
+/**
+ * The MCQ answer panel — single/multi-select options, no test cases or editor, no
+ * isCorrect/explanation anywhere in the data it's given (structurally absent from
+ * StudentMcqQuestionDto, see docs/security.md §2). Selecting an option saves
+ * immediately (no debounce — a discrete click, unlike code's continuous typing); the
+ * only feedback shown is "saved" state, never correctness.
+ */
+function McqQuestionPanel({
+  question,
+  selectedOptionIds,
+  saving,
+  error,
+  isActive,
+  onToggle,
+  canGoPrev,
+  canGoNext,
+  onPrev,
+  onNext,
+}: {
+  question: StudentMcqQuestionDto;
+  selectedOptionIds: string[];
+  saving: boolean;
+  error: string | undefined;
+  isActive: boolean;
+  onToggle: (optionId: string) => void;
+  canGoPrev: boolean;
+  canGoNext: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const isMulti = question.mcqType === 'MULTIPLE_CHOICE';
+  const selected = new Set(selectedOptionIds);
+
+  return (
+    <div className="exam-problem-panel" style={{ maxWidth: 760 }}>
+      <div className="page-header">
+        <h2 style={{ margin: 0 }}>{question.title}</h2>
+        <DifficultyBadge difficulty={question.difficulty} />
+      </div>
+      <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>
+        Marks: {question.marks} · {isMulti ? 'Select all that apply' : 'Select one answer'}
+      </p>
+
+      <p style={{ whiteSpace: 'pre-wrap' }}>{question.questionText}</p>
+      {question.codeSnippet && (
+        <div className="example-block">
+          <pre>{question.codeSnippet}</pre>
+        </div>
+      )}
+
+      <div style={{ margin: '1rem 0' }}>
+        {question.options.map((option) => (
+          <label
+            key={option.id}
+            className="checkbox-row"
+            style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', fontWeight: 400, padding: '0.4rem 0' }}
+          >
+            <input
+              type={isMulti ? 'checkbox' : 'radio'}
+              name={`mcq-${question.questionId}`}
+              checked={selected.has(option.id)}
+              disabled={!isActive}
+              onChange={() => onToggle(option.id)}
+            />
+            <span>{option.optionText}</span>
+          </label>
+        ))}
+      </div>
+
+      <div style={{ minHeight: '1.2rem' }}>
+        {saving && <span className="save-indicator unsaved">Saving…</span>}
+        {!saving && !error && selectedOptionIds.length > 0 && <span className="save-indicator saved">✓ Saved</span>}
+        {error && <span className="save-indicator error">{error}</span>}
+      </div>
+
+      <div className="action-row" style={{ marginTop: '1rem' }}>
+        <button className="btn-secondary" disabled={!canGoPrev} onClick={onPrev}>
+          ← Previous
+        </button>
+        <button className="btn-secondary" disabled={!canGoNext} onClick={onNext}>
+          Next →
+        </button>
+      </div>
+    </div>
+  );
 }

@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CODING_TOPICS, DIFFICULTY_LEVELS, APPROVAL_STATUS_CODES, QUESTION_SOURCE_CODES } from '@technical-platform/shared';
+import {
+  CODING_TOPICS,
+  DIFFICULTY_LEVELS,
+  APPROVAL_STATUS_CODES,
+  MCQ_TOPICS,
+  QUESTION_SOURCE_CODES,
+  QUESTION_TYPE_CODES,
+} from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { listQuestions, type QuestionListItem } from '../lib/questions-api';
-import { ApprovalBadge, DifficultyBadge, SourceBadge } from '../components/ApprovalBadge';
+import { ApprovalBadge, DifficultyBadge, QuestionTypeBadge, SourceBadge } from '../components/ApprovalBadge';
 
 export function AdminQuestionBankPage() {
   // The URL is the single source of truth for filters (not mirrored into local state)
@@ -11,6 +18,7 @@ export function AdminQuestionBankPage() {
   // applies, even when this page is already mounted and only the search params change
   // (React Router doesn't remount on a same-route navigation).
   const [searchParams, setSearchParams] = useSearchParams();
+  const type = searchParams.get('type') ?? '';
   const difficulty = searchParams.get('difficulty') ?? '';
   const topic = searchParams.get('topic') ?? '';
   const approvalStatus = searchParams.get('approvalStatus') ?? '';
@@ -40,6 +48,7 @@ export function AdminQuestionBankPage() {
     try {
       const result = await listQuestions({
         search: urlSearch || undefined,
+        type: type || undefined,
         difficulty: difficulty || undefined,
         topic: topic || undefined,
         approvalStatus: approvalStatus || undefined,
@@ -75,9 +84,14 @@ export function AdminQuestionBankPage() {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty, topic, approvalStatus, source, urlSearch]);
+  }, [type, difficulty, topic, approvalStatus, source, urlSearch]);
 
   const isAiReviewQueue = source === 'AI_GENERATED' && approvalStatus === 'PENDING_REVIEW';
+  const topicOptions = type === 'MCQ' ? MCQ_TOPICS : type === 'CODING' ? CODING_TOPICS : [...CODING_TOPICS, ...MCQ_TOPICS];
+
+  function editLink(q: QuestionListItem): string {
+    return q.type === 'MCQ' ? `/admin/questions/mcq/${q.id}/edit` : `/admin/questions/${q.id}/edit`;
+  }
 
   return (
     <div className="dashboard-body">
@@ -93,6 +107,9 @@ export function AdminQuestionBankPage() {
           </Link>
           <Link to="/admin/questions/ai-generate">
             <button className="btn-secondary">Generate with AI</button>
+          </Link>
+          <Link to="/admin/questions/mcq/new">
+            <button className="btn-secondary">Create MCQ</button>
           </Link>
           <Link to="/admin/questions/new">
             <button>Create question</button>
@@ -116,6 +133,14 @@ export function AdminQuestionBankPage() {
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             style={{ marginBottom: 0, minWidth: 220 }}
           />
+          <select value={type} onChange={(e) => setFilter('type', e.target.value)}>
+            <option value="">All questions</option>
+            {QUESTION_TYPE_CODES.map((t) => (
+              <option key={t} value={t}>
+                {t === 'CODING' ? 'Coding' : 'MCQ'}
+              </option>
+            ))}
+          </select>
           <select value={difficulty} onChange={(e) => setFilter('difficulty', e.target.value)}>
             <option value="">All difficulties</option>
             {DIFFICULTY_LEVELS.map((d) => (
@@ -126,7 +151,7 @@ export function AdminQuestionBankPage() {
           </select>
           <select value={topic} onChange={(e) => setFilter('topic', e.target.value)}>
             <option value="">All topics</option>
-            {CODING_TOPICS.map((t) => (
+            {topicOptions.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
@@ -163,11 +188,12 @@ export function AdminQuestionBankPage() {
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Type</th>
                 <th>Source</th>
                 <th>Difficulty</th>
                 <th>Topics</th>
                 <th>Marks</th>
-                <th>Test cases</th>
+                <th>Detail</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -175,7 +201,10 @@ export function AdminQuestionBankPage() {
               {questions.map((q) => (
                 <tr key={q.id}>
                   <td>
-                    <Link to={`/admin/questions/${q.id}/edit`}>{q.title}</Link>
+                    <Link to={editLink(q)}>{q.title}</Link>
+                  </td>
+                  <td>
+                    <QuestionTypeBadge type={q.type} />
                   </td>
                   <td>
                     <SourceBadge source={q.source} />
@@ -192,7 +221,9 @@ export function AdminQuestionBankPage() {
                   </td>
                   <td>{q.marks}</td>
                   <td>
-                    {q.publicTestCaseCount} public / {q.hiddenTestCaseCount} hidden
+                    {q.type === 'MCQ'
+                      ? `${q.optionCount ?? 0} option(s)`
+                      : `${q.publicTestCaseCount} public / ${q.hiddenTestCaseCount} hidden`}
                   </td>
                   <td>
                     <ApprovalBadge status={q.approvalStatus} />

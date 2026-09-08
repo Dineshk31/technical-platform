@@ -1,22 +1,26 @@
 import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type {
   CreateCodingQuestionInput,
+  CreateMcqQuestionInput,
   CreateTestCaseInput,
   ListQuestionsQueryInput,
   ReviewQuestionInput,
   UpdateCodingQuestionInput,
+  UpdateMcqQuestionInput,
   UpdateTestCaseInput,
 } from '@technical-platform/shared';
 import { Prisma, type ProgrammingLanguage, type QuestionSource } from '../../../generated/prisma/index.js';
 import { recomputeMaxMarks } from '../assessments/assessments.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { toAdminQuestionDetail, toAdminQuestionListItem } from './dto/question.dto.js';
+import { validateMcqForApproval } from './mcq-approval.util.js';
 
 const DETAIL_INCLUDE = {
   createdBy: { select: { id: true, name: true, email: true } },
   codingQuestion: {
     include: { languages: true, testCases: true, referenceSolutions: true, starterTemplates: true },
   },
+  mcqQuestion: { include: { options: true } },
   reviews: { include: { reviewedBy: { select: { id: true, name: true } } } },
   assessmentQuestions: { include: { section: { include: { assessment: { select: { id: true, title: true, status: true } } } } } },
   // Phase 10 review context: which generation request produced this question, if any
@@ -28,6 +32,7 @@ const DETAIL_INCLUDE = {
 const LIST_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
   codingQuestion: { include: { languages: true, testCases: { select: { isHidden: true } } } },
+  mcqQuestion: { select: { mcqType: true, options: { select: { id: true } } } },
 } satisfies Prisma.QuestionInclude;
 
 @Injectable()
@@ -106,7 +111,9 @@ export class QuestionsService {
 
   async list(query: ListQuestionsQueryInput) {
     const where: Prisma.QuestionWhereInput = {
-      type: 'CODING',
+      // Phase 11: the Question Bank lists both CODING and MCQ by default; `type` narrows
+      // to one. (Phase 3-10 hardcoded `type: 'CODING'` here since MCQ didn't exist yet.)
+      ...(query.type ? { type: query.type } : {}),
       ...(query.approvalStatus ? { approvalStatus: query.approvalStatus } : {}),
       ...(query.difficulty ? { difficulty: query.difficulty } : {}),
       ...(query.topic ? { topics: { has: query.topic } } : {}),
@@ -134,7 +141,7 @@ export class QuestionsService {
 
   async getDetail(id: string) {
     const question = await this.prisma.question.findUnique({ where: { id }, include: DETAIL_INCLUDE });
-    if (!question || question.type !== 'CODING') throw new NotFoundException('Question not found');
+    if (!question) throw new NotFoundException('Question not found');
     return toAdminQuestionDetail(question);
   }
 
@@ -209,6 +216,84 @@ export class QuestionsService {
     return this.getDetail(id);
   }
 
+  // ============ MCQ ============
+
+  async createMcq(adminId: string, input: CreateMcqQuestionInput) {
+    const question = await this.prisma.question.create({
+      data: {
+        type: 'MCQ',
+        title: input.title,
+        difficulty: input.difficulty,
+        topics: input.topics,
+        tags: input.tags,
+        marks: input.marks,
+        source: 'MANUAL',
+        approvalStatus: 'PENDING_REVIEW',
+        createdById: adminId,
+        mcqQuestion: {
+          create: {
+            mcqType: input.mcqType,
+            questionText: input.questionText,
+            codeSnippet: input.codeSnippet,
+            explanation: input.explanation,
+            negativeMarkingValue: input.negativeMarkingValue,
+            options: {
+              create: input.options.map((o, i) => ({ optionText: o.optionText, isCorrect: o.isCorrect, orderIndex: i })),
+            },
+          },
+        },
+      },
+      include: DETAIL_INCLUDE,
+    });
+
+    return toAdminQuestionDetail(question);
+  }
+
+  async updateMcq(id: string, input: UpdateMcqQuestionInput) {
+    await this.assertEditable(id);
+    const existing = await this.prisma.question.findUnique({ where: { id }, include: { mcqQuestion: true } });
+    if (!existing || !existing.mcqQuestion) throw new NotFoundException('Question not found');
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.question.update({
+        where: { id },
+        data: {
+          title: input.title,
+          difficulty: input.difficulty,
+          topics: input.topics,
+          tags: input.tags,
+          marks: input.marks,
+        },
+      });
+
+      await tx.mcqQuestion.update({
+        where: { questionId: id },
+        data: {
+          mcqType: input.mcqType,
+          questionText: input.questionText,
+          codeSnippet: input.codeSnippet,
+          explanation: input.explanation,
+          negativeMarkingValue: input.negativeMarkingValue,
+        },
+      });
+
+      // Whole-array replace, same pattern as CodingQuestion's constraints/examples/topics
+      // arrays — options is a small, bounded list (2-8), not worth a diff/upsert dance.
+      if (input.options) {
+        await tx.mcqOption.deleteMany({ where: { questionId: id } });
+        await tx.mcqOption.createMany({
+          data: input.options.map((o, i) => ({ questionId: id, optionText: o.optionText, isCorrect: o.isCorrect, orderIndex: i })),
+        });
+      }
+
+      if (input.marks !== undefined) {
+        await this.recomputeLinkedAssessments(tx, id);
+      }
+    });
+
+    return this.getDetail(id);
+  }
+
   async remove(id: string): Promise<void> {
     const question = await this.prisma.question.findUnique({ where: { id } });
     if (!question) throw new NotFoundException('Question not found');
@@ -238,22 +323,18 @@ export class QuestionsService {
   async review(id: string, reviewerId: string, input: ReviewQuestionInput) {
     const question = await this.prisma.question.findUnique({
       where: { id },
-      include: { codingQuestion: { include: { testCases: true, referenceSolutions: true } } },
+      include: {
+        codingQuestion: { include: { testCases: true, referenceSolutions: true } },
+        mcqQuestion: { include: { options: true } },
+      },
     });
-    if (!question || !question.codingQuestion) throw new NotFoundException('Question not found');
+    if (!question || (!question.codingQuestion && !question.mcqQuestion)) {
+      throw new NotFoundException('Question not found');
+    }
 
     if (input.status === 'APPROVED') {
-      const testCases = question.codingQuestion.testCases;
-      const details: { field?: string; issue: string }[] = [];
-      if (!testCases.some((tc) => !tc.isHidden)) {
-        details.push({ field: 'publicTestCases', issue: 'at least one public test case is required to approve' });
-      }
-      if (!testCases.some((tc) => tc.isHidden)) {
-        details.push({ field: 'hiddenTestCases', issue: 'at least one hidden test case is required to approve' });
-      }
-      if (question.codingQuestion.referenceSolutions.length === 0) {
-        details.push({ field: 'referenceSolutions', issue: 'at least one reference solution is required to approve' });
-      }
+      const details: { field?: string; issue: string }[] =
+        question.type === 'MCQ' ? validateMcqForApproval(question.mcqQuestion!) : validateCodingForApproval(question.codingQuestion!);
       if (details.length > 0) {
         throw new UnprocessableEntityException({
           error: { code: 'UNPROCESSABLE_ENTITY', message: 'Question is not ready to be approved', details },
@@ -334,4 +415,21 @@ export class QuestionsService {
       await recomputeMaxMarks(tx, assessmentId);
     }
   }
+}
+
+type CodingApprovalCheckSource = Prisma.CodingQuestionGetPayload<{ include: { testCases: true; referenceSolutions: true } }>;
+
+/** docs/question-system.md §2 — ≥1 public + ≥1 hidden test case, ≥1 reference solution. */
+function validateCodingForApproval(cq: CodingApprovalCheckSource): { field?: string; issue: string }[] {
+  const details: { field?: string; issue: string }[] = [];
+  if (!cq.testCases.some((tc) => !tc.isHidden)) {
+    details.push({ field: 'publicTestCases', issue: 'at least one public test case is required to approve' });
+  }
+  if (!cq.testCases.some((tc) => tc.isHidden)) {
+    details.push({ field: 'hiddenTestCases', issue: 'at least one hidden test case is required to approve' });
+  }
+  if (cq.referenceSolutions.length === 0) {
+    details.push({ field: 'referenceSolutions', issue: 'at least one reference solution is required to approve' });
+  }
+  return details;
 }

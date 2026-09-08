@@ -8,6 +8,8 @@ import type {
   CodingReferenceSolution,
   CodingStarterTemplate,
   CodingTestCase,
+  McqOption,
+  McqQuestion,
   Question,
   QuestionReview,
   User,
@@ -30,6 +32,8 @@ type GenerationRequestWithRequester = Pick<
   'id' | 'topic' | 'difficulty' | 'countRequested' | 'status' | 'createdAt'
 > & { requestedBy: Pick<User, 'id' | 'name'> };
 
+type McqQuestionWithOptions = McqQuestion & { options: McqOption[] };
+
 export type AdminQuestionDetailSource = Question & {
   createdBy: Pick<User, 'id' | 'name' | 'email'>;
   codingQuestion:
@@ -40,22 +44,22 @@ export type AdminQuestionDetailSource = Question & {
         starterTemplates: CodingStarterTemplate[];
       })
     | null;
+  mcqQuestion: McqQuestionWithOptions | null;
   reviews: ReviewWithReviewer[];
   assessmentQuestions: AttachedAssessmentLink[];
   aiGenerationRequest: GenerationRequestWithRequester | null;
 };
 
 /**
- * The one admin detail shape — includes hidden test cases and reference
- * solutions because every route that reaches this mapper is ADMIN-only
- * (see docs/security.md §2). There is no student-facing mapper in this
- * module: Phase 3 adds no student route into the question bank at all.
+ * The one admin detail shape — includes hidden test cases, reference solutions, and
+ * (for MCQ) `isCorrect` on every option, because every route that reaches this mapper
+ * is ADMIN-only (see docs/security.md §2). The shared/common fields are identical
+ * regardless of `type`; the type-specific fields are only present for that type —
+ * there is no student-facing mapper in this module (see AssessmentsService.getStudentQuestions
+ * for the restricted, type-aware DTO used during an active attempt instead).
  */
 export function toAdminQuestionDetail(q: AdminQuestionDetailSource) {
-  const cq = q.codingQuestion;
-  const testCases = cq?.testCases ?? [];
-
-  return {
+  const common = {
     id: q.id,
     type: q.type,
     title: q.title,
@@ -65,24 +69,6 @@ export function toAdminQuestionDetail(q: AdminQuestionDetailSource) {
     marks: toNum(q.marks),
     source: q.source,
     approvalStatus: q.approvalStatus,
-    problemStatement: cq?.problemStatement ?? '',
-    inputFormat: cq?.inputFormat ?? '',
-    outputFormat: cq?.outputFormat ?? '',
-    constraints: cq?.constraints ?? [],
-    examples: (cq?.examples as unknown) ?? [],
-    timeLimitSeconds: toNum(cq?.timeLimitSeconds),
-    memoryLimitMb: cq?.memoryLimitMb ?? 0,
-    supportedLanguages: (cq?.languages ?? []).map((l) => l.language),
-    publicTestCases: testCases
-      .filter((tc) => !tc.isHidden)
-      .sort((a, b) => a.orderIndex - b.orderIndex)
-      .map(toTestCaseDto),
-    hiddenTestCases: testCases
-      .filter((tc) => tc.isHidden)
-      .sort((a, b) => a.orderIndex - b.orderIndex)
-      .map(toTestCaseDto),
-    referenceSolutions: (cq?.referenceSolutions ?? []).map((rs) => ({ language: rs.language, code: rs.code })),
-    starterTemplates: (cq?.starterTemplates ?? []).map((st) => ({ language: st.language, code: st.code })),
     createdBy: q.createdBy,
     createdAt: q.createdAt,
     updatedAt: q.updatedAt,
@@ -109,6 +95,46 @@ export function toAdminQuestionDetail(q: AdminQuestionDetailSource) {
         }
       : null,
   };
+
+  if (q.type === 'MCQ') {
+    const mq = q.mcqQuestion;
+    return {
+      ...common,
+      mcqType: mq?.mcqType ?? 'SINGLE_CHOICE',
+      questionText: mq?.questionText ?? '',
+      codeSnippet: mq?.codeSnippet ?? null,
+      explanation: mq?.explanation ?? null,
+      negativeMarkingValue: toNum(mq?.negativeMarkingValue),
+      options: (mq?.options ?? [])
+        .slice()
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((o) => ({ id: o.id, optionText: o.optionText, isCorrect: o.isCorrect, orderIndex: o.orderIndex })),
+    };
+  }
+
+  const cq = q.codingQuestion;
+  const testCases = cq?.testCases ?? [];
+  return {
+    ...common,
+    problemStatement: cq?.problemStatement ?? '',
+    inputFormat: cq?.inputFormat ?? '',
+    outputFormat: cq?.outputFormat ?? '',
+    constraints: cq?.constraints ?? [],
+    examples: (cq?.examples as unknown) ?? [],
+    timeLimitSeconds: toNum(cq?.timeLimitSeconds),
+    memoryLimitMb: cq?.memoryLimitMb ?? 0,
+    supportedLanguages: (cq?.languages ?? []).map((l) => l.language),
+    publicTestCases: testCases
+      .filter((tc) => !tc.isHidden)
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map(toTestCaseDto),
+    hiddenTestCases: testCases
+      .filter((tc) => tc.isHidden)
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map(toTestCaseDto),
+    referenceSolutions: (cq?.referenceSolutions ?? []).map((rs) => ({ language: rs.language, code: rs.code })),
+    starterTemplates: (cq?.starterTemplates ?? []).map((st) => ({ language: st.language, code: st.code })),
+  };
 }
 
 function toTestCaseDto(tc: CodingTestCase) {
@@ -128,6 +154,10 @@ export type AdminQuestionListSource = Question & {
     languages: CodingQuestionLanguage[];
     testCases: Pick<CodingTestCase, 'isHidden'>[];
   } | null;
+  mcqQuestion: {
+    mcqType: McqQuestion['mcqType'];
+    options: Pick<McqOption, 'id'>[];
+  } | null;
   createdBy: Pick<User, 'id' | 'name'>;
 };
 
@@ -135,6 +165,7 @@ export function toAdminQuestionListItem(q: AdminQuestionListSource) {
   const testCases = q.codingQuestion?.testCases ?? [];
   return {
     id: q.id,
+    type: q.type,
     title: q.title,
     difficulty: q.difficulty,
     topics: q.topics,
@@ -145,6 +176,8 @@ export function toAdminQuestionListItem(q: AdminQuestionListSource) {
     supportedLanguages: (q.codingQuestion?.languages ?? []).map((l) => l.language),
     publicTestCaseCount: testCases.filter((tc) => !tc.isHidden).length,
     hiddenTestCaseCount: testCases.filter((tc) => tc.isHidden).length,
+    mcqType: q.mcqQuestion?.mcqType ?? null,
+    optionCount: q.mcqQuestion?.options.length ?? null,
     createdBy: q.createdBy,
     createdAt: q.createdAt,
     updatedAt: q.updatedAt,

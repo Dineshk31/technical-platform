@@ -19,6 +19,7 @@ import {
 } from '../lib/assessments-api';
 import { StatusBadge } from '../components/StatusBadge';
 import { QuestionPicker } from '../components/QuestionPicker';
+import { QuestionTypeBadge } from '../components/ApprovalBadge';
 
 export function AdminAssessmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -188,13 +189,14 @@ function SectionsPanel({
   editable: boolean;
 }) {
   const [newSectionTitle, setNewSectionTitle] = useState('');
+  const [newSectionType, setNewSectionType] = useState<'CODING' | 'MCQ'>('CODING');
   const [error, setError] = useState<string | null>(null);
 
   async function handleAddSection(e: FormEvent) {
     e.preventDefault();
     setError(null);
     try {
-      await addSection(assessment.id, { title: newSectionTitle, sectionType: 'CODING' });
+      await addSection(assessment.id, { title: newSectionTitle, sectionType: newSectionType });
       setNewSectionTitle('');
       await onChanged();
     } catch (err) {
@@ -224,6 +226,10 @@ function SectionsPanel({
             required
             style={{ marginBottom: 0, minWidth: 260 }}
           />
+          <select value={newSectionType} onChange={(e) => setNewSectionType(e.target.value as 'CODING' | 'MCQ')}>
+            <option value="CODING">Coding</option>
+            <option value="MCQ">MCQ</option>
+          </select>
           <button type="submit" className="btn-secondary btn-small">
             Add section
           </button>
@@ -262,7 +268,9 @@ function SectionBlock({
   return (
     <div className="section-block">
       <h4>
-        <span>{section.title}</span>
+        <span>
+          {section.title} <QuestionTypeBadge type={section.sectionType} />
+        </span>
         {editable && (
           <button
             className="btn-secondary btn-small"
@@ -332,7 +340,11 @@ function SectionBlock({
           </button>
           {showPicker && (
             <div style={{ marginTop: '0.6rem' }}>
-              <QuestionPicker alreadyAttachedIds={section.questions.map((q) => q.questionId)} onSelect={handleSelect} />
+              <QuestionPicker
+                questionType={section.sectionType as 'CODING' | 'MCQ'}
+                alreadyAttachedIds={section.questions.map((q) => q.questionId)}
+                onSelect={handleSelect}
+              />
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import {
   CreateSectionSchema,
   ListAssessmentsQuerySchema,
   ListAssignedAssessmentsQuerySchema,
+  SaveMcqAnswerSchema,
   UpdateAssessmentQuestionSchema,
   UpdateAssessmentSchema,
   UpdateSectionSchema,
@@ -16,6 +17,7 @@ import {
   type CreateSectionInput,
   type ListAssessmentsQueryInput,
   type ListAssignedAssessmentsQueryInput,
+  type SaveMcqAnswerInput,
   type UpdateAssessmentInput,
   type UpdateAssessmentQuestionInput,
   type UpdateSectionInput,
@@ -187,6 +189,17 @@ export class AssessmentsController {
   @Get(':id/questions')
   getStudentQuestions(@Param('id') assessmentId: string, @CurrentUser() user: AuthenticatedUser) {
     return this.assessments.getStudentQuestions(user.id, assessmentId);
+  }
+
+  @Roles('STUDENT')
+  @Post(':id/mcq/:questionId/answer')
+  saveMcqAnswer(
+    @Param('id') assessmentId: string,
+    @Param('questionId') questionId: string,
+    @Body(new ZodValidationPipe(SaveMcqAnswerSchema)) body: SaveMcqAnswerInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.assessments.saveAttemptMcqAnswer(user.id, assessmentId, questionId, body);
   }
 
   @Roles('STUDENT')

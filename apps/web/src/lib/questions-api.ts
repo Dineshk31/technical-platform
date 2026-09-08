@@ -1,15 +1,18 @@
 import type {
   CreateCodingQuestionInput,
+  CreateMcqQuestionInput,
   CreateTestCaseInput,
   PaginatedResult,
   ReviewQuestionInput,
   UpdateCodingQuestionInput,
+  UpdateMcqQuestionInput,
   UpdateTestCaseInput,
 } from '@technical-platform/shared';
 import { apiFetch } from './api-client';
 
-export interface QuestionListItem {
+interface QuestionListItemCommon {
   id: string;
+  type: string;
   title: string;
   difficulty: string;
   topics: string[];
@@ -17,12 +20,17 @@ export interface QuestionListItem {
   marks: number;
   approvalStatus: string;
   source: string;
-  supportedLanguages: string[];
-  publicTestCaseCount: number;
-  hiddenTestCaseCount: number;
   createdBy: { id: string; name: string };
   createdAt: string;
   updatedAt: string;
+}
+
+export interface QuestionListItem extends QuestionListItemCommon {
+  supportedLanguages: string[];
+  publicTestCaseCount: number;
+  hiddenTestCaseCount: number;
+  mcqType: string | null;
+  optionCount: number | null;
 }
 
 export interface TestCaseItem {
@@ -32,9 +40,15 @@ export interface TestCaseItem {
   orderIndex: number;
 }
 
-export interface QuestionDetail {
+export interface McqOptionItem {
   id: string;
-  type: string;
+  optionText: string;
+  isCorrect: boolean;
+  orderIndex: number;
+}
+
+interface QuestionDetailCommon {
+  id: string;
   title: string;
   difficulty: string;
   topics: string[];
@@ -42,18 +56,6 @@ export interface QuestionDetail {
   marks: number;
   source: string;
   approvalStatus: string;
-  problemStatement: string;
-  inputFormat: string;
-  outputFormat: string;
-  constraints: string[];
-  examples: { input: string; output: string; explanation?: string }[];
-  timeLimitSeconds: number;
-  memoryLimitMb: number;
-  supportedLanguages: string[];
-  publicTestCases: TestCaseItem[];
-  hiddenTestCases: TestCaseItem[];
-  referenceSolutions: { language: string; code: string }[];
-  starterTemplates: { language: string; code: string }[];
   createdBy: { id: string; name: string; email: string };
   createdAt: string;
   updatedAt: string;
@@ -70,6 +72,34 @@ export interface QuestionDetail {
   } | null;
 }
 
+export interface CodingQuestionDetail extends QuestionDetailCommon {
+  type: 'CODING';
+  problemStatement: string;
+  inputFormat: string;
+  outputFormat: string;
+  constraints: string[];
+  examples: { input: string; output: string; explanation?: string }[];
+  timeLimitSeconds: number;
+  memoryLimitMb: number;
+  supportedLanguages: string[];
+  publicTestCases: TestCaseItem[];
+  hiddenTestCases: TestCaseItem[];
+  referenceSolutions: { language: string; code: string }[];
+  starterTemplates: { language: string; code: string }[];
+}
+
+export interface McqQuestionDetail extends QuestionDetailCommon {
+  type: 'MCQ';
+  mcqType: string;
+  questionText: string;
+  codeSnippet: string | null;
+  explanation: string | null;
+  negativeMarkingValue: number;
+  options: McqOptionItem[];
+}
+
+export type QuestionDetail = CodingQuestionDetail | McqQuestionDetail;
+
 export interface ListQuestionsParams {
   page?: number;
   pageSize?: number;
@@ -79,6 +109,7 @@ export interface ListQuestionsParams {
   approvalStatus?: string;
   language?: string;
   source?: string;
+  type?: string;
 }
 
 function toQueryString(params: ListQuestionsParams): string {
@@ -99,11 +130,19 @@ export function getQuestion(id: string) {
 }
 
 export function createQuestion(input: CreateCodingQuestionInput) {
-  return apiFetch<QuestionDetail>('/questions/coding', { method: 'POST', body: JSON.stringify(input) });
+  return apiFetch<CodingQuestionDetail>('/questions/coding', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function updateQuestion(id: string, input: UpdateCodingQuestionInput) {
-  return apiFetch<QuestionDetail>(`/questions/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+  return apiFetch<CodingQuestionDetail>(`/questions/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export function createMcqQuestion(input: CreateMcqQuestionInput) {
+  return apiFetch<McqQuestionDetail>('/questions/mcq', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateMcqQuestion(id: string, input: UpdateMcqQuestionInput) {
+  return apiFetch<McqQuestionDetail>(`/questions/mcq/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
 }
 
 export function deleteQuestion(id: string) {
@@ -115,11 +154,11 @@ export function reviewQuestion(id: string, input: ReviewQuestionInput) {
 }
 
 export function addTestCase(questionId: string, input: CreateTestCaseInput) {
-  return apiFetch<QuestionDetail>(`/questions/${questionId}/test-cases`, { method: 'POST', body: JSON.stringify(input) });
+  return apiFetch<CodingQuestionDetail>(`/questions/${questionId}/test-cases`, { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function updateTestCase(questionId: string, testCaseId: string, input: UpdateTestCaseInput) {
-  return apiFetch<QuestionDetail>(`/questions/${questionId}/test-cases/${testCaseId}`, {
+  return apiFetch<CodingQuestionDetail>(`/questions/${questionId}/test-cases/${testCaseId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   });

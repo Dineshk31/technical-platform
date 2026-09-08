@@ -11,10 +11,11 @@ import {
   reviewQuestion,
   updateQuestion,
   updateTestCase,
-  type QuestionDetail,
+  type CodingQuestionDetail,
   type TestCaseItem,
 } from '../lib/questions-api';
 import { ApprovalBadge, SourceBadge } from '../components/ApprovalBadge';
+import { QuestionReviewPanel } from '../components/QuestionReviewPanel';
 
 interface ExampleRow {
   input: string;
@@ -31,7 +32,7 @@ export function AdminQuestionFormPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
 
-  const [question, setQuestion] = useState<QuestionDetail | null>(null);
+  const [question, setQuestion] = useState<CodingQuestionDetail | null>(null);
   const [loading, setLoading] = useState(isEdit);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -55,12 +56,15 @@ export function AdminQuestionFormPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [reviewNotes, setReviewNotes] = useState('');
 
   useEffect(() => {
     if (!id) return;
     getQuestion(id)
       .then((q) => {
+        if (q.type !== 'CODING') {
+          setLoadError('This question is not a coding question — open it from the MCQ editor instead.');
+          return;
+        }
         setQuestion(q);
         setTitle(q.title);
         setMarks(String(q.marks));
@@ -84,7 +88,8 @@ export function AdminQuestionFormPage() {
 
   async function refreshQuestion() {
     if (!id) return;
-    setQuestion(await getQuestion(id));
+    const q = await getQuestion(id);
+    if (q.type === 'CODING') setQuestion(q);
   }
 
   function toggleTopic(topic: string) {
@@ -154,16 +159,10 @@ export function AdminQuestionFormPage() {
     }
   }
 
-  async function handleReview(status: string) {
+  async function handleReview(status: 'APPROVED' | 'NEEDS_EDIT' | 'REJECTED' | 'PENDING_REVIEW', notes?: string) {
     if (!id) return;
-    setError(null);
-    try {
-      await reviewQuestion(id, { status: status as never, notes: reviewNotes.trim() || undefined });
-      setReviewNotes('');
-      await refreshQuestion();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to update review status');
-    }
+    await reviewQuestion(id, { status, notes });
+    await refreshQuestion();
   }
 
   if (loading) return <div className="dashboard-body">Loading…</div>;
@@ -362,65 +361,13 @@ export function AdminQuestionFormPage() {
             <TestCaseLiveEditor questionId={question.id} testCases={question.hiddenTestCases} isHidden onChanged={refreshQuestion} />
           </div>
 
-          <div className="card">
-            <h2>11. Review / approval</h2>
-            <p>
-              Current status: <ApprovalBadge status={question.approvalStatus} />
-            </p>
-            {question.attachedToAssessments.length > 0 && (
-              <p className="field-hint">
-                Used by: {question.attachedToAssessments.map((a) => `${a.title} (${a.status})`).join(', ')}
-              </p>
-            )}
-            <label htmlFor="review-notes">Review notes (optional, recorded with the next action below)</label>
-            <textarea
-              id="review-notes"
-              rows={2}
-              value={reviewNotes}
-              onChange={(e) => setReviewNotes(e.target.value)}
-              placeholder="e.g. reason for rejection, or what was fixed before approving"
-            />
-            <div className="action-row">
-              <button onClick={() => void handleReview('APPROVED')} disabled={question.approvalStatus === 'APPROVED'}>
-                Approve
-              </button>
-              <button className="btn-secondary" onClick={() => void handleReview('NEEDS_EDIT')}>
-                Needs edit
-              </button>
-              <button className="btn-secondary" onClick={() => void handleReview('REJECTED')}>
-                Reject
-              </button>
-              <button className="btn-secondary" onClick={() => void handleReview('PENDING_REVIEW')}>
-                Send back to review
-              </button>
-              <button className="btn-danger" onClick={() => void handleDelete()}>
-                Delete question
-              </button>
-            </div>
-
-            {question.reviews.length > 0 && (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Notes</th>
-                    <th>Reviewer</th>
-                    <th>When</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {question.reviews.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.status}</td>
-                      <td>{r.notes ?? '—'}</td>
-                      <td>{r.reviewedBy?.name ?? '—'}</td>
-                      <td>{new Date(r.createdAt).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+          <QuestionReviewPanel
+            approvalStatus={question.approvalStatus}
+            attachedToAssessments={question.attachedToAssessments}
+            reviews={question.reviews}
+            onReview={handleReview}
+            onDelete={() => void handleDelete()}
+          />
         </>
       )}
     </div>

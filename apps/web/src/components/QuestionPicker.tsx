@@ -1,19 +1,21 @@
 import { Fragment, useEffect, useState } from 'react';
-import { CODING_TOPICS, DIFFICULTY_LEVELS } from '@technical-platform/shared';
+import { CODING_TOPICS, DIFFICULTY_LEVELS, MCQ_TOPICS } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { getQuestion, listQuestions, type QuestionDetail, type QuestionListItem } from '../lib/questions-api';
 import { DifficultyBadge } from './ApprovalBadge';
 
 /**
  * Replaces the Phase 2 "paste a question ID" text field. Only ever searches
- * approvalStatus=APPROVED questions — the backend independently re-enforces
- * that rule on attach, this just keeps an admin from picking something that
- * would be rejected anyway.
+ * approvalStatus=APPROVED questions of the target section's own type — the backend
+ * independently re-enforces both rules on attach, this just keeps an admin from
+ * picking something that would be rejected anyway.
  */
 export function QuestionPicker({
+  questionType,
   alreadyAttachedIds,
   onSelect,
 }: {
+  questionType: 'CODING' | 'MCQ';
   alreadyAttachedIds: string[];
   onSelect: (question: QuestionListItem) => void;
 }) {
@@ -26,11 +28,14 @@ export function QuestionPicker({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<QuestionDetail | null>(null);
 
+  const topics = questionType === 'MCQ' ? MCQ_TOPICS : CODING_TOPICS;
+
   async function runSearch() {
     setLoading(true);
     setError(null);
     try {
       const res = await listQuestions({
+        type: questionType,
         approvalStatus: 'APPROVED',
         search: search || undefined,
         difficulty: difficulty || undefined,
@@ -48,7 +53,7 @@ export function QuestionPicker({
   useEffect(() => {
     void runSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty, topic]);
+  }, [difficulty, topic, questionType]);
 
   async function togglePreview(id: string) {
     if (previewId === id) {
@@ -64,7 +69,7 @@ export function QuestionPicker({
     <div className="section-block">
       <div className="filters-row">
         <input
-          placeholder="Search approved questions by title"
+          placeholder={`Search approved ${questionType === 'MCQ' ? 'MCQ' : 'coding'} questions by title`}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void runSearch()}
@@ -80,7 +85,7 @@ export function QuestionPicker({
         </select>
         <select value={topic} onChange={(e) => setTopic(e.target.value)}>
           <option value="">All topics</option>
-          {CODING_TOPICS.map((t) => (
+          {topics.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>
@@ -96,7 +101,8 @@ export function QuestionPicker({
         <p>Loading…</p>
       ) : results.length === 0 ? (
         <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>
-          No approved questions match. Approve questions in the Question Bank first.
+          No approved {questionType === 'MCQ' ? 'MCQ' : 'coding'} questions match. Approve questions in the Question Bank
+          first.
         </p>
       ) : (
         <table className="table">
@@ -139,12 +145,23 @@ export function QuestionPicker({
                   {previewId === q.id && previewData && (
                     <tr>
                       <td colSpan={5} style={{ background: 'var(--color-bg)' }}>
-                        <p style={{ margin: '0.5rem 0' }}>{previewData.problemStatement}</p>
-                        {previewData.examples[0] && (
-                          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
-                            Example — input: <code>{previewData.examples[0].input}</code>, output:{' '}
-                            <code>{previewData.examples[0].output}</code>
-                          </p>
+                        {previewData.type === 'MCQ' ? (
+                          <>
+                            <p style={{ margin: '0.5rem 0' }}>{previewData.questionText}</p>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+                              {previewData.options.length} option(s) · {previewData.mcqType.replace('_', ' ').toLowerCase()}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p style={{ margin: '0.5rem 0' }}>{previewData.problemStatement}</p>
+                            {previewData.examples[0] && (
+                              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+                                Example — input: <code>{previewData.examples[0].input}</code>, output:{' '}
+                                <code>{previewData.examples[0].output}</code>
+                              </p>
+                            )}
+                          </>
                         )}
                       </td>
                     </tr>

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ASSESSMENT_STATUS_CODES } from '../enums/assessment.enum.js';
+import { ASSESSMENT_STATUS_CODES, SECTION_TYPE_CODES } from '../enums/assessment.enum.js';
 
 export const CreateAssessmentSchema = z
   .object({
@@ -44,8 +44,10 @@ export type ListAssignedAssessmentsQueryInput = z.infer<typeof ListAssignedAsses
 
 export const CreateSectionSchema = z.object({
   title: z.string().trim().min(1).max(200),
-  // MCQ sections are enabled once the MCQ question bank exists (Phase 11).
-  sectionType: z.literal('CODING'),
+  // Phase 11: MCQ sections are now allowed alongside CODING — a section itself stays
+  // type-homogeneous (its questions must all match), but an assessment can mix multiple
+  // sections of different types (docs/assessment-system.md §2).
+  sectionType: z.enum(SECTION_TYPE_CODES),
   orderIndex: z.number().int().min(0).optional(),
 });
 export type CreateSectionInput = z.infer<typeof CreateSectionSchema>;

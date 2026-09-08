@@ -1,17 +1,21 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   CreateCodingQuestionSchema,
+  CreateMcqQuestionSchema,
   CreateTestCaseSchema,
   ListQuestionsQuerySchema,
   ReviewQuestionSchema,
   UpdateCodingQuestionSchema,
+  UpdateMcqQuestionSchema,
   UpdateTestCaseSchema,
   type AuthenticatedUser,
   type CreateCodingQuestionInput,
+  type CreateMcqQuestionInput,
   type CreateTestCaseInput,
   type ListQuestionsQueryInput,
   type ReviewQuestionInput,
   type UpdateCodingQuestionInput,
+  type UpdateMcqQuestionInput,
   type UpdateTestCaseInput,
 } from '@technical-platform/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -32,6 +36,22 @@ export class QuestionsController {
   @Post('coding')
   create(@Body(new ZodValidationPipe(CreateCodingQuestionSchema)) body: CreateCodingQuestionInput, @CurrentUser() user: AuthenticatedUser) {
     return this.questions.create(user.id, body);
+  }
+
+  @Roles('ADMIN')
+  @Post('mcq')
+  createMcq(@Body(new ZodValidationPipe(CreateMcqQuestionSchema)) body: CreateMcqQuestionInput, @CurrentUser() user: AuthenticatedUser) {
+    return this.questions.createMcq(user.id, body);
+  }
+
+  // A separate route rather than folding into PATCH /questions/:id (used by CODING) —
+  // the Zod validation pipe must know which schema to apply before the request reaches
+  // the service, and it can't look up the question's type first. No route-ordering
+  // conflict with :id below: `mcq/:id` and `:id` have different segment counts.
+  @Roles('ADMIN')
+  @Patch('mcq/:id')
+  updateMcq(@Param('id') id: string, @Body(new ZodValidationPipe(UpdateMcqQuestionSchema)) body: UpdateMcqQuestionInput) {
+    return this.questions.updateMcq(id, body);
   }
 
   @Roles('ADMIN')

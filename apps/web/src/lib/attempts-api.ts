@@ -10,7 +10,7 @@ export interface AttemptStatusDto {
   serverNow: string;
 }
 
-export interface StudentQuestionDto {
+interface StudentQuestionCommon {
   id: string;
   questionId: string;
   title: string;
@@ -18,6 +18,10 @@ export interface StudentQuestionDto {
   marks: number;
   orderIndex: number;
   status: 'NOT_ATTEMPTED' | 'ATTEMPTED' | 'SOLVED';
+}
+
+export interface StudentCodingQuestionDto extends StudentQuestionCommon {
+  type: 'CODING';
   problemStatement: string;
   inputFormat: string;
   outputFormat: string;
@@ -31,9 +35,25 @@ export interface StudentQuestionDto {
   starterCode: Partial<Record<ProgrammingLanguageCode, string>>;
 }
 
+export interface StudentMcqQuestionDto extends StudentQuestionCommon {
+  type: 'MCQ';
+  mcqType: string;
+  questionText: string;
+  codeSnippet: string | null;
+  topics: string[];
+  // No isCorrect anywhere on this type — the field is structurally absent from the
+  // student-facing API response, not merely unused (docs/security.md §2).
+  options: { id: string; optionText: string }[];
+  /** The student's own current selection for this attempt — never correctness. */
+  selectedOptionIds: string[];
+}
+
+export type StudentQuestionDto = StudentCodingQuestionDto | StudentMcqQuestionDto;
+
 export interface StudentSectionDto {
   id: string;
   title: string;
+  sectionType: string;
   orderIndex: number;
   questions: StudentQuestionDto[];
 }
@@ -87,6 +107,16 @@ export function saveAttemptDraft(attemptId: string, questionId: string, language
   return apiFetch<{ questionId: string; language: string; updatedAt: string }>(
     `/attempts/${attemptId}/questions/${questionId}/draft`,
     { method: 'PUT', body: JSON.stringify({ language, code }) },
+  );
+}
+
+// ---- Phase 11: MCQ answers ----
+// Evaluated immediately server-side (docs/assessment-system.md §4) — the response never
+// carries isCorrect/score, only an ack of what was saved (docs/security.md, Part 3/14).
+export function saveMcqAnswer(assessmentId: string, questionId: string, optionIds: string[]) {
+  return apiFetch<{ questionId: string; selectedOptionIds: string[] }>(
+    `/assessments/${assessmentId}/mcq/${questionId}/answer`,
+    { method: 'POST', body: JSON.stringify({ optionIds }) },
   );
 }
 

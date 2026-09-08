@@ -7,12 +7,15 @@ import type {
   ListAssessmentsQueryInput,
   ListAssignedAssessmentsQueryInput,
   SaveCodeDraftInput,
+  SaveMcqAnswerInput,
   UpdateAssessmentInput,
   UpdateAssessmentQuestionInput,
   UpdateSectionInput,
 } from '@technical-platform/shared';
 import { Prisma, type Attempt } from '../../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { validateMcqForApproval } from '../questions/mcq-approval.util.js';
+import { resolveQuestionMarks } from '../scoring/scoring.util.js';
 import { finalizeAttempt } from '../results/results.service.js';
 import { toAdminAssessmentDetail, toAdminAssessmentListItem, toNum, toStudentAssessmentDetail, toStudentAssignedListItem } from './dto/assessment.dto.js';
 import { computeEffectiveStatus } from './utils/assessment-status.util.js';
@@ -138,7 +141,13 @@ export class AssessmentsService {
       include: {
         sections: {
           include: {
-            questions: { include: { question: { include: { codingQuestion: { include: { testCases: true } } } } } },
+            questions: {
+              include: {
+                question: {
+                  include: { codingQuestion: { include: { testCases: true } }, mcqQuestion: { include: { options: true } } },
+                },
+              },
+            },
           },
         },
         participants: true,
@@ -159,14 +168,24 @@ export class AssessmentsService {
         details.push({ field: 'sections', issue: `section "${section.title}" has no questions` });
       }
       for (const aq of section.questions) {
-        const testCases = aq.question.codingQuestion?.testCases ?? [];
-        const hasPublic = testCases.some((tc) => !tc.isHidden);
-        const hasHidden = testCases.some((tc) => tc.isHidden);
-        if (!hasPublic || !hasHidden) {
-          details.push({
-            field: 'sections',
-            issue: `question "${aq.question.title}" needs at least one public and one hidden test case`,
-          });
+        if (aq.question.type === 'CODING') {
+          const testCases = aq.question.codingQuestion?.testCases ?? [];
+          const hasPublic = testCases.some((tc) => !tc.isHidden);
+          const hasHidden = testCases.some((tc) => tc.isHidden);
+          if (!hasPublic || !hasHidden) {
+            details.push({
+              field: 'sections',
+              issue: `question "${aq.question.title}" needs at least one public and one hidden test case`,
+            });
+          }
+        } else if (aq.question.mcqQuestion) {
+          // Same rationale as the coding test-case re-check above: an already-APPROVED
+          // MCQ's options can in principle be edited into an invalid state (see
+          // QuestionsService.updateMcq / validateMcqForApproval's own doc comment)
+          // without its approval_status changing — re-validate here too.
+          for (const issue of validateMcqForApproval(aq.question.mcqQuestion)) {
+            details.push({ field: 'sections', issue: `question "${aq.question.title}": ${issue.issue}` });
+          }
         }
         // A question can be un-approved (Phase 3 review workflow) any time after being
         // attached to a still-DRAFT assessment — re-check at publish time, not just at
@@ -254,12 +273,17 @@ export class AssessmentsService {
 
   async attachQuestion(assessmentId: string, sectionId: string, input: AttachQuestionInput) {
     await this.assertDraftForStructuralEdit(assessmentId);
-    await this.getSectionOrThrow(assessmentId, sectionId);
+    const section = await this.getSectionOrThrow(assessmentId, sectionId);
 
     const question = await this.prisma.question.findUnique({ where: { id: input.questionId } });
     if (!question) throw new NotFoundException('Question not found');
-    if (question.type !== 'CODING') {
-      throw new UnprocessableEntityException('Only coding questions can be attached in Phase 2');
+    // Phase 11: a section is type-homogeneous — a CODING section only ever holds CODING
+    // questions, an MCQ section only MCQ (docs/assessment-system.md §2). A mixed exam is
+    // built at the assessment level, as multiple sections of different types.
+    if (question.type !== section.sectionType) {
+      throw new UnprocessableEntityException(
+        `This is a ${section.sectionType} section — only ${section.sectionType} questions can be attached to it`,
+      );
     }
     if (question.approvalStatus !== 'APPROVED') {
       throw new UnprocessableEntityException('Only approved questions can be attached to an assessment');
@@ -519,6 +543,14 @@ export class AssessmentsService {
                         starterTemplates: true,
                       },
                     },
+                    // isCorrect is deliberately never selected here — this query backs the
+                    // student-facing endpoint, and the field must be structurally absent
+                    // from the result, not merely omitted later (docs/security.md §2).
+                    mcqQuestion: {
+                      include: {
+                        options: { orderBy: { orderIndex: 'asc' }, select: { id: true, optionText: true, orderIndex: true } },
+                      },
+                    },
                   },
                 },
               },
@@ -530,11 +562,18 @@ export class AssessmentsService {
     if (!assessment) throw new NotFoundException('Assessment not found');
 
     const questionIds = assessment.sections.flatMap((s) => s.questions.map((aq) => aq.questionId));
-    const submissions = await this.prisma.submission.findMany({
-      where: { attemptId: attempt.id, questionId: { in: questionIds } },
-      select: { questionId: true, kind: true, status: true },
-    });
-    const statusByQuestion = computeQuestionStatuses(submissions);
+    const [submissions, mcqResponses] = await Promise.all([
+      this.prisma.submission.findMany({
+        where: { attemptId: attempt.id, questionId: { in: questionIds } },
+        select: { questionId: true, kind: true, status: true },
+      }),
+      this.prisma.mcqResponse.findMany({
+        where: { attemptId: attempt.id, questionId: { in: questionIds } },
+        select: { questionId: true, isCorrect: true, selectedOptions: { select: { optionId: true } } },
+      }),
+    ]);
+    const statusByQuestion = computeQuestionStatuses(submissions, mcqResponses);
+    const mcqResponseByQuestion = new Map(mcqResponses.map((r) => [r.questionId, r]));
 
     return {
       attemptId: attempt.id,
@@ -542,17 +581,39 @@ export class AssessmentsService {
       sections: assessment.sections.map((s) => ({
         id: s.id,
         title: s.title,
+        sectionType: s.sectionType,
         orderIndex: s.orderIndex,
         questions: s.questions.map((aq) => {
-          const cq = aq.question.codingQuestion;
-          return {
+          const common = {
             id: aq.id,
             questionId: aq.questionId,
+            type: aq.question.type,
             title: aq.question.title,
             difficulty: aq.question.difficulty,
             marks: toNum(aq.marksOverride ?? aq.question.marks),
             orderIndex: aq.orderIndex,
             status: statusByQuestion.get(aq.questionId) ?? 'NOT_ATTEMPTED',
+          };
+
+          if (aq.question.type === 'MCQ') {
+            const mq = aq.question.mcqQuestion;
+            const response = mcqResponseByQuestion.get(aq.questionId);
+            return {
+              ...common,
+              mcqType: mq?.mcqType ?? 'SINGLE_CHOICE',
+              questionText: mq?.questionText ?? '',
+              codeSnippet: mq?.codeSnippet ?? null,
+              topics: aq.question.topics,
+              options: (mq?.options ?? []).map((o) => ({ id: o.id, optionText: o.optionText })),
+              // The student's own current selection — not correctness — so navigating away
+              // and back (or refreshing) shows what they picked (docs/assessment-system.md §4).
+              selectedOptionIds: response?.selectedOptions.map((so) => so.optionId) ?? [],
+            };
+          }
+
+          const cq = aq.question.codingQuestion;
+          return {
+            ...common,
             problemStatement: cq?.problemStatement ?? '',
             inputFormat: cq?.inputFormat ?? '',
             outputFormat: cq?.outputFormat ?? '',
@@ -573,6 +634,70 @@ export class AssessmentsService {
         }),
       })),
     };
+  }
+
+  /**
+   * The only write path for MCQ answers — evaluated immediately server-side (never
+   * deferred to submit/finalize), per docs/assessment-system.md §4: "for MCQ, ...
+   * correctness is binary and immediate". Ownership and IN_PROGRESS are enforced exactly
+   * like saveAttemptDraft. An empty `optionIds` clears the answer (back to NOT_ATTEMPTED)
+   * rather than storing a guaranteed-wrong response — matches "student can change their
+   * answer" including changing it back to unanswered.
+   */
+  async saveAttemptMcqAnswer(studentId: string, assessmentId: string, questionId: string, input: SaveMcqAnswerInput) {
+    const attempt = await this.prisma.attempt.findUnique({
+      where: { assessmentId_userId: { assessmentId, userId: studentId } },
+    });
+    if (!attempt) throw new NotFoundException('Attempt not found');
+
+    const fresh = await this.ensureAttemptFreshness(attempt);
+    if (fresh.status !== 'IN_PROGRESS') {
+      throw new ConflictException('This attempt is no longer accepting changes');
+    }
+
+    const aq = await this.prisma.assessmentQuestion.findFirst({
+      where: { questionId, section: { assessmentId } },
+      select: { marksOverride: true, question: { select: { type: true, marks: true } } },
+    });
+    if (!aq || aq.question.type !== 'MCQ') throw new NotFoundException('Question not found in this assessment');
+
+    const mcqQuestion = await this.prisma.mcqQuestion.findUnique({
+      where: { questionId },
+      include: { options: true },
+    });
+    if (!mcqQuestion) throw new NotFoundException('Question not found');
+
+    const validOptionIds = new Set(mcqQuestion.options.map((o) => o.id));
+    if (!input.optionIds.every((id) => validOptionIds.has(id))) {
+      throw new UnprocessableEntityException('One or more selected options do not belong to this question');
+    }
+
+    if (input.optionIds.length === 0) {
+      await this.prisma.mcqResponse.deleteMany({ where: { attemptId: attempt.id, questionId } });
+      return { questionId, selectedOptionIds: [] };
+    }
+
+    const correctOptionIds = new Set(mcqQuestion.options.filter((o) => o.isCorrect).map((o) => o.id));
+    const selected = new Set(input.optionIds);
+    const isCorrect = selected.size === correctOptionIds.size && [...correctOptionIds].every((id) => selected.has(id));
+    const marks = resolveQuestionMarks(aq.marksOverride, aq.question.marks);
+    const score = isCorrect ? marks : -toNum(mcqQuestion.negativeMarkingValue);
+
+    await this.prisma.$transaction(async (tx) => {
+      const response = await tx.mcqResponse.upsert({
+        where: { attemptId_questionId: { attemptId: attempt.id, questionId } },
+        create: { attemptId: attempt.id, questionId, isCorrect, score },
+        update: { isCorrect, score, answeredAt: new Date() },
+      });
+      await tx.mcqResponseOption.deleteMany({ where: { responseId: response.id } });
+      await tx.mcqResponseOption.createMany({
+        data: input.optionIds.map((optionId) => ({ responseId: response.id, optionId })),
+      });
+    });
+
+    // Never return isCorrect/score here — students must not receive correctness
+    // information before results are available (docs/security.md, Phase 11 Part 3/14).
+    return { questionId, selectedOptionIds: input.optionIds };
   }
 
   /** Early finish, requested by the student before time expires. The actual
@@ -701,11 +826,12 @@ function toAttemptDto(attempt: { id: string; assessmentId: string; startedAt: Da
 
 type QuestionStatus = 'NOT_ATTEMPTED' | 'ATTEMPTED' | 'SOLVED';
 
-/** docs/assessment-system.md §4. Always resolves to NOT_ATTEMPTED for every question until
- * Phase 5 adds code execution — there is no way for a Submission row to exist before then —
- * but is implemented against the real rule now so nothing needs reworking later. */
+/** docs/assessment-system.md §4: SOLVED via a SUBMIT that reached ACCEPTED (coding), or
+ * an MCQ response with is_correct = true ("binary and immediate" — evaluated at answer
+ * time, not deferred). ATTEMPTED covers everything else that has at least one row. */
 function computeQuestionStatuses(
   submissions: { questionId: string; kind: string; status: string }[],
+  mcqResponses: { questionId: string; isCorrect: boolean | null }[] = [],
 ): Map<string, QuestionStatus> {
   const map = new Map<string, QuestionStatus>();
   for (const s of submissions) {
@@ -716,6 +842,9 @@ function computeQuestionStatuses(
     if (map.get(s.questionId) !== 'SOLVED') {
       map.set(s.questionId, 'ATTEMPTED');
     }
+  }
+  for (const r of mcqResponses) {
+    map.set(r.questionId, r.isCorrect ? 'SOLVED' : 'ATTEMPTED');
   }
   return map;
 }

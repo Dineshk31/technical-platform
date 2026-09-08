@@ -30,3 +30,12 @@ const SOURCE_CLASS: Record<string, string> = {
 export function SourceBadge({ source }: { source: string }) {
   return <span className={`badge ${SOURCE_CLASS[source] ?? ''}`}>{source.replace('_', ' ')}</span>;
 }
+
+const QUESTION_TYPE_CLASS: Record<string, string> = {
+  CODING: 'badge-draft',
+  MCQ: 'badge-active',
+};
+
+export function QuestionTypeBadge({ type }: { type: string }) {
+  return <span className={`badge ${QUESTION_TYPE_CLASS[type] ?? ''}`}>{type}</span>;
+}
