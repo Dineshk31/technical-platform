@@ -343,7 +343,16 @@ export class QuestionsService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.question.update({ where: { id }, data: { approvalStatus: input.status } });
+      // Guard against two admins reviewing the same question concurrently — only apply
+      // this decision if the question is still in the state this reviewer saw it in,
+      // rather than silently clobbering a review that already landed.
+      const { count } = await tx.question.updateMany({
+        where: { id, approvalStatus: question.approvalStatus },
+        data: { approvalStatus: input.status },
+      });
+      if (count === 0) {
+        throw new ConflictException('This question was already reviewed by someone else — refresh and try again');
+      }
       await tx.questionReview.create({
         data: { questionId: id, reviewedById: reviewerId, status: input.status, reviewNotes: input.notes },
       });

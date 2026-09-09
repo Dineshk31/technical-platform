@@ -16,7 +16,7 @@ This is treated as a real examination system: the threat model includes both ext
 | Malicious code in a submission attacks the host (fork bomb, filesystem write outside its sandbox, network exfiltration, reading environment secrets) | Execution isolation — see `coding-engine.md` §4 and §4 below. |
 | Gemini API key leaks to the frontend or logs | Key lives only in API server env, read once by `GeminiProvider`; no controller ever echoes provider errors verbatim; see §5. |
 | SQL injection | Prisma parameterizes all queries; no raw string-interpolated SQL anywhere in the codebase (enforced by code review — `prisma.$queryRawUnsafe` is banned outright). |
-| Brute-force login | Rate limiting on `/auth/login` (Nest `ThrottlerModule`, e.g. 5 attempts/min/IP) + account lockout after repeated failures. |
+| Brute-force login | Per-account lockout (5 failed attempts → 15-minute time-lock, `LocalIdentityProvider`) plus a per-IP sliding-window throttle on `/auth/login` (hand-rolled, same in-memory pattern as run/submit/AI throttling below — not `ThrottlerModule`, deliberately generous per-IP since a campus NAT can put many legitimate students behind one address). Phase 13 — this was previously documented but not implemented. |
 | Token theft / replay | Short-lived (15 min) access tokens; refresh tokens rotated on every use and stored httpOnly+Secure+SameSite; revocation list checked on refresh. |
 
 ## 2. Hidden data protection — enforced at the code boundary, not by convention
@@ -51,7 +51,7 @@ Because `StudentCodingQuestionDto` has no field for hidden test cases or referen
 - Separate OS process (`execution-service`), never in-process with the API.
 - No shared environment/secrets: child processes for student code run with a stripped environment (no `DATABASE_URL`, no `GEMINI_API_KEY`, no JWT signing secret — those exist only in the API and execution-service's *own* process env, never passed to the spawned child).
 - Dedicated, least-privileged Postgres role for the execution service (grants limited to `submissions`, `submission_test_results`, `execution_jobs`, and read-only on `coding_questions`/`coding_test_cases`/`coding_question_languages`) — even a fully compromised execution-service process cannot read `users`, `assessments`, or credentials tables.
-- Per-run temp filesystem isolation, timeouts, best-effort memory/process limits — see `coding-engine.md` §4 and its explicitly documented limitations (§6 there).
+- Per-run temp filesystem isolation, enforced timeouts (whole process-group killed, not just the immediate pid), a kernel-enforced memory ceiling for every language (JVM `-Xmx` for Java, `ulimit -v` for C++/Python) — see `coding-engine.md` §4. **Not yet isolated**: filesystem access (no chroot/jail — a submission can read any file the execution-service's OS account can read) and network egress (fully open) — both explicitly documented as residual risk in `coding-engine.md` §6, mitigated only by running that service under a dedicated unprivileged OS account in production, which is a deployment responsibility this codebase cannot enforce from inside itself.
 - Compiler/runtime error text shown to students is capped in length and stripped of absolute host filesystem paths before storage, so it can't be used to fingerprint the host.
 
 ## 5. Secrets management
@@ -62,7 +62,7 @@ Because `StudentCodingQuestionDto` has no field for hidden test cases or referen
 
 ## 6. Input validation
 
-- Every request body/query/param is validated against a Zod schema before reaching business logic (Nest pipe) — rejected requests never reach a service method.
+- Every request body/query/param is validated against a Zod schema before reaching business logic (Nest pipe) — rejected requests never reach a service method. `:id` path params are the one exception (no per-route UUID pipe) — a malformed id reaches Prisma directly, which now gets mapped to a clean 400/404 by the global exception filter (Phase 13) instead of a generic 500, though the request still makes an unnecessary round trip to Postgres first.
 - AI-generated content gets a **second**, independent validation pass (see `ai-integration.md` §5) before it can become a database row, since it is semantically "external input" even though it originates from a request the admin trusted.
 - File-less by design for MVP: submitted code is stored as a `TEXT` column, never written to a location the API process itself executes from — only the execution-service's throwaway temp directories touch it as a file.
 

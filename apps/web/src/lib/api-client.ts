@@ -27,6 +27,17 @@ export function setAccessToken(token: string | null): void {
 }
 
 /**
+ * Notified when a mid-session silent refresh fails (refresh cookie expired/revoked) —
+ * AuthContext registers a handler that clears local user state so ProtectedRoute
+ * redirects to /login, instead of leaving the app on a stale "authenticated" shell
+ * that just shows generic error banners for every subsequent failed request.
+ */
+let onSessionExpired: (() => void) | null = null;
+export function setSessionExpiredHandler(handler: (() => void) | null): void {
+  onSessionExpired = handler;
+}
+
+/**
  * The one place every API call goes through. Always sends cookies (the
  * refresh token lives in an httpOnly cookie — see docs/api-specification.md),
  * attaches the in-memory access token, and retries exactly once after a
@@ -48,6 +59,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, _retr
     if (refreshed) {
       return apiFetch<T>(path, options, true);
     }
+    onSessionExpired?.();
   }
 
   if (!response.ok) {

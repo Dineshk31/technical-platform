@@ -3,10 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
-# environment
-.env
-.env.local
-.env.*.local
+# environment — broad match (covers .env, .env.local, .env.production, etc.) with an
+# explicit exception for the committed placeholder file, so a future .env.<anything>
+# can't be accidentally committed by not matching one of a few hardcoded suffixes.
+.env*
 !.env.example
 
 # build output

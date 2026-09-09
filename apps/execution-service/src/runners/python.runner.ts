@@ -17,7 +17,7 @@ export class PythonRunner implements LanguageRunner {
     return { success: true };
   }
 
-  async run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number): Promise<RunResult> {
+  async run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number, memoryLimitMb: number): Promise<RunResult> {
     const result = await runProcess({
       command: this.interpreterPath,
       // -B: never write __pycache__ into the throwaway workspace; -I: isolated mode,
@@ -28,7 +28,18 @@ export class PythonRunner implements LanguageRunner {
       timeoutMs,
       maxOutputBytes,
       env: minimalChildEnv(),
+      // CPython's own interpreter startup + allocator arenas reserve well more virtual
+      // address space than a comparable native binary before a student's code runs at
+      // all — a tight ulimit -v would falsely OOM-kill correct programs on interpreter
+      // boot. This buffer is deliberately generous (docs/coding-engine.md §6: this is a
+      // best-effort ceiling, not a precise accounting of the student program's own
+      // usage — a no-op on Windows dev machines regardless).
+      memoryLimitMb: memoryLimitMb + 128,
     });
-    return classifyProcessResult(result, workDir);
+    const classified = classifyProcessResult(result, workDir);
+    if (classified.verdict === 'RUNTIME_ERROR' && /MemoryError/.test(result.stderr)) {
+      return { ...classified, verdict: 'MEMORY_LIMIT_EXCEEDED', errorMessage: 'Memory limit exceeded (MemoryError).' };
+    }
+    return classified;
   }
 }

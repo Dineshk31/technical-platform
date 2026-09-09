@@ -28,6 +28,7 @@ export function AdminAssessmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionPending, setActionPending] = useState(false);
 
   async function refresh() {
     if (!id) return;
@@ -46,12 +47,16 @@ export function AdminAssessmentDetailPage() {
   }, [id]);
 
   async function runAction(fn: () => Promise<unknown>) {
+    if (actionPending) return;
+    setActionPending(true);
     setActionError(null);
     try {
       await fn();
       await refresh();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Action failed');
+    } finally {
+      setActionPending(false);
     }
   }
 
@@ -82,21 +87,32 @@ export function AdminAssessmentDetailPage() {
           </Link>
         )}
         {isDraft && (
-          <button onClick={() => void runAction(() => publishAssessment(assessment.id))}>Publish</button>
+          <button disabled={actionPending} onClick={() => void runAction(() => publishAssessment(assessment.id))}>
+            Publish
+          </button>
         )}
         {isPublished && assessment.effectiveStatus === 'PUBLISHED' && (
-          <button className="btn-secondary" onClick={() => void runAction(() => unpublishAssessment(assessment.id))}>
+          <button
+            className="btn-secondary"
+            disabled={actionPending}
+            onClick={() => void runAction(() => unpublishAssessment(assessment.id))}
+          >
             Unpublish
           </button>
         )}
         {assessment.effectiveStatus === 'COMPLETED' && (
-          <button className="btn-secondary" onClick={() => void runAction(() => archiveAssessment(assessment.id))}>
+          <button
+            className="btn-secondary"
+            disabled={actionPending}
+            onClick={() => void runAction(() => archiveAssessment(assessment.id))}
+          >
             Archive
           </button>
         )}
         {isDraft && (
           <button
             className="btn-danger"
+            disabled={actionPending}
             onClick={() => {
               if (window.confirm('Delete this draft assessment?')) {
                 void runAction(async () => {

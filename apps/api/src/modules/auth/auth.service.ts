@@ -1,10 +1,11 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { randomUUID } from 'node:crypto';
 import type { Role, User } from '../../../generated/prisma/index.js';
 import type { AuthenticatedUser, JwtAccessPayload, JwtRefreshPayload } from '@technical-platform/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { AccountLockedError } from './errors/account-locked.error.js';
 import { IDENTITY_PROVIDER, type IdentityProvider } from './interfaces/identity-provider.interface.js';
 import { hashToken } from './utils/hash-token.util.js';
 
@@ -26,7 +27,23 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string): Promise<AuthResult> {
-    const identity = await this.identityProvider.validateCredentials(email, password);
+    let identity;
+    try {
+      identity = await this.identityProvider.validateCredentials(email, password);
+    } catch (err) {
+      if (err instanceof AccountLockedError) {
+        throw new HttpException(
+          {
+            error: {
+              code: 'ACCOUNT_LOCKED',
+              message: `Too many failed login attempts. Try again in ${Math.ceil(err.retryAfterSeconds / 60)} minute(s).`,
+            },
+          },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      throw err;
+    }
     if (!identity) {
       throw new UnauthorizedException('Invalid email or password');
     }

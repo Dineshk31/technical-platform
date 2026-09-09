@@ -330,6 +330,10 @@ export function StudentExamPage() {
    * never reports it back (Part 3/14) — the UI only reflects "saved", not "correct". */
   async function handleMcqOptionToggle(question: StudentMcqQuestionDto, optionId: string) {
     if (!assessmentId || !isActive) return;
+    // One in-flight save per question — otherwise a second toggle fired before the
+    // first save's response lands can roll back to a `current` snapshot that's already
+    // stale, clobbering the newer selection (see the catch block's rollback below).
+    if (mcqSavingByQuestion[question.questionId]) return;
     const current = mcqSelectionByQuestion[question.questionId] ?? [];
     const isMulti = question.mcqType === 'MULTIPLE_CHOICE';
     const next = isMulti
@@ -975,7 +979,7 @@ function McqQuestionPanel({
               type={isMulti ? 'checkbox' : 'radio'}
               name={`mcq-${question.questionId}`}
               checked={selected.has(option.id)}
-              disabled={!isActive}
+              disabled={!isActive || saving}
               onChange={() => onToggle(option.id)}
             />
             <span>{option.optionText}</span>

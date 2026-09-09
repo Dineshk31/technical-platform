@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException, UsePipes } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Req, Res, UnauthorizedException, UsePipes } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { LoginSchema, type AuthenticatedUser, type LoginInput } from '@technical-platform/shared';
@@ -7,6 +7,7 @@ import { Public } from '../../common/decorators/public.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthService } from './auth.service.js';
+import { LoginThrottleService } from './login-throttle.service.js';
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
 const REFRESH_COOKIE_PATH = '/api/v1/auth';
@@ -17,13 +18,37 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly config: ConfigService,
+    private readonly loginThrottle: LoginThrottleService,
   ) {}
 
   @Public()
   @Post('login')
   @UsePipes(new ZodValidationPipe(LoginSchema))
-  async login(@Body() body: LoginInput, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.authService.login(body.email, body.password);
+  async login(@Body() body: LoginInput, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const ip = req.ip ?? 'unknown';
+    const retryAfterSeconds = this.loginThrottle.isBlocked(ip);
+    if (retryAfterSeconds !== null) {
+      throw new HttpException(
+        { error: { code: 'RATE_LIMITED', message: 'Too many failed login attempts from this network. Please try again shortly.' } },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    let session;
+    try {
+      session = await this.authService.login(body.email, body.password);
+    } catch (err) {
+      // Only wrong-email/wrong-password failures count toward the IP-level throttle —
+      // a successful login never does (see LoginThrottleService), and neither does an
+      // ACCOUNT_LOCKED rejection (that account is already locked; no need to also
+      // penalize the IP for a request that couldn't have succeeded anyway).
+      if (err instanceof UnauthorizedException) {
+        this.loginThrottle.recordFailure(ip);
+      }
+      throw err;
+    }
+
+    const { accessToken, refreshToken, user } = session;
     this.setRefreshCookie(res, refreshToken);
     return { accessToken, user };
   }
@@ -58,10 +83,9 @@ export class AuthController {
   }
 
   private extractRefreshToken(req: Request): string | undefined {
-    const cookieToken = (req.cookies as Record<string, string> | undefined)?.[REFRESH_COOKIE_NAME];
-    if (cookieToken) return cookieToken;
-    const body = req.body as { refreshToken?: string } | undefined;
-    return body?.refreshToken;
+    // Cookie-only by design (docs/security.md §3 — httpOnly+Secure+SameSite): no body
+    // fallback, so a refresh token can never be read into JS-reachable client storage.
+    return (req.cookies as Record<string, string> | undefined)?.[REFRESH_COOKIE_NAME];
   }
 
   private setRefreshCookie(res: Response, token: string): void {

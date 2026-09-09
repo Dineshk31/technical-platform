@@ -185,6 +185,11 @@ model User {
   department   String?
   batch        String?
   isActive     Boolean  @default(true) @map("is_active")
+  // Phase 13 — login brute-force protection (docs/security.md §1). Incremented on every
+  // failed password check, reset to 0 on success; once it crosses the threshold the
+  // account is time-locked via lockedUntil rather than permanently disabled.
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(6)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -230,7 +235,11 @@ model Question {
   tags                   String[]       @default([])
   marks                  Decimal        @db.Decimal(6, 2)
   source                 QuestionSource @default(MANUAL)
-  approvalStatus         ApprovalStatus @default(APPROVED) @map("approval_status")
+  // Defense-in-depth: both real call sites (QuestionsService.create/createMcq) pass this
+  // explicitly, but the schema-level default must itself be the safe value — a future
+  // write path (bulk import, seed script, manual edit) that omits the field must not
+  // silently create a live, unreviewed question. See docs/security.md §2.
+  approvalStatus         ApprovalStatus @default(PENDING_REVIEW) @map("approval_status")
   createdById            String         @map("created_by") @db.Uuid
   createdBy              User           @relation("QuestionCreatedBy", fields: [createdById], references: [id])
   aiGenerationRequestId  String?        @map("ai_generation_request_id") @db.Uuid

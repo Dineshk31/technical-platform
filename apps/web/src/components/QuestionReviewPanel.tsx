@@ -23,14 +23,19 @@ export function QuestionReviewPanel({
 }) {
   const [reviewNotes, setReviewNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleReview(status: 'APPROVED' | 'NEEDS_EDIT' | 'REJECTED' | 'PENDING_REVIEW') {
+    if (submitting) return;
     setError(null);
+    setSubmitting(true);
     try {
       await onReview(status, reviewNotes.trim() || undefined);
       setReviewNotes('');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to update review status');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -53,19 +58,19 @@ export function QuestionReviewPanel({
       />
       {error && <p className="form-error">{error}</p>}
       <div className="action-row">
-        <button onClick={() => void handleReview('APPROVED')} disabled={approvalStatus === 'APPROVED'}>
+        <button onClick={() => void handleReview('APPROVED')} disabled={submitting || approvalStatus === 'APPROVED'}>
           Approve
         </button>
-        <button className="btn-secondary" onClick={() => void handleReview('NEEDS_EDIT')}>
+        <button className="btn-secondary" disabled={submitting} onClick={() => void handleReview('NEEDS_EDIT')}>
           Needs edit
         </button>
-        <button className="btn-secondary" onClick={() => void handleReview('REJECTED')}>
+        <button className="btn-secondary" disabled={submitting} onClick={() => void handleReview('REJECTED')}>
           Reject
         </button>
-        <button className="btn-secondary" onClick={() => void handleReview('PENDING_REVIEW')}>
+        <button className="btn-secondary" disabled={submitting} onClick={() => void handleReview('PENDING_REVIEW')}>
           Send back to review
         </button>
-        <button className="btn-danger" onClick={onDelete}>
+        <button className="btn-danger" disabled={submitting} onClick={onDelete}>
           Delete question
         </button>
       </div>

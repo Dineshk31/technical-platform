@@ -41,7 +41,7 @@ export class CppRunner implements LanguageRunner {
     return { success: true };
   }
 
-  async run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number): Promise<RunResult> {
+  async run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number, memoryLimitMb: number): Promise<RunResult> {
     const exePath = join(workDir, EXE_FILE);
     const result = await runProcess({
       command: exePath,
@@ -51,7 +51,23 @@ export class CppRunner implements LanguageRunner {
       timeoutMs,
       maxOutputBytes,
       env: minimalChildEnv(),
+      // Small fixed buffer over the question's limit for loader/libc/dynamic-linker
+      // overhead that isn't the student's own allocation (docs/coding-engine.md §6 —
+      // no equivalent of the JVM's -Xmx exists for a native binary, so this is a
+      // kernel-enforced ulimit -v ceiling instead; POSIX only, no-op on Windows).
+      memoryLimitMb: memoryLimitMb + 16,
     });
-    return classifyProcessResult(result, workDir);
+    const classified = classifyProcessResult(result, workDir);
+    // ulimit -v exhaustion doesn't produce a clean error like the JVM's OutOfMemoryError —
+    // `new` throws std::bad_alloc when malloc returns NULL, which (uncaught) prints a
+    // recognizable "terminate called after throwing an instance of 'std::bad_alloc'"
+    // line before aborting. Only trust that specific, unambiguous signal — a bare
+    // SIGSEGV/SIGABRT is far more often an ordinary student bug (null deref, stack
+    // overflow from infinite recursion) than an allocation failure, and mislabeling
+    // those as MEMORY_LIMIT_EXCEEDED would actively mislead students about the cause.
+    if (classified.verdict === 'RUNTIME_ERROR' && /bad_alloc/.test(result.stderr)) {
+      return { ...classified, verdict: 'MEMORY_LIMIT_EXCEEDED', errorMessage: 'Memory limit exceeded (std::bad_alloc).' };
+    }
+    return classified;
   }
 }

@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { IDENTITY_PROVIDER } from './interfaces/identity-provider.interface.js';
+import { LoginThrottleService } from './login-throttle.service.js';
 import { LocalIdentityProvider } from './providers/local-identity.provider.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
@@ -13,6 +14,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
   providers: [
     AuthService,
     JwtStrategy,
+    LoginThrottleService,
     // Swap this binding for an SsoIdentityProvider in Phase 12 — nothing
     // else in this module (or outside it) needs to change.
     { provide: IDENTITY_PROVIDER, useClass: LocalIdentityProvider },

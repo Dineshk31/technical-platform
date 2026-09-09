@@ -26,6 +26,15 @@ export interface ProcessRunOptions {
    * ambient PATH entries beyond their own binary).
    */
   env?: NodeJS.ProcessEnv;
+  /**
+   * Kernel-enforced virtual-memory ceiling (via `ulimit -v`) for runners with no
+   * runtime-native equivalent of the JVM's `-Xmx` (i.e. C++/Python — see
+   * cpp.runner.ts/python.runner.ts, which add their own startup-overhead buffer on
+   * top of the question's configured limit before passing this through). POSIX only;
+   * a no-op on Windows dev machines, where this is a documented, accepted gap
+   * (docs/coding-engine.md §6) rather than a silently missing one.
+   */
+  memoryLimitMb?: number;
 }
 
 export interface ProcessRunResult {
@@ -63,17 +72,47 @@ function killProcessTree(pid: number): void {
     // only signals the immediate process, leaving anything it spawned running.
     spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
   } else {
+    // The child is always spawned with `detached: true` on this platform (see below),
+    // making it the leader of its own process group — so `pid` here doubles as the
+    // process group id. Signalling `-pid` kills the whole group, including anything
+    // the submission forked/exec'd (a bare `process.kill(pid, ...)` only signals the
+    // single immediate process and lets forked grandchildren survive the kill).
     try {
-      process.kill(pid, 'SIGKILL');
+      process.kill(-pid, 'SIGKILL');
     } catch {
-      // already exited
+      // Group already gone (race with natural exit) — fall back to the single pid
+      // in case the child somehow isn't a group leader (e.g. platform quirk).
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch {
+        // already exited
+      }
     }
   }
 }
 
+/**
+ * Wraps the command in `sh -c 'ulimit -v "$1"; shift; exec "$@"' sh <kb> <command> <args...>`
+ * so the kernel enforces a hard RLIMIT_AS ceiling on the student process (POSIX only).
+ * The script text is fixed and student-controlled values (command path, args) are passed
+ * as separate argv entries, never interpolated into the script string — no shell
+ * injection surface, same discipline as every other spawn in this service.
+ */
+function withMemoryLimit(command: string, args: string[], memoryLimitMb: number): { command: string; args: string[] } {
+  const memoryLimitKb = Math.max(1, Math.floor(memoryLimitMb * 1024));
+  return {
+    command: '/bin/sh',
+    args: ['-c', 'ulimit -v "$1"; shift; exec "$@"', 'sh', String(memoryLimitKb), command, ...args],
+  };
+}
+
 export function runProcess(options: ProcessRunOptions): Promise<ProcessRunResult> {
-  const { command, args, cwd, input, timeoutMs, maxOutputBytes } = options;
+  const { cwd, input, timeoutMs, maxOutputBytes } = options;
   const startedAt = Date.now();
+  const { command, args } =
+    options.memoryLimitMb && process.platform !== 'win32'
+      ? withMemoryLimit(options.command, options.args, options.memoryLimitMb)
+      : options;
 
   return new Promise((resolve) => {
     let child;
@@ -83,6 +122,11 @@ export function runProcess(options: ProcessRunOptions): Promise<ProcessRunResult
         env: options.env ?? {},
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
+        // New process group on POSIX so killProcessTree can signal the whole group
+        // (see killProcessTree) — a forked/exec'd grandchild dies with the timeout/
+        // output-cap kill instead of surviving it. No effect on Windows, which uses
+        // `taskkill /T` (true tree-kill) instead.
+        detached: process.platform !== 'win32',
       });
     } catch {
       resolve({

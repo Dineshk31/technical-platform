@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { AuthenticatedUser } from '@technical-platform/shared';
-import { apiFetch, ApiError, setAccessToken, tryRefresh, type LoginResponse } from '../lib/api-client';
+import { apiFetch, ApiError, setAccessToken, setSessionExpiredHandler, tryRefresh, type LoginResponse } from '../lib/api-client';
 
 interface AuthContextValue {
   user: AuthenticatedUser | null;
@@ -35,6 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setAccessToken(null);
+      setUser(null);
+      setStatus('unauthenticated');
+    });
+    return () => setSessionExpiredHandler(null);
   }, []);
 
   async function login(email: string, password: string) {

@@ -378,6 +378,12 @@ describe('Questions (e2e)', () => {
       expect(res.status).toBe(404);
     });
 
+    it('returns a clean 400 (not a 500) for a malformed question id', async () => {
+      const res = await request(server).get('/api/v1/questions/not-a-valid-uuid').set('Authorization', `Bearer ${adminToken}`);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('approves the question, recording a review entry', async () => {
       const res = await request(server)
         .post(`/api/v1/questions/${questionId}/review`)
@@ -418,6 +424,29 @@ describe('Questions (e2e)', () => {
         .send({ status: 'APPROVED' });
       expect(res.status).toBe(422);
       expect(res.body.error.details.some((d: { field: string }) => d.field === 'hiddenTestCases')).toBe(true);
+    });
+
+    it('rejects a review when the question was already reviewed by someone else since it was loaded (409)', async () => {
+      const q = await request(server)
+        .post('/api/v1/questions/coding')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(validCreatePayload(`Concurrent Review ${runId}`));
+      questionIds.push(q.body.id);
+
+      // Two "admins" both act on the same PENDING_REVIEW question at once — only one
+      // write should land; the loser must get a conflict, not a silently clobbered decision.
+      const [first, second] = await Promise.all([
+        request(server).post(`/api/v1/questions/${q.body.id}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'APPROVED' }),
+        request(server).post(`/api/v1/questions/${q.body.id}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'REJECTED' }),
+      ]);
+      const statuses = [first.status, second.status].sort();
+      expect(statuses).toEqual([201, 409]);
+
+      const winner = first.status === 201 ? first : second;
+      const detail = await request(server).get(`/api/v1/questions/${q.body.id}`).set('Authorization', `Bearer ${adminToken}`);
+      expect(detail.body.approvalStatus).toBe(winner.body.approvalStatus);
+      // Only the winning write's review entry was recorded — the loser never touched the DB.
+      expect(detail.body.reviews).toHaveLength(1);
     });
 
     it('deletes an unreferenced question', async () => {

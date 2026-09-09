@@ -1,15 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService);
 
   app.setGlobalPrefix('api/v1');
   app.use(cookieParser());
+  // Explicit, documented ceiling rather than relying on Express's unconfigured 100kb
+  // default — generous enough for the largest legitimate payload (a ~100k-character
+  // code submission, JSON-escaped, plus envelope) without leaving the limit unbounded.
+  app.useBodyParser('json', { limit: '2mb' });
+  app.useBodyParser('urlencoded', { limit: '2mb', extended: true });
   app.enableCors({
     origin: config.get<string>('FRONTEND_URL'),
     credentials: true,
