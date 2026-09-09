@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 // docs/security.md §1/§7 — per-IP throttle on POST /auth/login, complementing the
 // per-account lockout in LocalIdentityProvider. Kept as a hand-rolled in-memory sliding
@@ -18,6 +18,7 @@ const MAX_FAILURES_PER_WINDOW = 30;
 
 @Injectable()
 export class LoginThrottleService {
+  private readonly logger = new Logger(LoginThrottleService.name);
   private readonly failuresByIp = new Map<string, { count: number; windowStart: number }>();
 
   /** Returns seconds to wait if this IP has failed too many logins recently, otherwise null. */
@@ -29,7 +30,12 @@ export class LoginThrottleService {
       return null;
     }
     if (entry.count >= MAX_FAILURES_PER_WINDOW) {
-      return Math.ceil((entry.windowStart + WINDOW_MS - Date.now()) / 1000);
+      const retryAfterSeconds = Math.ceil((entry.windowStart + WINDOW_MS - Date.now()) / 1000);
+      // Phase 15 — logged so a real credential-guessing burst is visible in ops
+      // logs/alerting, never anything more specific than the IP itself (no email,
+      // no password, no request body).
+      this.logger.warn(`Login throttle active for IP ${ip} — ${entry.count} failures in the current window, retry in ${retryAfterSeconds}s`);
+      return retryAfterSeconds;
     }
     return null;
   }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 import type { ExternalIdentity } from '@technical-platform/shared';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -13,6 +13,8 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class LocalIdentityProvider implements IdentityProvider {
+  private readonly logger = new Logger(LocalIdentityProvider.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async validateCredentials(email: string, password: string): Promise<ExternalIdentity | null> {
@@ -59,5 +61,12 @@ export class LocalIdentityProvider implements IdentityProvider {
       where: { id: userId },
       data: { failedLoginAttempts: attempts, lockedUntil },
     });
+    // Phase 15 — logged only by user id (never email/password), and only once the
+    // account actually crosses into a lockout, so this can't be used to spam the log
+    // with every single mistyped password across the fleet — just the moments an
+    // account-lockout, an operationally interesting event, actually happens.
+    if (lockedUntil) {
+      this.logger.warn(`Account ${userId} locked until ${lockedUntil.toISOString()} after ${attempts} failed login attempts`);
+    }
   }
 }

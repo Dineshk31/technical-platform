@@ -32,6 +32,23 @@ export interface CompileResult {
   internal?: boolean;
 }
 
+/**
+ * Phase 15 — bundles the wall-clock/output/memory limits every runner already
+ * enforced with the new process-count/file-size/CPU-time ceilings (see the doc
+ * comments on `ProcessRunOptions` in process-executor.ts). `maxProcesses` and
+ * `maxFileSizeKb` are optional because they're global execution-service defaults
+ * (see config/env.ts) rather than per-question values — a runner that doesn't
+ * receive them simply doesn't apply that particular ceiling.
+ */
+export interface RunOptions {
+  timeoutMs: number;
+  maxOutputBytes: number;
+  memoryLimitMb: number;
+  maxProcesses?: number;
+  maxFileSizeKb?: number;
+  maxCpuSeconds?: number;
+}
+
 export interface RunResult {
   verdict: SandboxVerdict;
   stdout: string;
@@ -54,7 +71,7 @@ export interface LanguageRunner {
   /** Writes sourceCode into workDir and compiles it. A no-op returning success for interpreted languages. */
   compile(sourceCode: string, workDir: string, timeoutMs: number): Promise<CompileResult>;
   /** Executes the already-compiled artifact (or interprets sourceCode directly) against one test case's stdin. */
-  run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number, memoryLimitMb: number): Promise<RunResult>;
+  run(workDir: string, stdin: string, options: RunOptions): Promise<RunResult>;
 }
 
 export function classifyProcessResult(result: ProcessRunResult, workDir: string): RunResult {

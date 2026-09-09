@@ -21,6 +21,11 @@ export interface JudgeParams {
   compileTimeoutMs: number;
   runtimeGraceMs: number;
   maxOutputBytes: number;
+  /** Phase 15 hardening — global execution-service defaults (config/env.ts), applied
+   * to every run regardless of language; see RunOptions/ProcessRunOptions for what
+   * each one defends against. */
+  maxProcesses: number;
+  maxFileSizeKb: number;
 }
 
 export interface JudgeOutcome {
@@ -60,8 +65,21 @@ export async function judgeSubmission(params: JudgeParams): Promise<JudgeOutcome
     let maxRuntimeMs: number | null = null;
     let maxMemoryKb: number | null = null;
 
+    // Deliberately redundant with the wall-clock `runTimeoutMs` above (see the doc
+    // comment on `maxCpuSeconds` in process-executor.ts) — a small fixed buffer over
+    // the wall timeout so it only ever fires as a backstop, never before the primary
+    // timeout would have anyway.
+    const maxCpuSeconds = Math.ceil(runTimeoutMs / 1000) + 2;
+
     for (const testCase of params.testCases) {
-      const runResult = await runner.run(workDir, testCase.input, runTimeoutMs, params.maxOutputBytes, params.memoryLimitMb);
+      const runResult = await runner.run(workDir, testCase.input, {
+        timeoutMs: runTimeoutMs,
+        maxOutputBytes: params.maxOutputBytes,
+        memoryLimitMb: params.memoryLimitMb,
+        maxProcesses: params.maxProcesses,
+        maxFileSizeKb: params.maxFileSizeKb,
+        maxCpuSeconds,
+      });
       if (runResult.verdict === 'INTERNAL_ERROR') {
         throw new InternalExecutionError(runResult.errorMessage ?? 'Sandbox execution failed');
       }

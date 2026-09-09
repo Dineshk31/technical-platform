@@ -18,7 +18,7 @@ async function bootstrap(): Promise<void> {
   poller.start();
 
   // Bound to 127.0.0.1 only — never exposed on a public interface (docs/security.md §5).
-  const server = createInternalServer(env, poller, log);
+  const server = createInternalServer(env, poller, pool, log);
   server.listen(env.PORT, '127.0.0.1', () => {
     log(`listening on http://127.0.0.1:${env.PORT} (poll interval ${env.POLL_INTERVAL_MS}ms)`);
     log(`toolchain: cpp=${toolchain.cpp.compiler} javac=${toolchain.java.javac} java=${toolchain.java.java} python=${toolchain.python.interpreter}`);

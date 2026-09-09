@@ -35,6 +35,34 @@ export interface ProcessRunOptions {
    * (docs/coding-engine.md §6) rather than a silently missing one.
    */
   memoryLimitMb?: number;
+  /**
+   * Phase 15 hardening — kernel-enforced ceiling on the number of processes/threads
+   * the spawned process (and anything it forks) may hold open at once, via `ulimit -u`
+   * (RLIMIT_NPROC). This is the direct mitigation for a fork-bomb (`while(1) fork();`,
+   * Python's `os.fork()` in a loop, etc.) — the wall-clock timeout in this file already
+   * kills a runaway process eventually, but a fork bomb can exhaust the host's total
+   * process table in well under a second, before that timeout ever fires. POSIX only;
+   * a no-op on Windows (docs/DEPLOYMENT.md documents this platform gap explicitly).
+   */
+  maxProcesses?: number;
+  /**
+   * Phase 15 hardening — kernel-enforced ceiling on the size of any single file the
+   * process writes, via `ulimit -f` (RLIMIT_FSIZE, in 512-byte blocks per POSIX, but
+   * this module accepts and converts from KB for callers). Mitigates a submission
+   * trying to fill the execution host's disk via an unbounded write loop — the
+   * stdout/stderr byte cap in this file already bounds *piped* output, but does
+   * nothing for a program that opens and writes to a file directly. POSIX only.
+   */
+  maxFileSizeKb?: number;
+  /**
+   * Phase 15 hardening — kernel-enforced ceiling on CPU seconds, via `ulimit -t`
+   * (RLIMIT_CPU). Deliberately redundant with the wall-clock timeout above: the
+   * timeout is enforced by this Node process's own event loop and is the primary
+   * defense, but this gives the kernel itself a second, independent way to end a
+   * CPU-bound infinite loop if the Node event loop is ever delayed enough that the
+   * `setTimeout` above fires late. POSIX only.
+   */
+  maxCpuSeconds?: number;
 }
 
 export interface ProcessRunResult {
@@ -92,26 +120,72 @@ function killProcessTree(pid: number): void {
 }
 
 /**
- * Wraps the command in `sh -c 'ulimit -v "$1"; shift; exec "$@"' sh <kb> <command> <args...>`
- * so the kernel enforces a hard RLIMIT_AS ceiling on the student process (POSIX only).
- * The script text is fixed and student-controlled values (command path, args) are passed
- * as separate argv entries, never interpolated into the script string — no shell
+ * Wraps the command in a fixed `sh -c '...'` script that applies whichever of the
+ * four resource ceilings the caller asked for, then `exec`s the real command —
+ * so the kernel enforces hard `RLIMIT_*` limits on the student process (POSIX only).
+ * Only `ulimit -v` (memory) shipped in Phase 13; Phase 15 adds `-u` (max
+ * processes/threads, RLIMIT_NPROC), `-f` (max single-file size, RLIMIT_FSIZE), and
+ * `-t` (max CPU seconds, RLIMIT_CPU) as additional, independent kernel-level backstops
+ * — see the doc comments on `ProcessRunOptions` above for what each one actually
+ * defends against. The script text itself is a fixed constant; every numeric limit
+ * and the real command/args are passed as separate argv entries via positional
+ * parameters (`$1`, `$2`, ...), never string-interpolated into the script — no shell
  * injection surface, same discipline as every other spawn in this service.
  */
-function withMemoryLimit(command: string, args: string[], memoryLimitMb: number): { command: string; args: string[] } {
-  const memoryLimitKb = Math.max(1, Math.floor(memoryLimitMb * 1024));
+function withResourceLimits(
+  command: string,
+  args: string[],
+  limits: { memoryLimitMb?: number; maxProcesses?: number; maxFileSizeKb?: number; maxCpuSeconds?: number },
+): { command: string; args: string[] } {
+  const ulimitFlags: string[] = [];
+  const values: string[] = [];
+  if (limits.memoryLimitMb !== undefined) {
+    ulimitFlags.push('-v');
+    values.push(String(Math.max(1, Math.floor(limits.memoryLimitMb * 1024))));
+  }
+  if (limits.maxProcesses !== undefined) {
+    ulimitFlags.push('-u');
+    values.push(String(Math.max(1, Math.floor(limits.maxProcesses))));
+  }
+  if (limits.maxFileSizeKb !== undefined) {
+    ulimitFlags.push('-f');
+    values.push(String(Math.max(1, Math.floor(limits.maxFileSizeKb))));
+  }
+  if (limits.maxCpuSeconds !== undefined) {
+    ulimitFlags.push('-t');
+    values.push(String(Math.max(1, Math.floor(limits.maxCpuSeconds))));
+  }
+
+  // One `ulimit -F "$N"; shift` per active limit, in the same order values[] is
+  // appended above, followed by `exec "$@"` once every limit value has been shifted
+  // off — leaving only the real command and its args in "$@".
+  const script = ulimitFlags.map((flag) => `ulimit ${flag} "$1"; shift`).join('; ') + '; exec "$@"';
   return {
     command: '/bin/sh',
-    args: ['-c', 'ulimit -v "$1"; shift; exec "$@"', 'sh', String(memoryLimitKb), command, ...args],
+    args: ['-c', script, 'sh', ...values, command, ...args],
   };
+}
+
+function hasAnyResourceLimit(options: ProcessRunOptions): boolean {
+  return (
+    options.memoryLimitMb !== undefined ||
+    options.maxProcesses !== undefined ||
+    options.maxFileSizeKb !== undefined ||
+    options.maxCpuSeconds !== undefined
+  );
 }
 
 export function runProcess(options: ProcessRunOptions): Promise<ProcessRunResult> {
   const { cwd, input, timeoutMs, maxOutputBytes } = options;
   const startedAt = Date.now();
   const { command, args } =
-    options.memoryLimitMb && process.platform !== 'win32'
-      ? withMemoryLimit(options.command, options.args, options.memoryLimitMb)
+    process.platform !== 'win32' && hasAnyResourceLimit(options)
+      ? withResourceLimits(options.command, options.args, {
+          memoryLimitMb: options.memoryLimitMb,
+          maxProcesses: options.maxProcesses,
+          maxFileSizeKb: options.maxFileSizeKb,
+          maxCpuSeconds: options.maxCpuSeconds,
+        })
       : options;
 
   return new Promise((resolve) => {

@@ -76,6 +76,12 @@ export class QuestionGenerationService {
     });
 
     if (!result.success) {
+      // Phase 15 — the per-attempt retry warnings already logged inside GeminiProvider
+      // show *why* each attempt failed; this one line marks that the whole request
+      // ultimately gave up, at the orchestration layer, by admin id only (never the
+      // API key, never raw provider error internals — those already stayed out of
+      // `result.error`).
+      this.logger.error(`AI generation failed for admin ${adminId}: ${result.error?.code ?? 'AI_GENERATION_FAILED'} — ${result.error?.message ?? 'no message'}`);
       await this.prisma.aiGenerationRequest.create({
         data: this.baseRequestData(adminId, input, result.promptSnapshot, {
           status: 'FAILED',

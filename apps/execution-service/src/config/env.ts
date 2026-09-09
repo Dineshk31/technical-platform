@@ -43,6 +43,17 @@ const EnvSchema = z.object({
   RUNTIME_GRACE_MS: z.coerce.number().int().nonnegative().default(1_000),
   MAX_OUTPUT_BYTES: z.coerce.number().int().positive().default(1_000_000),
   MAX_STDIN_BYTES: z.coerce.number().int().positive().default(1_000_000),
+  // Phase 15 hardening (docs/DEPLOYMENT.md "Code Execution Security") — kernel-enforced
+  // via `ulimit -u`/`ulimit -f` in process-executor.ts, POSIX only, no-op on Windows.
+  // MAX_PROCESSES: generous enough that a normal JVM's support threads (GC, JIT, signal
+  // dispatcher, etc. — commonly a dozen or so for a trivial program) are never at risk
+  // of hitting it, while still bounding a fork-bomb far below anything that could
+  // meaningfully strain the host's process table.
+  MAX_PROCESSES: z.coerce.number().int().positive().default(128),
+  // MAX_FILE_SIZE_KB: bounds any single file the student process writes directly
+  // (distinct from MAX_OUTPUT_BYTES, which only caps piped stdout/stderr) — defends
+  // against an unbounded write-loop trying to fill the execution host's disk.
+  MAX_FILE_SIZE_KB: z.coerce.number().int().positive().default(51_200),
   // Retries only ever apply to INTERNAL_ERROR (sandbox/infra failure), never to a
   // genuine compile/runtime/timeout verdict — docs/coding-engine.md §5.
   MAX_JOB_ATTEMPTS: z.coerce.number().int().positive().default(2),

@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { minimalChildEnv, runProcess } from '../process/process-executor.js';
-import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunResult } from '../sandbox/sandbox.interface.js';
+import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunOptions, type RunResult } from '../sandbox/sandbox.interface.js';
 
 const SOURCE_FILE = 'source.py';
 
@@ -17,7 +17,7 @@ export class PythonRunner implements LanguageRunner {
     return { success: true };
   }
 
-  async run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number, memoryLimitMb: number): Promise<RunResult> {
+  async run(workDir: string, stdin: string, options: RunOptions): Promise<RunResult> {
     const result = await runProcess({
       command: this.interpreterPath,
       // -B: never write __pycache__ into the throwaway workspace; -I: isolated mode,
@@ -25,8 +25,8 @@ export class PythonRunner implements LanguageRunner {
       args: ['-B', '-I', join(workDir, SOURCE_FILE)],
       cwd: workDir,
       input: stdin,
-      timeoutMs,
-      maxOutputBytes,
+      timeoutMs: options.timeoutMs,
+      maxOutputBytes: options.maxOutputBytes,
       env: minimalChildEnv(),
       // CPython's own interpreter startup + allocator arenas reserve well more virtual
       // address space than a comparable native binary before a student's code runs at
@@ -34,7 +34,10 @@ export class PythonRunner implements LanguageRunner {
       // boot. This buffer is deliberately generous (docs/coding-engine.md §6: this is a
       // best-effort ceiling, not a precise accounting of the student program's own
       // usage — a no-op on Windows dev machines regardless).
-      memoryLimitMb: memoryLimitMb + 128,
+      memoryLimitMb: options.memoryLimitMb + 128,
+      maxProcesses: options.maxProcesses,
+      maxFileSizeKb: options.maxFileSizeKb,
+      maxCpuSeconds: options.maxCpuSeconds,
     });
     const classified = classifyProcessResult(result, workDir);
     if (classified.verdict === 'RUNTIME_ERROR' && /MemoryError/.test(result.stderr)) {

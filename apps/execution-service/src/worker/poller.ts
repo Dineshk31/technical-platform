@@ -76,6 +76,8 @@ export async function pollOnce(pool: Pool, env: Env, toolchain: ToolchainConfig,
       compileTimeoutMs: env.COMPILE_TIMEOUT_MS,
       runtimeGraceMs: env.RUNTIME_GRACE_MS,
       maxOutputBytes: env.MAX_OUTPUT_BYTES,
+      maxProcesses: env.MAX_PROCESSES,
+      maxFileSizeKb: env.MAX_FILE_SIZE_KB,
     });
 
     await finalizeSubmission(pool, {

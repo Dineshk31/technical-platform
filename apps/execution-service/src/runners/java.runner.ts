@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { minimalChildEnv, runProcess } from '../process/process-executor.js';
-import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunResult } from '../sandbox/sandbox.interface.js';
+import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunOptions, type RunResult } from '../sandbox/sandbox.interface.js';
 import { sanitizeErrorText } from '../sandbox/sanitize.js';
 
 const DEFAULT_CLASS_NAME = 'Main';
@@ -57,15 +57,24 @@ export class JavaRunner implements LanguageRunner {
     return { success: true };
   }
 
-  async run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number, memoryLimitMb: number): Promise<RunResult> {
+  async run(workDir: string, stdin: string, options: RunOptions): Promise<RunResult> {
     const result = await runProcess({
       command: this.javaPath,
-      args: [`-Xmx${memoryLimitMb}m`, '-XX:+UseSerialGC', '-cp', workDir, this.className],
+      args: [`-Xmx${options.memoryLimitMb}m`, '-XX:+UseSerialGC', '-cp', workDir, this.className],
       cwd: workDir,
       input: stdin,
-      timeoutMs,
-      maxOutputBytes,
+      timeoutMs: options.timeoutMs,
+      maxOutputBytes: options.maxOutputBytes,
       env: minimalChildEnv(),
+      // No `memoryLimitMb` passed through to the ulimit wrapper here — the JVM's own
+      // -Xmx above is the real, VM-native memory ceiling for Java (docs/coding-engine.md
+      // §4); a *second*, lower ulimit -v on top of it would also cap the JVM's own
+      // non-heap address space (thread stacks, metaspace, the JVM's own code cache) and
+      // risks the JVM failing to even start rather than the student's program failing
+      // cleanly. The process-count/file-size/CPU-time ceilings still apply.
+      maxProcesses: options.maxProcesses,
+      maxFileSizeKb: options.maxFileSizeKb,
+      maxCpuSeconds: options.maxCpuSeconds,
     });
 
     const classified = classifyProcessResult(result, workDir);

@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { minimalChildEnv, runProcess } from '../process/process-executor.js';
-import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunResult } from '../sandbox/sandbox.interface.js';
+import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunOptions, type RunResult } from '../sandbox/sandbox.interface.js';
 import { sanitizeErrorText } from '../sandbox/sanitize.js';
 
 const SOURCE_FILE = 'source.cpp';
@@ -41,21 +41,24 @@ export class CppRunner implements LanguageRunner {
     return { success: true };
   }
 
-  async run(workDir: string, stdin: string, timeoutMs: number, maxOutputBytes: number, memoryLimitMb: number): Promise<RunResult> {
+  async run(workDir: string, stdin: string, options: RunOptions): Promise<RunResult> {
     const exePath = join(workDir, EXE_FILE);
     const result = await runProcess({
       command: exePath,
       args: [],
       cwd: workDir,
       input: stdin,
-      timeoutMs,
-      maxOutputBytes,
+      timeoutMs: options.timeoutMs,
+      maxOutputBytes: options.maxOutputBytes,
       env: minimalChildEnv(),
       // Small fixed buffer over the question's limit for loader/libc/dynamic-linker
       // overhead that isn't the student's own allocation (docs/coding-engine.md §6 —
       // no equivalent of the JVM's -Xmx exists for a native binary, so this is a
       // kernel-enforced ulimit -v ceiling instead; POSIX only, no-op on Windows).
-      memoryLimitMb: memoryLimitMb + 16,
+      memoryLimitMb: options.memoryLimitMb + 16,
+      maxProcesses: options.maxProcesses,
+      maxFileSizeKb: options.maxFileSizeKb,
+      maxCpuSeconds: options.maxCpuSeconds,
     });
     const classified = classifyProcessResult(result, workDir);
     // ulimit -v exhaustion doesn't produce a clean error like the JVM's OutOfMemoryError —
