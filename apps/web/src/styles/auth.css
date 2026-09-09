@@ -1,0 +1,112 @@
+.auth-shell {
+  display: flex;
+  min-height: 100%;
+}
+
+.auth-brand-pane {
+  flex: 1.1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-9);
+  background: radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.12), transparent 45%),
+    linear-gradient(160deg, #362f9e 0%, var(--color-primary) 52%, var(--color-secondary) 100%);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 700;
+  font-size: 1rem;
+}
+.auth-brand-mark-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-brand-copy h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 var(--space-4);
+  color: #fff;
+  max-width: 460px;
+}
+
+.auth-brand-copy p {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 420px;
+  margin: 0;
+}
+
+.auth-brand-features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+.auth-brand-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.auth-brand-footer {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.auth-form-pane {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--color-bg);
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8) var(--space-7);
+  box-shadow: var(--shadow-md);
+}
+
+.auth-card h1 {
+  font-size: var(--text-page-title);
+  margin: 0 0 0.2rem;
+}
+
+.auth-subtitle {
+  color: var(--color-muted);
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-small);
+}
+
+.auth-submit {
+  width: 100%;
+  padding: 0.7rem 1.2rem;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 860px) {
+  .auth-brand-pane {
+    display: none;
+  }
+}

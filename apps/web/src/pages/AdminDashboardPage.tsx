@@ -1,13 +1,26 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { ClipboardList, PlayCircle, Plus, Users } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { createAssessment, listAssessments, type AssessmentListItem } from '../lib/assessments-api';
 import { StatusBadge } from '../components/StatusBadge';
+import { PageHeader } from '../components/PageHeader';
+import { StatCard } from '../components/Card';
+import { Button } from '../components/Button';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { SkeletonTable, LoadingRow } from '../components/Skeleton';
+
+interface Overview {
+  total: number;
+  active: number;
+  draft: number;
+  participants: number;
+}
 
 export function AdminDashboardPage() {
-  const { user, logout } = useAuth();
   const [assessments, setAssessments] = useState<AssessmentListItem[]>([]);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -20,6 +33,14 @@ export function AdminDashboardPage() {
     try {
       const result = await listAssessments({ status: statusFilter || undefined, search: search || undefined });
       setAssessments(result.data);
+      if (!statusFilter && !search) {
+        setOverview({
+          total: result.meta.total,
+          active: result.data.filter((a) => a.effectiveStatus === 'ACTIVE').length,
+          draft: result.data.filter((a) => a.status === 'DRAFT').length,
+          participants: result.data.reduce((sum, a) => sum + a.participantsCount, 0),
+        });
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load assessments');
     } finally {
@@ -33,58 +54,73 @@ export function AdminDashboardPage() {
   }, [statusFilter]);
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div>
-          <h1>Technical Assessment — Admin</h1>
-          <p>
-            Signed in as {user?.name} ({user?.email})
-          </p>
-        </div>
-        <div className="action-row" style={{ marginBottom: 0 }}>
-          <Link to="/admin/questions">
-            <button className="btn-secondary">Question Bank</button>
-          </Link>
-          <button onClick={() => void logout()}>Sign out</button>
-        </div>
-      </header>
+    <div className="dashboard-body">
+      <PageHeader
+        title="Assessments"
+        subtitle="Create, publish, and monitor technical assessments."
+        actions={
+          <>
+            <Link to="/admin/questions/ai-generate">
+              <Button variant="secondary" icon={<PlayCircle size={16} />}>
+                Generate with AI
+              </Button>
+            </Link>
+            <Button icon={<Plus size={16} />} onClick={() => setShowCreate((v) => !v)}>
+              {showCreate ? 'Cancel' : 'Create assessment'}
+            </Button>
+          </>
+        }
+      />
 
-      <main className="dashboard-body">
-        <div className="page-header">
-          <h2 style={{ margin: 0 }}>Assessments</h2>
-          <button onClick={() => setShowCreate((v) => !v)}>{showCreate ? 'Cancel' : 'Create assessment'}</button>
+      {overview && (
+        <div className="stat-card-grid">
+          <StatCard label="Total assessments" value={overview.total} icon={<ClipboardList size={18} />} />
+          <StatCard label="Active now" value={overview.active} hint="Within their start/end window" icon={<PlayCircle size={18} />} />
+          <StatCard label="Drafts" value={overview.draft} hint="Not yet published" icon={<ClipboardList size={18} />} />
+          <StatCard label="Participants assigned" value={overview.participants} icon={<Users size={18} />} />
+        </div>
+      )}
+
+      {showCreate && (
+        <CreateAssessmentForm
+          onCreated={() => {
+            setShowCreate(false);
+            void refresh();
+          }}
+        />
+      )}
+
+      <div className="card">
+        <div className="action-row">
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="ARCHIVED">Archived</option>
+          </select>
+          <input placeholder="Search by title" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 0 }} />
+          <Button variant="secondary" size="sm" onClick={() => void refresh()}>
+            Search
+          </Button>
         </div>
 
-        {showCreate && (
-          <CreateAssessmentForm
-            onCreated={() => {
-              setShowCreate(false);
-              void refresh();
-            }}
+        {error && <ErrorState message={error} />}
+        {loading ? (
+          <SkeletonTable rows={4} columns={6} />
+        ) : assessments.length === 0 ? (
+          <EmptyState
+            icon={<ClipboardList size={22} />}
+            title="No assessments yet"
+            description="Create your first assessment, or generate coding questions with AI to build one from."
+            action={
+              <Button size="sm" onClick={() => setShowCreate(true)}>
+                Create assessment
+              </Button>
+            }
           />
-        )}
-
-        <div className="card">
-          <div className="action-row">
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All statuses</option>
-              <option value="DRAFT">Draft</option>
-              <option value="PUBLISHED">Published</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-            <input placeholder="Search by title" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 0 }} />
-            <button className="btn-secondary btn-small" onClick={() => void refresh()}>
-              Search
-            </button>
-          </div>
-
-          {error && <p className="form-error">{error}</p>}
-          {loading ? (
-            <p>Loading…</p>
-          ) : assessments.length === 0 ? (
-            <p>No assessments yet.</p>
-          ) : (
+        ) : (
+          <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -115,9 +151,9 @@ export function AdminDashboardPage() {
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
-      </main>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -186,9 +222,9 @@ function CreateAssessmentForm({ onCreated }: { onCreated: () => void }) {
         </div>
         {error && <p className="form-error field-full">{error}</p>}
         <div className="field-full">
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create draft'}
-          </button>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? <LoadingRow label="Creating…" /> : 'Create draft'}
+          </Button>
         </div>
       </form>
     </div>

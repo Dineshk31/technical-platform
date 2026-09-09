@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
+import { GraduationCap, ShieldCheck, Sparkles, Timer } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/Button';
 
 export function LoginPage() {
   const { user, status, login } = useAuth();
@@ -28,37 +30,68 @@ export function LoginPage() {
   }
 
   return (
-    <div className="page-centered">
-      <form className="auth-card" onSubmit={handleSubmit}>
-        <h1>Technical Assessment</h1>
-        <p className="auth-subtitle">Centurion University</p>
+    <div className="auth-shell">
+      <div className="auth-brand-pane">
+        <div className="auth-brand-mark">
+          <span className="auth-brand-mark-icon">
+            <GraduationCap size={20} />
+          </span>
+          Centurion University
+        </div>
 
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="username"
-        />
+        <div className="auth-brand-copy">
+          <h1>Technical Assessment Platform</h1>
+          <p>Author, generate, and grade coding &amp; MCQ assessments with server-authoritative timing and judging.</p>
+          <div className="auth-brand-features">
+            <div className="auth-brand-feature">
+              <Timer size={16} /> Server-authoritative timers — no client-side shortcuts
+            </div>
+            <div className="auth-brand-feature">
+              <Sparkles size={16} /> AI-assisted question generation with a full review workflow
+            </div>
+            <div className="auth-brand-feature">
+              <ShieldCheck size={16} /> Hidden test cases and reference solutions stay admin-only
+            </div>
+          </div>
+        </div>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
+        <div className="auth-brand-footer">Centurion University · Technical Assessment Platform</div>
+      </div>
 
-        {error && <p className="form-error">{error}</p>}
+      <div className="auth-form-pane">
+        <form className="auth-card" onSubmit={handleSubmit}>
+          <h1>Sign in</h1>
+          <p className="auth-subtitle">Use your university-issued credentials.</p>
 
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="username"
+            style={{ width: '100%' }}
+          />
+
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            style={{ width: '100%' }}
+          />
+
+          {error && <p className="form-error">{error}</p>}
+
+          <Button type="submit" disabled={submitting} className="auth-submit">
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

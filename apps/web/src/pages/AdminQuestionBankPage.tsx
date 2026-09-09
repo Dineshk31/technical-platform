@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Database, Plus, Sparkles } from 'lucide-react';
 import {
   CODING_TOPICS,
   DIFFICULTY_LEVELS,
@@ -11,6 +12,9 @@ import {
 import { ApiError } from '../lib/api-client';
 import { listQuestions, type QuestionListItem } from '../lib/questions-api';
 import { ApprovalBadge, DifficultyBadge, QuestionTypeBadge, SourceBadge } from '../components/ApprovalBadge';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { SkeletonTable } from '../components/Skeleton';
 
 export function AdminQuestionBankPage() {
   // The URL is the single source of truth for filters (not mirrored into local state)
@@ -96,23 +100,31 @@ export function AdminQuestionBankPage() {
   return (
     <div className="dashboard-body">
       <Link to="/admin" className="back-link">
-        ← Back to assessments
+        <ArrowLeft size={14} /> Back to assessments
       </Link>
 
       <div className="page-header">
         <h1 style={{ margin: 0 }}>{isAiReviewQueue ? 'AI Review Queue' : 'Question Bank'}</h1>
         <div className="action-row" style={{ marginBottom: 0 }}>
           <Link to="/admin/questions?source=AI_GENERATED&approvalStatus=PENDING_REVIEW">
-            <button className="btn-secondary">AI Review Queue</button>
+            <button className="btn-secondary btn-icon">
+              <Database size={15} /> AI Review Queue
+            </button>
           </Link>
           <Link to="/admin/questions/ai-generate">
-            <button className="btn-secondary">Generate with AI</button>
+            <button className="btn-secondary btn-icon">
+              <Sparkles size={15} /> Generate with AI
+            </button>
           </Link>
           <Link to="/admin/questions/mcq/new">
-            <button className="btn-secondary">Create MCQ</button>
+            <button className="btn-secondary btn-icon">
+              <Plus size={15} /> Create MCQ
+            </button>
           </Link>
           <Link to="/admin/questions/new">
-            <button>Create question</button>
+            <button className="btn-icon">
+              <Plus size={15} /> Create question
+            </button>
           </Link>
         </div>
       </div>
@@ -178,60 +190,70 @@ export function AdminQuestionBankPage() {
           </button>
         </div>
 
-        {error && <p className="form-error">{error}</p>}
+        {error && <ErrorState message={error} />}
         {loading ? (
-          <p>Loading…</p>
+          <SkeletonTable rows={5} columns={7} />
         ) : questions.length === 0 ? (
-          <p>{isAiReviewQueue ? 'No AI-generated questions are awaiting review.' : 'No questions found.'}</p>
+          <EmptyState
+            icon={<Database size={22} />}
+            title={isAiReviewQueue ? 'Nothing to review' : 'No questions found'}
+            description={
+              isAiReviewQueue
+                ? 'No AI-generated questions are awaiting review right now.'
+                : 'Create a question manually, or generate a batch with AI.'
+            }
+          />
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Source</th>
-                <th>Difficulty</th>
-                <th>Topics</th>
-                <th>Marks</th>
-                <th>Detail</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {questions.map((q) => (
-                <tr key={q.id}>
-                  <td>
-                    <Link to={editLink(q)}>{q.title}</Link>
-                  </td>
-                  <td>
-                    <QuestionTypeBadge type={q.type} />
-                  </td>
-                  <td>
-                    <SourceBadge source={q.source} />
-                  </td>
-                  <td>
-                    <DifficultyBadge difficulty={q.difficulty} />
-                  </td>
-                  <td>
-                    {q.topics.map((t) => (
-                      <span key={t} className="topic-tag">
-                        {t}
-                      </span>
-                    ))}
-                  </td>
-                  <td>{q.marks}</td>
-                  <td>
-                    {q.type === 'MCQ'
-                      ? `${q.optionCount ?? 0} option(s)`
-                      : `${q.publicTestCaseCount} public / ${q.hiddenTestCaseCount} hidden`}
-                  </td>
-                  <td>
-                    <ApprovalBadge status={q.approvalStatus} />
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Type</th>
+                  <th>Source</th>
+                  <th>Difficulty</th>
+                  <th>Topics</th>
+                  <th>Marks</th>
+                  <th>Detail</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {questions.map((q) => (
+                  <tr key={q.id}>
+                    <td>
+                      <Link to={editLink(q)}>{q.title}</Link>
+                    </td>
+                    <td>
+                      <QuestionTypeBadge type={q.type} />
+                    </td>
+                    <td>
+                      <SourceBadge source={q.source} />
+                    </td>
+                    <td>
+                      <DifficultyBadge difficulty={q.difficulty} />
+                    </td>
+                    <td>
+                      {q.topics.map((t) => (
+                        <span key={t} className="topic-tag">
+                          {t}
+                        </span>
+                      ))}
+                    </td>
+                    <td>{q.marks}</td>
+                    <td>
+                      {q.type === 'MCQ'
+                        ? `${q.optionCount ?? 0} option(s)`
+                        : `${q.publicTestCaseCount} public / ${q.hiddenTestCaseCount} hidden`}
+                    </td>
+                    <td>
+                      <ApprovalBadge status={q.approvalStatus} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, PlayCircle, Trash2, Users } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import {
   addSection,
@@ -20,6 +21,9 @@ import {
 import { StatusBadge } from '../components/StatusBadge';
 import { QuestionPicker } from '../components/QuestionPicker';
 import { QuestionTypeBadge } from '../components/ApprovalBadge';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingRow } from '../components/Skeleton';
+import { useConfirm } from '../components/useConfirm';
 
 export function AdminAssessmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +33,7 @@ export function AdminAssessmentDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState(false);
+  const [requestConfirm, confirmDialog] = useConfirm();
 
   async function refresh() {
     if (!id) return;
@@ -60,35 +65,52 @@ export function AdminAssessmentDetailPage() {
     }
   }
 
-  if (loading) return <div className="dashboard-body">Loading…</div>;
-  if (error || !assessment) return <div className="dashboard-body form-error">{error ?? 'Not found'}</div>;
+  if (loading) return <div className="dashboard-body"><LoadingRow label="Loading assessment…" /></div>;
+  if (error || !assessment) return <div className="dashboard-body"><ErrorState message={error ?? 'Not found'} /></div>;
 
   const isDraft = assessment.status === 'DRAFT';
   const isPublished = assessment.status === 'PUBLISHED';
 
+  async function handleDeleteDraft() {
+    const ok = await requestConfirm({
+      title: 'Delete this draft assessment?',
+      description: 'This permanently removes the assessment and its sections. Published assessments cannot be deleted.',
+      confirmLabel: 'Delete assessment',
+      confirmVariant: 'danger',
+    });
+    if (!ok) return;
+    void runAction(async () => {
+      await deleteAssessment(assessment!.id);
+      navigate('/admin');
+    });
+  }
+
   return (
     <div className="dashboard-body">
+      {confirmDialog}
       <Link to="/admin" className="back-link">
-        ← Back to assessments
+        <ArrowLeft size={14} /> Back to assessments
       </Link>
 
       <div className="page-header">
-        <h1 style={{ margin: 0 }}>
+        <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           {assessment.title} <StatusBadge status={assessment.effectiveStatus} />
         </h1>
       </div>
 
-      {actionError && <p className="form-error">{actionError}</p>}
+      {actionError && <ErrorState message={actionError} />}
 
       <div className="action-row">
         {!isDraft && (
           <Link to={`/admin/assessments/${assessment.id}/results`}>
-            <button className="btn-secondary">View results</button>
+            <button className="btn-secondary btn-icon">
+              <Users size={15} /> View results
+            </button>
           </Link>
         )}
         {isDraft && (
-          <button disabled={actionPending} onClick={() => void runAction(() => publishAssessment(assessment.id))}>
-            Publish
+          <button className="btn-icon" disabled={actionPending} onClick={() => void runAction(() => publishAssessment(assessment.id))}>
+            <PlayCircle size={15} /> Publish
           </button>
         )}
         {isPublished && assessment.effectiveStatus === 'PUBLISHED' && (
@@ -110,19 +132,8 @@ export function AdminAssessmentDetailPage() {
           </button>
         )}
         {isDraft && (
-          <button
-            className="btn-danger"
-            disabled={actionPending}
-            onClick={() => {
-              if (window.confirm('Delete this draft assessment?')) {
-                void runAction(async () => {
-                  await deleteAssessment(assessment.id);
-                  navigate('/admin');
-                });
-              }
-            }}
-          >
-            Delete
+          <button className="btn-danger btn-icon" disabled={actionPending} onClick={() => void handleDeleteDraft()}>
+            <Trash2 size={15} /> Delete
           </button>
         )}
       </div>
@@ -140,7 +151,9 @@ export function AdminAssessmentDetailPage() {
       </div>
 
       <div className="card">
-        <h2>Participants ({assessment.participantsCount})</h2>
+        <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Users size={17} /> Participants ({assessment.participantsCount})
+        </h2>
         <ParticipantsPanel assessment={assessment} onChanged={refresh} />
       </div>
     </div>

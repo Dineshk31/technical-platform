@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft, CheckCircle2, Sparkles } from 'lucide-react';
 import { CODING_TOPICS, DIFFICULTY_LEVELS, PROGRAMMING_LANGUAGES, type AIGeneratedCodingQuestion } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { generateQuestions, saveGeneratedQuestions, type GenerationPreview } from '../lib/ai-api';
@@ -100,10 +101,12 @@ export function AdminAIGeneratorPage() {
   return (
     <div className="dashboard-body">
       <Link to="/admin/questions" className="back-link">
-        ← Back to Question Bank
+        <ArrowLeft size={14} /> Back to Question Bank
       </Link>
       <div className="page-header">
-        <h1 style={{ margin: 0 }}>AI Question Generator</h1>
+        <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Sparkles size={20} style={{ color: 'var(--color-secondary)' }} /> AI Question Generator
+        </h1>
       </div>
       <p className="field-hint" style={{ marginTop: 0 }}>
         Generated questions are a <strong>preview only</strong> — nothing is added to the question bank, and nothing is
@@ -217,8 +220,16 @@ export function AdminAIGeneratorPage() {
           {generateError && <p className="form-error field-full">{generateError}</p>}
 
           <div className="field-full action-row">
-            <button type="submit" disabled={generating}>
-              {generating ? 'Generating…' : 'Generate'}
+            <button type="submit" disabled={generating} className="btn-icon">
+              {generating ? (
+                <>
+                  <span className="spinner" aria-hidden="true" /> Generating…
+                </>
+              ) : (
+                <>
+                  <Sparkles size={15} /> Generate
+                </>
+              )}
             </button>
             {generateError && (
               <button type="button" className="btn-secondary" onClick={() => void handleGenerate()} disabled={generating}>
@@ -236,7 +247,9 @@ export function AdminAIGeneratorPage() {
 
       {savedIds && savedIds.length > 0 && (
         <div className="card">
-          <h2>Saved {savedIds.length} question(s)</h2>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={18} style={{ color: 'var(--color-success)' }} /> Saved {savedIds.length} question(s)
+          </h2>
           <p className="field-hint">
             They are in the question bank as <code>PENDING_REVIEW</code>. Open each to review, edit, and approve it
             before it can be attached to an assessment.

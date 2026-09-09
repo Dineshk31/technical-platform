@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppShell } from './components/AppShell';
 import { LoginPage } from './pages/LoginPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminAssessmentDetailPage } from './pages/AdminAssessmentDetailPage';
@@ -30,102 +31,40 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+
       <Route
-        path="/admin"
         element={
           <ProtectedRoute allow={['ADMIN']}>
-            <AdminDashboardPage />
+            <AppShell role="ADMIN" />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route path="/admin" element={<AdminDashboardPage />} />
+        <Route path="/admin/assessments/:id" element={<AdminAssessmentDetailPage />} />
+        <Route path="/admin/questions" element={<AdminQuestionBankPage />} />
+        <Route path="/admin/questions/new" element={<AdminQuestionFormPage />} />
+        <Route path="/admin/questions/ai-generate" element={<AdminAIGeneratorPage />} />
+        <Route path="/admin/questions/mcq/new" element={<AdminMcqFormPage />} />
+        <Route path="/admin/questions/mcq/:id/edit" element={<AdminMcqFormPage />} />
+        <Route path="/admin/questions/:id/edit" element={<AdminQuestionFormPage />} />
+        <Route path="/admin/assessments/:id/results" element={<AdminResultsPage />} />
+        <Route path="/admin/assessments/:id/results/:attemptId" element={<AdminResultDetailPage />} />
+      </Route>
+
       <Route
-        path="/admin/assessments/:id"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminAssessmentDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/questions"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminQuestionBankPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/questions/new"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminQuestionFormPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/questions/ai-generate"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminAIGeneratorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/questions/mcq/new"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminMcqFormPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/questions/mcq/:id/edit"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminMcqFormPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/questions/:id/edit"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminQuestionFormPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/assessments/:id/results"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminResultsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/assessments/:id/results/:attemptId"
-        element={
-          <ProtectedRoute allow={['ADMIN']}>
-            <AdminResultDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student"
         element={
           <ProtectedRoute allow={['STUDENT']}>
-            <StudentDashboardPage />
+            <AppShell role="STUDENT" />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/student/assessments/:id"
-        element={
-          <ProtectedRoute allow={['STUDENT']}>
-            <StudentAssessmentDetailPage />
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route path="/student" element={<StudentDashboardPage />} />
+        <Route path="/student/assessments/:id" element={<StudentAssessmentDetailPage />} />
+        <Route path="/student/attempts/:attemptId/result" element={<StudentResultPage />} />
+      </Route>
+
+      {/* The exam-taking route stays outside the app shell — a focused, distraction-free
+          full-screen layout, per the exam experience's own dedicated design. */}
       <Route
         path="/student/attempts/:attemptId"
         element={
@@ -136,14 +75,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/student/attempts/:attemptId/result"
-        element={
-          <ProtectedRoute allow={['STUDENT']}>
-            <StudentResultPage />
-          </ProtectedRoute>
-        }
-      />
+
       <Route path="/" element={<HomeRedirect />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

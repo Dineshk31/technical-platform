@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check, Edit3, RotateCcw, Trash2, X } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { ApprovalBadge } from './ApprovalBadge';
 
@@ -58,20 +59,20 @@ export function QuestionReviewPanel({
       />
       {error && <p className="form-error">{error}</p>}
       <div className="action-row">
-        <button onClick={() => void handleReview('APPROVED')} disabled={submitting || approvalStatus === 'APPROVED'}>
-          Approve
+        <button className="btn-icon" onClick={() => void handleReview('APPROVED')} disabled={submitting || approvalStatus === 'APPROVED'}>
+          <Check size={15} /> Approve
         </button>
-        <button className="btn-secondary" disabled={submitting} onClick={() => void handleReview('NEEDS_EDIT')}>
-          Needs edit
+        <button className="btn-secondary btn-icon" disabled={submitting} onClick={() => void handleReview('NEEDS_EDIT')}>
+          <Edit3 size={15} /> Needs edit
         </button>
-        <button className="btn-secondary" disabled={submitting} onClick={() => void handleReview('REJECTED')}>
-          Reject
+        <button className="btn-secondary btn-icon" disabled={submitting} onClick={() => void handleReview('REJECTED')}>
+          <X size={15} /> Reject
         </button>
-        <button className="btn-secondary" disabled={submitting} onClick={() => void handleReview('PENDING_REVIEW')}>
-          Send back to review
+        <button className="btn-secondary btn-icon" disabled={submitting} onClick={() => void handleReview('PENDING_REVIEW')}>
+          <RotateCcw size={15} /> Send back to review
         </button>
-        <button className="btn-danger" disabled={submitting} onClick={onDelete}>
-          Delete question
+        <button className="btn-danger btn-icon" disabled={submitting} onClick={onDelete}>
+          <Trash2 size={15} /> Delete question
         </button>
       </div>
 

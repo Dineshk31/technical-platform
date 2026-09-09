@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { DIFFICULTY_LEVELS, MCQ_TOPICS, MCQ_TYPES } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import {
@@ -12,6 +13,9 @@ import {
 } from '../lib/questions-api';
 import { ApprovalBadge, SourceBadge } from '../components/ApprovalBadge';
 import { QuestionReviewPanel } from '../components/QuestionReviewPanel';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingRow } from '../components/Skeleton';
+import { useConfirm } from '../components/useConfirm';
 
 interface OptionRow {
   optionText: string;
@@ -48,6 +52,7 @@ export function AdminMcqFormPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [requestConfirm, confirmDialog] = useConfirm();
 
   const isMultiAnswer = mcqType === 'MULTIPLE_CHOICE';
 
@@ -143,7 +148,14 @@ export function AdminMcqFormPage() {
   }
 
   async function handleDelete() {
-    if (!id || !window.confirm('Delete this question permanently?')) return;
+    if (!id) return;
+    const ok = await requestConfirm({
+      title: 'Delete this question?',
+      description: 'This permanently removes the question and cannot be undone.',
+      confirmLabel: 'Delete question',
+      confirmVariant: 'danger',
+    });
+    if (!ok) return;
     try {
       await deleteQuestion(id);
       navigate('/admin/questions');
@@ -158,13 +170,14 @@ export function AdminMcqFormPage() {
     await refreshQuestion();
   }
 
-  if (loading) return <div className="dashboard-body">Loading…</div>;
-  if (loadError) return <div className="dashboard-body form-error">{loadError}</div>;
+  if (loading) return <div className="dashboard-body"><LoadingRow label="Loading question…" /></div>;
+  if (loadError) return <div className="dashboard-body"><ErrorState message={loadError} /></div>;
 
   return (
     <div className="dashboard-body">
+      {confirmDialog}
       <Link to="/admin/questions" className="back-link">
-        ← Back to Question Bank
+        <ArrowLeft size={14} /> Back to Question Bank
       </Link>
       <div className="page-header">
         <h1 style={{ margin: 0 }}>{isEdit ? `Edit: ${question?.title ?? ''}` : 'New MCQ question'}</h1>

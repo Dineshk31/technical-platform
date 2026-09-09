@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { getAdminResultDetail, type AdminResultDetailDto } from '../lib/results-api';
 import { StatusBadge } from '../components/StatusBadge';
 import { ResultBreakdown } from '../components/ResultBreakdown';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingRow } from '../components/Skeleton';
 
 export function AdminResultDetailPage() {
   const { id, attemptId } = useParams<{ id: string; attemptId: string }>();
@@ -19,17 +22,17 @@ export function AdminResultDetailPage() {
       .finally(() => setLoading(false));
   }, [id, attemptId]);
 
-  if (loading) return <div className="dashboard-body">Loading…</div>;
-  if (error || !detail) return <div className="dashboard-body form-error">{error ?? 'Not found'}</div>;
+  if (loading) return <div className="dashboard-body"><LoadingRow label="Loading result…" /></div>;
+  if (error || !detail) return <div className="dashboard-body"><ErrorState message={error ?? 'Not found'} /></div>;
 
   return (
     <div className="dashboard-body">
       <Link to={`/admin/assessments/${id}/results`} className="back-link">
-        ← Back to results
+        <ArrowLeft size={14} /> Back to results
       </Link>
 
       <div className="page-header">
-        <h1 style={{ margin: 0 }}>
+        <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           {detail.student.name} <StatusBadge status={detail.attemptStatus} />
         </h1>
       </div>

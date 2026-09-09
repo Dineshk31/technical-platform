@@ -1,11 +1,13 @@
-const CLASS_BY_STATUS: Record<string, string> = {
-  DRAFT: 'badge-draft',
-  PUBLISHED: 'badge',
-  ACTIVE: 'badge-active',
-  COMPLETED: 'badge-completed',
-  ARCHIVED: 'badge-archived',
+import { Badge, type BadgeVariant } from './Badge';
+
+const VARIANT_BY_STATUS: Record<string, BadgeVariant> = {
+  DRAFT: 'warning',
+  PUBLISHED: 'info',
+  ACTIVE: 'success',
+  COMPLETED: 'neutral',
+  ARCHIVED: 'neutral',
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  return <span className={`badge ${CLASS_BY_STATUS[status] ?? ''}`}>{status}</span>;
+  return <Badge variant={VARIANT_BY_STATUS[status] ?? 'neutral'}>{status}</Badge>;
 }

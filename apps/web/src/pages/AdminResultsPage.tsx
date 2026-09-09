@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import { ATTEMPT_STATUS_CODES } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { getAdminAssessment, type AdminAssessmentDetail } from '../lib/assessments-api';
 import { listAssessmentResults, type AdminResultListItemDto } from '../lib/results-api';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { SkeletonTable } from '../components/Skeleton';
 
 const STATUS_FILTERS = ['NOT_STARTED', ...ATTEMPT_STATUS_CODES] as const;
 const PAGE_SIZE = 20;
@@ -54,7 +58,7 @@ export function AdminResultsPage() {
   return (
     <div className="dashboard-body">
       <Link to={`/admin/assessments/${id}`} className="back-link">
-        ← Back to assessment
+        <ArrowLeft size={14} /> Back to assessment
       </Link>
 
       <div className="page-header">
@@ -100,54 +104,56 @@ export function AdminResultsPage() {
           </button>
         </div>
 
-        {error && <p className="form-error">{error}</p>}
+        {error && <ErrorState message={error} />}
         {loading ? (
-          <p>Loading…</p>
+          <SkeletonTable rows={5} columns={6} />
         ) : rows.length === 0 ? (
-          <p>No participants match this filter.</p>
+          <EmptyState icon={<Trophy size={22} />} title="No participants match this filter" />
         ) : (
           <>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                  <th>Score</th>
-                  <th>Percentage</th>
-                  <th>Submitted</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.userId}>
-                    <td>{r.studentName}</td>
-                    <td>{r.studentEmail}</td>
-                    <td>
-                      <span className={`badge ${r.attemptStatus === 'NOT_STARTED' ? 'badge-archived' : r.attemptStatus === 'IN_PROGRESS' ? 'badge-draft' : 'badge-active'}`}>
-                        {r.attemptStatus.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td>{r.totalScore !== null ? `${r.totalScore} / ${r.maxScore}` : '—'}</td>
-                    <td>{r.percentage !== null ? `${r.percentage}%` : '—'}</td>
-                    <td>{r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '—'}</td>
-                    <td>{r.attemptId && <Link to={`/admin/assessments/${id}/results/${r.attemptId}`}>View</Link>}</td>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Score</th>
+                    <th>Percentage</th>
+                    <th>Submitted</th>
+                    <th />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.userId}>
+                      <td>{r.studentName}</td>
+                      <td>{r.studentEmail}</td>
+                      <td>
+                        <span className={`badge ${r.attemptStatus === 'NOT_STARTED' ? 'badge-archived' : r.attemptStatus === 'IN_PROGRESS' ? 'badge-draft' : 'badge-active'}`}>
+                          {r.attemptStatus.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td>{r.totalScore !== null ? `${r.totalScore} / ${r.maxScore}` : '—'}</td>
+                      <td>{r.percentage !== null ? `${r.percentage}%` : '—'}</td>
+                      <td>{r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '—'}</td>
+                      <td>{r.attemptId && <Link to={`/admin/assessments/${id}/results/${r.attemptId}`}>View</Link>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {meta.totalPages > 1 && (
-              <div className="action-row" style={{ marginTop: '0.8rem' }}>
-                <button className="btn-secondary btn-small" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  ← Previous
+              <div className="action-row" style={{ marginTop: '0.8rem', alignItems: 'center' }}>
+                <button className="btn-secondary btn-small btn-icon" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  <ChevronLeft size={14} /> Previous
                 </button>
                 <span style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
                   Page {meta.page} of {meta.totalPages} ({meta.total} total)
                 </span>
-                <button className="btn-secondary btn-small" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Next →
+                <button className="btn-secondary btn-small btn-icon" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>
+                  Next <ChevronRight size={14} />
                 </button>
               </div>
             )}

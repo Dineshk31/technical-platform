@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { getAttemptDetail } from '../lib/attempts-api';
 import { getStudentResult, type OverallResultDto } from '../lib/results-api';
 import { StatusBadge } from '../components/StatusBadge';
 import { ResultBreakdown } from '../components/ResultBreakdown';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingRow } from '../components/Skeleton';
 
 function formatDuration(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
@@ -47,13 +50,13 @@ export function StudentResultPage() {
     };
   }, [attemptId]);
 
-  if (loading) return <div className="dashboard-body">Loading result…</div>;
+  if (loading) return <div className="dashboard-body"><LoadingRow label="Loading result…" /></div>;
 
   if (notReady) {
     return (
       <div className="dashboard-body">
         <Link to="/student" className="back-link">
-          ← Back to your assessments
+          <ArrowLeft size={14} /> Back to your assessments
         </Link>
         <div className="card">
           <h2>Result not available yet</h2>
@@ -67,9 +70,9 @@ export function StudentResultPage() {
     return (
       <div className="dashboard-body">
         <Link to="/student" className="back-link">
-          ← Back to your assessments
+          <ArrowLeft size={14} /> Back to your assessments
         </Link>
-        <p className="form-error">{error ?? 'Result not found'}</p>
+        <ErrorState message={error ?? 'Result not found'} />
       </div>
     );
   }
@@ -77,11 +80,11 @@ export function StudentResultPage() {
   return (
     <div className="dashboard-body">
       <Link to="/student" className="back-link">
-        ← Back to your assessments
+        <ArrowLeft size={14} /> Back to your assessments
       </Link>
 
       <div className="page-header">
-        <h1 style={{ margin: 0 }}>
+        <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           {result.assessmentTitle} <StatusBadge status={result.attemptStatus} />
         </h1>
       </div>

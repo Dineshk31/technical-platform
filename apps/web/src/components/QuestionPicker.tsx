@@ -1,8 +1,12 @@
 import { Fragment, useEffect, useState } from 'react';
+import { Eye, EyeOff, Search } from 'lucide-react';
 import { CODING_TOPICS, DIFFICULTY_LEVELS, MCQ_TOPICS } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { getQuestion, listQuestions, type QuestionDetail, type QuestionListItem } from '../lib/questions-api';
 import { DifficultyBadge } from './ApprovalBadge';
+import { EmptyState } from './EmptyState';
+import { ErrorState } from './ErrorState';
+import { LoadingRow } from './Skeleton';
 
 /**
  * Replaces the Phase 2 "paste a question ID" text field. Only ever searches
@@ -96,14 +100,15 @@ export function QuestionPicker({
         </button>
       </div>
 
-      {error && <p className="form-error">{error}</p>}
+      {error && <ErrorState message={error} />}
       {loading ? (
-        <p>Loading…</p>
+        <LoadingRow label="Searching…" />
       ) : results.length === 0 ? (
-        <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>
-          No approved {questionType === 'MCQ' ? 'MCQ' : 'coding'} questions match. Approve questions in the Question Bank
-          first.
-        </p>
+        <EmptyState
+          icon={<Search size={20} />}
+          title="No matching approved questions"
+          description={`Approve ${questionType === 'MCQ' ? 'MCQ' : 'coding'} questions in the Question Bank first.`}
+        />
       ) : (
         <table className="table">
           <thead>
@@ -134,7 +139,8 @@ export function QuestionPicker({
                     </td>
                     <td>{q.marks}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      <button type="button" className="btn-secondary btn-small" onClick={() => void togglePreview(q.id)}>
+                      <button type="button" className="btn-secondary btn-small btn-icon" onClick={() => void togglePreview(q.id)}>
+                        {previewId === q.id ? <EyeOff size={13} /> : <Eye size={13} />}
                         {previewId === q.id ? 'Hide' : 'Preview'}
                       </button>{' '}
                       <button type="button" className="btn-small" disabled={attached} title={attached ? 'Already attached' : ''} onClick={() => onSelect(q)}>

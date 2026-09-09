@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CalendarClock, ClipboardList } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../lib/api-client';
 import { listAssignedAssessments, type StudentAssignedListItem } from '../lib/assessments-api';
 import { StatusBadge } from '../components/StatusBadge';
+import { PageHeader } from '../components/PageHeader';
+import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
+import { SkeletonTable } from '../components/Skeleton';
 
 export function StudentDashboardPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [assessments, setAssessments] = useState<StudentAssignedListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,60 +23,65 @@ export function StudentDashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div>
-          <h1>Technical Assessment</h1>
-          <p>
-            Signed in as {user?.name} ({user?.email})
-          </p>
-        </div>
-        <button onClick={() => void logout()}>Sign out</button>
-      </header>
+  const firstName = user?.name?.split(' ')[0];
 
-      <main className="dashboard-body">
-        <h2>Your assessments</h2>
-        {error && <p className="form-error">{error}</p>}
+  return (
+    <div className="dashboard-body">
+      <PageHeader
+        title={firstName ? `Welcome back, ${firstName}` : 'Your assessments'}
+        subtitle="Everything assigned to you, in one place."
+      />
+
+      <div className="card">
+        {error && <ErrorState message={error} />}
         {loading ? (
-          <p>Loading…</p>
+          <SkeletonTable rows={3} columns={5} />
         ) : assessments.length === 0 ? (
-          <p>You have no assessments assigned yet.</p>
+          <EmptyState
+            icon={<CalendarClock size={22} />}
+            title="No assessments assigned yet"
+            description="When your instructor assigns you a technical assessment, it will show up here."
+          />
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Window</th>
-                <th>Marks</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {assessments.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.title}</td>
-                  <td>
-                    <StatusBadge status={a.status} />
-                  </td>
-                  <td>
-                    {new Date(a.startAt).toLocaleString()} → {new Date(a.endAt).toLocaleString()}
-                  </td>
-                  <td>{a.maxMarks}</td>
-                  <td>
-                    {a.hasStarted && a.attemptId ? (
-                      <Link to={`/student/attempts/${a.attemptId}`}>Resume</Link>
-                    ) : (
-                      <Link to={`/student/assessments/${a.id}`}>View</Link>
-                    )}
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Status</th>
+                  <th>Window</th>
+                  <th>Marks</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {assessments.map((a) => (
+                  <tr key={a.id}>
+                    <td style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <ClipboardList size={15} style={{ color: 'var(--color-muted)' }} />
+                      {a.title}
+                    </td>
+                    <td>
+                      <StatusBadge status={a.status} />
+                    </td>
+                    <td>
+                      {new Date(a.startAt).toLocaleString()} → {new Date(a.endAt).toLocaleString()}
+                    </td>
+                    <td>{a.maxMarks}</td>
+                    <td>
+                      {a.hasStarted && a.attemptId ? (
+                        <Link to={`/student/attempts/${a.attemptId}`}>Resume</Link>
+                      ) : (
+                        <Link to={`/student/assessments/${a.id}`}>View</Link>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

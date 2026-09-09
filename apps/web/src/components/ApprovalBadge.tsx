@@ -1,41 +1,42 @@
-const CLASS_BY_STATUS: Record<string, string> = {
-  PENDING_REVIEW: 'badge-draft',
-  APPROVED: 'badge-active',
-  REJECTED: 'badge-archived',
-  NEEDS_EDIT: 'badge-draft',
+import { Badge, type BadgeVariant } from './Badge';
+
+const APPROVAL_VARIANT: Record<string, BadgeVariant> = {
+  PENDING_REVIEW: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'neutral',
+  NEEDS_EDIT: 'warning',
 };
 
 export function ApprovalBadge({ status }: { status: string }) {
-  return <span className={`badge ${CLASS_BY_STATUS[status] ?? ''}`}>{status.replace('_', ' ')}</span>;
+  return <Badge variant={APPROVAL_VARIANT[status] ?? 'neutral'}>{status.replace('_', ' ')}</Badge>;
 }
 
-const DIFFICULTY_CLASS: Record<string, string> = {
-  EASY: 'badge-active',
-  MEDIUM: 'badge-draft',
-  HARD: 'badge-archived',
+const DIFFICULTY_VARIANT: Record<string, BadgeVariant> = {
+  EASY: 'success',
+  MEDIUM: 'warning',
+  HARD: 'danger',
 };
 
 export function DifficultyBadge({ difficulty }: { difficulty: string }) {
-  return <span className={`badge ${DIFFICULTY_CLASS[difficulty] ?? ''}`}>{difficulty}</span>;
+  return <Badge variant={DIFFICULTY_VARIANT[difficulty] ?? 'neutral'}>{difficulty}</Badge>;
 }
 
-// AI_GENERATED gets the plain (unmodified) badge style — the primary-blue
-// "informational" look — so it reads distinctly from ApprovalBadge's green
-// APPROVED/amber PENDING_REVIEW colors when the two badges sit side by side.
-const SOURCE_CLASS: Record<string, string> = {
-  MANUAL: 'badge-completed',
-  AI_GENERATED: '',
+// AI_GENERATED gets the accent (violet) look so it reads distinctly from
+// ApprovalBadge's green APPROVED / amber PENDING_REVIEW when shown side by side.
+const SOURCE_VARIANT: Record<string, BadgeVariant> = {
+  MANUAL: 'neutral',
+  AI_GENERATED: 'accent',
 };
 
 export function SourceBadge({ source }: { source: string }) {
-  return <span className={`badge ${SOURCE_CLASS[source] ?? ''}`}>{source.replace('_', ' ')}</span>;
+  return <Badge variant={SOURCE_VARIANT[source] ?? 'neutral'}>{source.replace('_', ' ')}</Badge>;
 }
 
-const QUESTION_TYPE_CLASS: Record<string, string> = {
-  CODING: 'badge-draft',
-  MCQ: 'badge-active',
+const QUESTION_TYPE_VARIANT: Record<string, BadgeVariant> = {
+  CODING: 'info',
+  MCQ: 'success',
 };
 
 export function QuestionTypeBadge({ type }: { type: string }) {
-  return <span className={`badge ${QUESTION_TYPE_CLASS[type] ?? ''}`}>{type}</span>;
+  return <Badge variant={QUESTION_TYPE_VARIANT[type] ?? 'neutral'}>{type}</Badge>;
 }

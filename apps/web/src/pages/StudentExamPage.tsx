@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import '../lib/monaco-setup';
+import { ArrowLeft, ArrowRight, Clock, History, Play, RotateCcw, Send } from 'lucide-react';
 import { getGenericStarterCode, type ProgrammingLanguageCode } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import {
@@ -24,10 +25,13 @@ import {
   type StudentQuestionsResponse,
   type SubmissionDetailDto,
   type SubmissionHistoryItemDto,
-  type SubmissionStatus,
 } from '../lib/attempts-api';
 import { DifficultyBadge } from '../components/ApprovalBadge';
-import { statusPillClass } from '../lib/verdict';
+import { useConfirm } from '../components/useConfirm';
+import { ExecutionResultPanel } from './exam/ExecutionResultPanel';
+import { SubmissionHistoryPanel } from './exam/SubmissionHistoryPanel';
+import { McqQuestionPanel } from './exam/McqQuestionPanel';
+import { SaveIndicator, type SaveState } from './exam/SaveIndicator';
 
 const STATUS_POLL_MS = 15_000;
 const SAVE_DEBOUNCE_MS = 1500;
@@ -36,20 +40,6 @@ const MONACO_LANGUAGE_ID: Record<ProgrammingLanguageCode, string> = {
   CPP: 'cpp',
   JAVA: 'java',
   PYTHON: 'python',
-};
-
-type SaveState = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
-
-const RUN_STATUS_LABELS: Record<SubmissionStatus, string> = {
-  PENDING: 'Queued…',
-  RUNNING: 'Running…',
-  ACCEPTED: 'Accepted — all public tests passed',
-  WRONG_ANSWER: 'Wrong Answer',
-  COMPILATION_ERROR: 'Compilation Error',
-  RUNTIME_ERROR: 'Runtime Error',
-  TIME_LIMIT_EXCEEDED: 'Time Limit Exceeded',
-  MEMORY_LIMIT_EXCEEDED: 'Memory Limit Exceeded',
-  INTERNAL_ERROR: 'Execution failed — please try again',
 };
 
 function draftKey(questionId: string, language: string): string {
@@ -109,6 +99,7 @@ export function StudentExamPage() {
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [requestConfirm, confirmDialog] = useConfirm();
 
   // ---- Phase 5: code draft state ----
   const [draftsByKey, setDraftsByKey] = useState<Map<string, CodeDraftDto>>(new Map());
@@ -373,15 +364,15 @@ export function StudentExamPage() {
     setLanguageByQuestion((prev) => ({ ...prev, [currentQuestion.questionId]: language }));
   }
 
-  function handleReset() {
+  async function handleReset() {
     if (!currentQuestion || currentQuestion.type !== 'CODING' || !currentLanguage || !currentKey) return;
-    if (
-      !window.confirm(
-        `Reset your ${currentLanguage} code for "${currentQuestion.title}" to the starter template? This cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    const ok = await requestConfirm({
+      title: 'Reset your code?',
+      description: `This resets your ${currentLanguage} code for "${currentQuestion.title}" back to the starter template. This cannot be undone.`,
+      confirmLabel: 'Reset code',
+      confirmVariant: 'danger',
+    });
+    if (!ok) return;
     clearTimeout(saveTimersRef.current[currentKey]);
     delete saveTimersRef.current[currentKey];
     const starter = resolveStarterCode(currentQuestion, currentLanguage);
@@ -444,13 +435,13 @@ export function StudentExamPage() {
   async function handleSubmitSolution() {
     if (!attemptId || !currentQuestion || !currentLanguage || !currentKey) return;
     if (submittingByKey[currentKey]) return; // one in-flight submission per question/language slot
-    if (
-      !window.confirm(
-        `Submit this solution for "${currentQuestion.title}"? It will be judged against all test cases (including hidden ones) and recorded in your submission history.`,
-      )
-    ) {
-      return;
-    }
+    const ok = await requestConfirm({
+      title: 'Submit this solution?',
+      description: `"${currentQuestion.title}" will be judged against all test cases (including hidden ones) and recorded in your submission history.`,
+      confirmLabel: 'Submit solution',
+      confirmVariant: 'success',
+    });
+    if (!ok) return;
 
     // Same rapid-resubmit guard as Run Code: cancel any still-polling previous
     // submission for this exact slot.
@@ -492,7 +483,17 @@ export function StudentExamPage() {
   async function handleSubmit() {
     if (!assessmentId) return;
     if (currentKey) flushPending(currentKey);
-    if (!window.confirm('Submit and finish this assessment now? You will not be able to make further changes.')) return;
+    const unanswered = flatQuestions.filter((q) => q.status === 'NOT_ATTEMPTED').length;
+    const ok = await requestConfirm({
+      title: 'Submit and finish this assessment?',
+      description:
+        unanswered > 0
+          ? `You have ${unanswered} unanswered question(s). Once submitted, you will not be able to make further changes.`
+          : 'Once submitted, you will not be able to make further changes.',
+      confirmLabel: 'Submit assessment',
+      confirmVariant: 'danger',
+    });
+    if (!ok) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -514,20 +515,24 @@ export function StudentExamPage() {
 
   return (
     <div className="exam-shell">
+      {confirmDialog}
       <div className="exam-topbar">
-        <div>
-          <strong>{assessmentTitle}</strong>
-          <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-            Question {currentIndex + 1} of {flatQuestions.length}
+        <div className="exam-topbar-brand">
+          <div>
+            <div className="exam-topbar-title">{assessmentTitle}</div>
+            <div className="exam-topbar-meta">
+              Question {currentIndex + 1} of {flatQuestions.length}
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span className={`exam-timer ${low ? 'low' : ''}`}>
+            <Clock size={14} />
             {isActive && remainingMs !== null ? formatDuration(remainingMs) : status.status.replace('_', ' ')}
           </span>
           {isActive ? (
-            <button onClick={() => void handleSubmit()} disabled={submitting}>
-              {submitting ? 'Submitting…' : 'Submit assessment'}
+            <button className="btn-icon" onClick={() => void handleSubmit()} disabled={submitting}>
+              <Send size={15} /> {submitting ? 'Submitting…' : 'Submit assessment'}
             </button>
           ) : (
             <>
@@ -560,9 +565,7 @@ export function StudentExamPage() {
         <nav className="exam-nav">
           {questionsData.sections.map((section) => (
             <div key={section.id} style={{ marginBottom: '1rem' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', margin: '0 0 0.4rem' }}>
-                {section.title.toUpperCase()}
-              </div>
+              <div className="exam-nav-section-title">{section.title.toUpperCase()}</div>
               {section.questions.map((q, i) => {
                 const dotClass =
                   q.status === 'SOLVED' ? 'solved' : q.status === 'ATTEMPTED' ? 'attempted' : visited.has(q.id) ? 'visited' : '';
@@ -574,12 +577,26 @@ export function StudentExamPage() {
                     onClick={() => selectQuestion(q.id)}
                   >
                     <span className={`exam-nav-dot ${dotClass}`} />
-                    Q{i + 1}. {q.title} ({q.marks})
+                    <span className="exam-nav-item-label">
+                      Q{i + 1}. {q.title}
+                    </span>
+                    <span className="exam-nav-item-marks">{q.marks}</span>
                   </button>
                 );
               })}
             </div>
           ))}
+          <div className="exam-nav-legend">
+            <div className="exam-nav-legend-item">
+              <span className="exam-nav-dot solved" /> Solved
+            </div>
+            <div className="exam-nav-legend-item">
+              <span className="exam-nav-dot attempted" /> Attempted
+            </div>
+            <div className="exam-nav-legend-item">
+              <span className="exam-nav-dot visited" /> Visited
+            </div>
+          </div>
         </nav>
 
         {currentQuestion && currentQuestion.type === 'MCQ' ? (
@@ -657,18 +674,18 @@ export function StudentExamPage() {
 
               <div className="action-row" style={{ marginTop: '1rem' }}>
                 <button
-                  className="btn-secondary"
+                  className="btn-secondary btn-icon"
                   disabled={currentIndex <= 0}
                   onClick={() => selectQuestion(flatQuestions[currentIndex - 1].id)}
                 >
-                  ← Previous
+                  <ArrowLeft size={15} /> Previous
                 </button>
                 <button
-                  className="btn-secondary"
+                  className="btn-secondary btn-icon"
                   disabled={currentIndex >= flatQuestions.length - 1}
                   onClick={() => selectQuestion(flatQuestions[currentIndex + 1].id)}
                 >
-                  Next →
+                  Next <ArrowRight size={15} />
                 </button>
               </div>
             </div>
@@ -688,24 +705,24 @@ export function StudentExamPage() {
                 </select>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <SaveIndicator state={currentSaveState} />
-                  <button type="button" className="btn-secondary btn-small" onClick={toggleHistory}>
-                    {currentHistoryOpen ? 'Hide history' : 'Submission history'}
+                  <button type="button" className="btn-secondary btn-small btn-icon" onClick={toggleHistory}>
+                    <History size={13} /> {currentHistoryOpen ? 'Hide history' : 'Submission history'}
                   </button>
                   {isActive && (
                     <>
-                      <button type="button" className="btn-small" onClick={() => void handleRunCode()} disabled={currentRunning}>
-                        {currentRunning ? 'Running…' : 'Run Code'}
+                      <button type="button" className="btn-small btn-icon" onClick={() => void handleRunCode()} disabled={currentRunning}>
+                        <Play size={13} /> {currentRunning ? 'Running…' : 'Run Code'}
                       </button>
                       <button
                         type="button"
-                        className="btn-submit btn-small"
+                        className="btn-submit btn-small btn-icon"
                         onClick={() => void handleSubmitSolution()}
                         disabled={currentSubmitting}
                       >
-                        {currentSubmitting ? 'Judging…' : 'Submit Solution'}
+                        <Send size={13} /> {currentSubmitting ? 'Judging…' : 'Submit Solution'}
                       </button>
-                      <button type="button" className="btn-secondary btn-small" onClick={handleReset}>
-                        Reset code
+                      <button type="button" className="btn-secondary btn-small btn-icon" onClick={() => void handleReset()}>
+                        <RotateCcw size={13} /> Reset code
                       </button>
                     </>
                   )}
@@ -767,239 +784,6 @@ export function StudentExamPage() {
             </div>
           </main>
         )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Renders one execution result — used for both Run (public tests only, never
- * has isHidden=true rows) and Submit (public + hidden). Hidden rows never
- * carry input/expectedOutput/actualOutput (the API's DTO structurally omits
- * them — see docs/security.md §2), so this component naturally shows "Hidden
- * Test — Passed/Failed" with no I/O panels for those rows without needing any
- * isHidden-specific branching of its own.
- */
-function ExecutionResultPanel({ title, result, marks }: { title: string; result: SubmissionDetailDto; marks?: number }) {
-  const compileFailed = result.status === 'COMPILATION_ERROR';
-  const isGraded = result.kind === 'SUBMIT';
-  const publicCases = result.testCases.filter((tc) => !tc.isHidden);
-  const hiddenCases = result.testCases.filter((tc) => tc.isHidden);
-  return (
-    <div className="exam-run-results">
-      <div className="exam-run-summary">
-        <strong style={{ fontSize: '0.8rem' }}>{title}</strong>
-        <span className={`exam-status-pill ${statusPillClass(result.status)}`}>{RUN_STATUS_LABELS[result.status]}</span>
-        {!compileFailed && (
-          <span style={{ color: 'var(--color-muted)' }}>
-            {result.testsPassed} / {result.testsTotal} tests passed
-            {hiddenCases.length > 0
-              ? ` (${publicCases.filter((tc) => tc.passed).length}/${publicCases.length} public, ${hiddenCases.filter((tc) => tc.passed).length}/${hiddenCases.length} hidden)`
-              : ''}
-          </span>
-        )}
-        {isGraded && marks !== undefined && (
-          <span style={{ color: 'var(--color-muted)', fontWeight: 600 }}>
-            Score: {result.score} / {marks}
-          </span>
-        )}
-        {result.runtimeMs !== null && <span style={{ color: 'var(--color-muted)' }}>{result.runtimeMs} ms</span>}
-      </div>
-
-      {compileFailed && result.errorMessage && (
-        <div className="exam-error-block">
-          <h4>Compilation Error</h4>
-          <pre>{result.errorMessage}</pre>
-        </div>
-      )}
-
-      {!compileFailed &&
-        result.testCases.map((tc, i) => (
-          <div key={i} className="exam-test-case">
-            <div className="exam-test-case-head">
-              <span>
-                {tc.passed ? '✓' : '✗'} {tc.isHidden ? `Hidden Test ${i + 1}` : `Test Case ${i + 1}`}
-              </span>
-              <span className="meta">
-                {tc.passed ? 'Passed' : RUN_STATUS_LABELS[tc.status]}
-                {tc.runtimeMs !== null ? ` · ${tc.runtimeMs} ms` : ''}
-              </span>
-            </div>
-            <div className="exam-test-case-body">
-              {tc.input !== undefined && (
-                <div className="exam-test-case-io">
-                  <strong>Input</strong>
-                  <pre>{tc.input}</pre>
-                </div>
-              )}
-              {tc.expectedOutput !== undefined && (
-                <div className="exam-test-case-io">
-                  <strong>Expected Output</strong>
-                  <pre>{tc.expectedOutput}</pre>
-                </div>
-              )}
-              {tc.actualOutput !== undefined && (
-                <div className="exam-test-case-io">
-                  <strong>Your Output</strong>
-                  <pre>{tc.actualOutput}</pre>
-                </div>
-              )}
-              {tc.errorMessage && (
-                <div className="exam-test-case-io">
-                  <strong>{tc.status === 'TIME_LIMIT_EXCEEDED' ? 'Details' : 'Runtime Error'}</strong>
-                  <pre>{tc.errorMessage}</pre>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-    </div>
-  );
-}
-
-const HISTORY_KIND_LABEL: Record<'RUN' | 'SUBMIT', string> = { RUN: 'Run', SUBMIT: 'Submit' };
-
-/** Safe-by-construction: SubmissionHistoryItemDto has no field for hidden test
- * input/output/actual output — there is nothing here that could leak them. */
-function SubmissionHistoryPanel({ items, loading, marks }: { items: SubmissionHistoryItemDto[]; loading: boolean; marks: number }) {
-  return (
-    <div className="exam-run-results exam-history-panel">
-      <strong style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>Submission history</strong>
-      {loading && <p style={{ color: 'var(--color-muted)', fontSize: '0.82rem' }}>Loading…</p>}
-      {!loading && items.length === 0 && (
-        <p style={{ color: 'var(--color-muted)', fontSize: '0.82rem' }}>No runs or submissions yet for this question.</p>
-      )}
-      {!loading && items.length > 0 && (
-        <table className="exam-history-table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Language</th>
-              <th>Verdict</th>
-              <th>Tests</th>
-              <th>Score</th>
-              <th>When</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td>{HISTORY_KIND_LABEL[item.kind]}</td>
-                <td>{item.language}</td>
-                <td>
-                  <span className={`exam-status-pill ${statusPillClass(item.status)}`}>{RUN_STATUS_LABELS[item.status]}</span>
-                </td>
-                <td>
-                  {item.testsPassed}/{item.testsTotal}
-                </td>
-                <td>{item.kind === 'SUBMIT' ? `${item.score}/${marks}` : '—'}</td>
-                <td>{new Date(item.createdAt).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
-function SaveIndicator({ state }: { state: SaveState }) {
-  switch (state) {
-    case 'saving':
-      return <span className="save-indicator unsaved">Saving…</span>;
-    case 'saved':
-      return <span className="save-indicator saved">✓ Saved</span>;
-    case 'unsaved':
-      return <span className="save-indicator unsaved">Unsaved changes</span>;
-    case 'error':
-      return <span className="save-indicator error">Failed to save — will retry on next edit</span>;
-    default:
-      return <span className="save-indicator" />;
-  }
-}
-
-/**
- * The MCQ answer panel — single/multi-select options, no test cases or editor, no
- * isCorrect/explanation anywhere in the data it's given (structurally absent from
- * StudentMcqQuestionDto, see docs/security.md §2). Selecting an option saves
- * immediately (no debounce — a discrete click, unlike code's continuous typing); the
- * only feedback shown is "saved" state, never correctness.
- */
-function McqQuestionPanel({
-  question,
-  selectedOptionIds,
-  saving,
-  error,
-  isActive,
-  onToggle,
-  canGoPrev,
-  canGoNext,
-  onPrev,
-  onNext,
-}: {
-  question: StudentMcqQuestionDto;
-  selectedOptionIds: string[];
-  saving: boolean;
-  error: string | undefined;
-  isActive: boolean;
-  onToggle: (optionId: string) => void;
-  canGoPrev: boolean;
-  canGoNext: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  const isMulti = question.mcqType === 'MULTIPLE_CHOICE';
-  const selected = new Set(selectedOptionIds);
-
-  return (
-    <div className="exam-problem-panel" style={{ maxWidth: 760 }}>
-      <div className="page-header">
-        <h2 style={{ margin: 0 }}>{question.title}</h2>
-        <DifficultyBadge difficulty={question.difficulty} />
-      </div>
-      <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>
-        Marks: {question.marks} · {isMulti ? 'Select all that apply' : 'Select one answer'}
-      </p>
-
-      <p style={{ whiteSpace: 'pre-wrap' }}>{question.questionText}</p>
-      {question.codeSnippet && (
-        <div className="example-block">
-          <pre>{question.codeSnippet}</pre>
-        </div>
-      )}
-
-      <div style={{ margin: '1rem 0' }}>
-        {question.options.map((option) => (
-          <label
-            key={option.id}
-            className="checkbox-row"
-            style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', fontWeight: 400, padding: '0.4rem 0' }}
-          >
-            <input
-              type={isMulti ? 'checkbox' : 'radio'}
-              name={`mcq-${question.questionId}`}
-              checked={selected.has(option.id)}
-              disabled={!isActive || saving}
-              onChange={() => onToggle(option.id)}
-            />
-            <span>{option.optionText}</span>
-          </label>
-        ))}
-      </div>
-
-      <div style={{ minHeight: '1.2rem' }}>
-        {saving && <span className="save-indicator unsaved">Saving…</span>}
-        {!saving && !error && selectedOptionIds.length > 0 && <span className="save-indicator saved">✓ Saved</span>}
-        {error && <span className="save-indicator error">{error}</span>}
-      </div>
-
-      <div className="action-row" style={{ marginTop: '1rem' }}>
-        <button className="btn-secondary" disabled={!canGoPrev} onClick={onPrev}>
-          ← Previous
-        </button>
-        <button className="btn-secondary" disabled={!canGoNext} onClick={onNext}>
-          Next →
-        </button>
       </div>
     </div>
   );

@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, PlayCircle } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { getStudentAssessment, startAssessment, type StudentAssessmentDetail } from '../lib/assessments-api';
 import { getAttemptStatus } from '../lib/attempts-api';
 import { StatusBadge } from '../components/StatusBadge';
+import { ErrorState } from '../components/ErrorState';
+import { LoadingRow } from '../components/Skeleton';
 
 export function StudentAssessmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,17 +51,17 @@ export function StudentAssessmentDetailPage() {
     }
   }
 
-  if (loading) return <div className="dashboard-body">Loading…</div>;
-  if (!assessment) return <div className="dashboard-body form-error">{error ?? 'Assessment not found'}</div>;
+  if (loading) return <div className="dashboard-body"><LoadingRow label="Loading assessment…" /></div>;
+  if (!assessment) return <div className="dashboard-body"><ErrorState message={error ?? 'Assessment not found'} /></div>;
 
   return (
     <div className="dashboard-body">
       <Link to="/student" className="back-link">
-        ← Back to your assessments
+        <ArrowLeft size={14} /> Back to your assessments
       </Link>
 
       <div className="page-header">
-        <h1 style={{ margin: 0 }}>
+        <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           {assessment.title} <StatusBadge status={assessment.status} />
         </h1>
       </div>
@@ -76,7 +79,7 @@ export function StudentAssessmentDetailPage() {
           {new Date(assessment.endAt).toLocaleString()} · Total marks: {assessment.maxMarks}
         </p>
 
-        {error && <p className="form-error">{error}</p>}
+        {error && <ErrorState message={error} />}
 
         {existingAttemptId ? (
           <div className="action-row">
@@ -90,8 +93,8 @@ export function StudentAssessmentDetailPage() {
             )}
           </div>
         ) : assessment.status === 'ACTIVE' ? (
-          <button onClick={() => void handleStart()} disabled={starting}>
-            {starting ? 'Starting…' : 'Start assessment'}
+          <button className="btn-icon" onClick={() => void handleStart()} disabled={starting}>
+            <PlayCircle size={15} /> {starting ? 'Starting…' : 'Start assessment'}
           </button>
         ) : assessment.status === 'PUBLISHED' ? (
           <p>This assessment has not started yet.</p>
