@@ -5,10 +5,14 @@ import { CODING_TOPICS, DIFFICULTY_LEVELS, PROGRAMMING_LANGUAGES, type AIGenerat
 import { ApiError } from '../lib/api-client';
 import { generateQuestions, saveGeneratedQuestions, type GenerationPreview } from '../lib/ai-api';
 import { ApprovalBadge, DifficultyBadge } from '../components/ApprovalBadge';
+import { EmptyState } from '../components/EmptyState';
+import { Stepper, type StepDefinition } from '../components/Stepper';
 
 interface DraftRow extends AIGeneratedCodingQuestion {
   selected: boolean;
 }
+
+type GeneratorStepKey = 'configure' | 'review' | 'saved';
 
 export function AdminAIGeneratorPage() {
   const [topic, setTopic] = useState<string>(CODING_TOPICS[0]);
@@ -30,6 +34,8 @@ export function AdminAIGeneratorPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<string[] | null>(null);
+
+  const [step, setStep] = useState<GeneratorStepKey>('configure');
 
   function buildRequest() {
     const parsedConcepts = concepts
@@ -60,10 +66,12 @@ export function AdminAIGeneratorPage() {
       const result = await generateQuestions(buildRequest());
       setPreview(result);
       setDrafts(result.generated.map((q) => ({ ...q, selected: true })));
+      setStep('review');
     } catch (err) {
+      // Deliberately does not clear an existing preview/drafts: a failed regenerate from
+      // the Review step must leave the previous batch intact rather than yanking the admin
+      // back to an empty state they didn't ask for.
       setGenerateError(err instanceof ApiError ? err.message : 'Failed to generate questions');
-      setPreview(null);
-      setDrafts([]);
     } finally {
       setGenerating(false);
     }
@@ -89,6 +97,7 @@ export function AdminAIGeneratorPage() {
       const result = await saveGeneratedQuestions(preview.requestId, payload);
       setSavedIds(result.created);
       setDrafts((prev) => prev.filter((d) => !d.selected));
+      setStep('saved');
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : 'Failed to save questions');
     } finally {
@@ -97,6 +106,30 @@ export function AdminAIGeneratorPage() {
   }
 
   const selectedCount = drafts.filter((d) => d.selected).length;
+
+  const steps: StepDefinition[] = [
+    {
+      key: 'configure',
+      label: 'Configure',
+      hint: `${topic} · ${difficulty} · ${count} question(s)`,
+      done: preview !== null,
+    },
+    {
+      key: 'review',
+      label: 'Review generated',
+      hint: preview ? (drafts.length > 0 ? `${selectedCount}/${drafts.length} selected` : 'All discarded') : undefined,
+      done: !!savedIds,
+    },
+    {
+      key: 'saved',
+      label: 'Saved',
+      hint: savedIds ? `${savedIds.length} saved` : undefined,
+      done: !!savedIds,
+    },
+  ];
+  const disabledKeys = new Set<string>();
+  if (!preview) disabledKeys.add('review');
+  if (!savedIds) disabledKeys.add('saved');
 
   return (
     <div className="dashboard-body">
@@ -114,6 +147,9 @@ export function AdminAIGeneratorPage() {
         <code>PENDING_REVIEW</code>, exactly like a manually created question.
       </p>
 
+      <Stepper steps={steps} currentKey={step} onSelect={(k) => setStep(k as GeneratorStepKey)} disabledKeys={disabledKeys} />
+
+      {step === 'configure' && (
       <div className="card">
         <form onSubmit={handleGenerate} className="form-grid">
           <div>
@@ -244,8 +280,68 @@ export function AdminAIGeneratorPage() {
           </div>
         </form>
       </div>
+      )}
 
-      {savedIds && savedIds.length > 0 && (
+      {step === 'review' && preview && (
+        <>
+          {preview.failed.length > 0 && (
+            <div className="card">
+              <h2>{preview.failed.length} candidate(s) failed validation</h2>
+              <p className="field-hint">
+                These were never saved anywhere — Gemini's output didn't meet the platform's question schema. You can
+                regenerate to try again.
+              </p>
+              {preview.failed.map((f) => (
+                <div key={f.index} className="section-block">
+                  <h4>Candidate #{f.index + 1}</h4>
+                  <ul>
+                    {f.issues.map((issue, i) => (
+                      <li key={i} style={{ color: 'var(--color-danger, #b91c1c)' }}>
+                        {issue}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="card">
+            <div className="page-header">
+              <h2 style={{ margin: 0 }}>
+                Review {drafts.length} generated question{drafts.length === 1 ? '' : 's'}
+              </h2>
+              <div className="action-row" style={{ marginBottom: 0 }}>
+                <button type="button" className="btn-secondary" disabled={generating} onClick={() => void handleGenerate()}>
+                  {generating ? 'Regenerating…' : 'Regenerate (new batch)'}
+                </button>
+                <button type="button" className="btn-secondary btn-small" onClick={() => setStep('configure')}>
+                  Edit configuration
+                </button>
+                <button onClick={() => void handleSave()} disabled={saving || selectedCount === 0}>
+                  {saving ? 'Saving…' : `Save ${selectedCount} selected`}
+                </button>
+              </div>
+            </div>
+            {generateError && <p className="form-error">{generateError}</p>}
+            {saveError && <p className="form-error">{saveError}</p>}
+
+            {drafts.length === 0 ? (
+              <EmptyState
+                icon={<Sparkles size={22} />}
+                title="All candidates discarded"
+                description="Regenerate a new batch, or go back and adjust the configuration."
+              />
+            ) : (
+              drafts.map((draft, i) => (
+                <DraftCard key={i} draft={draft} onChange={(patch) => updateDraft(i, patch)} onDiscard={() => discardDraft(i)} />
+              ))
+            )}
+          </div>
+        </>
+      )}
+
+      {step === 'saved' && savedIds && (
         <div className="card">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <CheckCircle2 size={18} style={{ color: 'var(--color-success)' }} /> Saved {savedIds.length} question(s)
@@ -261,49 +357,19 @@ export function AdminAIGeneratorPage() {
               </li>
             ))}
           </ul>
-          <Link to="/admin/questions?source=AI_GENERATED&approvalStatus=PENDING_REVIEW">
-            <button className="btn-secondary btn-small">Go to AI Review Queue</button>
-          </Link>
-        </div>
-      )}
-
-      {preview && preview.failed.length > 0 && (
-        <div className="card">
-          <h2>{preview.failed.length} candidate(s) failed validation</h2>
-          <p className="field-hint">
-            These were never saved anywhere — Gemini's output didn't meet the platform's question schema. You can
-            regenerate to try again.
-          </p>
-          {preview.failed.map((f) => (
-            <div key={f.index} className="section-block">
-              <h4>Candidate #{f.index + 1}</h4>
-              <ul>
-                {f.issues.map((issue, i) => (
-                  <li key={i} style={{ color: 'var(--color-danger, #b91c1c)' }}>
-                    {issue}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {drafts.length > 0 && (
-        <div className="card">
-          <div className="page-header">
-            <h2 style={{ margin: 0 }}>
-              Review {drafts.length} generated question{drafts.length === 1 ? '' : 's'}
-            </h2>
-            <button onClick={() => void handleSave()} disabled={saving || selectedCount === 0}>
-              {saving ? 'Saving…' : `Save ${selectedCount} selected`}
+          <div className="action-row" style={{ marginBottom: 0 }}>
+            <Link to="/admin/questions?source=AI_GENERATED&approvalStatus=PENDING_REVIEW">
+              <button className="btn-secondary btn-small">Go to AI Review Queue</button>
+            </Link>
+            {drafts.length > 0 && (
+              <button type="button" className="btn-secondary btn-small" onClick={() => setStep('review')}>
+                Back to remaining candidates ({drafts.length})
+              </button>
+            )}
+            <button type="button" className="btn-secondary btn-small" onClick={() => setStep('configure')}>
+              Generate another batch
             </button>
           </div>
-          {saveError && <p className="form-error">{saveError}</p>}
-
-          {drafts.map((draft, i) => (
-            <DraftCard key={i} draft={draft} onChange={(patch) => updateDraft(i, patch)} onDiscard={() => discardDraft(i)} />
-          ))}
         </div>
       )}
     </div>
