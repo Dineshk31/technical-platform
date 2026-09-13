@@ -5,6 +5,7 @@ export * from './enums/submission.enum.js';
 export * from './schemas/auth.schema.js';
 export * from './schemas/assessment.schema.js';
 export * from './schemas/question.schema.js';
+export * from './schemas/practice.schema.js';
 export * from './schemas/ai.schema.js';
 export * from './schemas/draft.schema.js';
 export * from './schemas/execution.schema.js';

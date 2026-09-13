@@ -1,12 +1,17 @@
 import { ConflictException, HttpException, HttpStatus, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { AuthenticatedUser, RunCodeInput } from '@technical-platform/shared';
+import type { AuthenticatedUser, PracticeSubmissionsQueryInput, RunCodeInput } from '@technical-platform/shared';
 import { ensureAttemptFreshness } from '../assessments/assessments.service.js';
 import { resolveQuestionMarks } from '../scoring/scoring.util.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ExecutionClientService } from '../execution-client/execution-client.service.js';
 import { toSubmissionDetail, toSubmissionSummary } from './dto/submission.dto.js';
-import type { Attempt } from '../../../generated/prisma/index.js';
+import type { Attempt, Prisma } from '../../../generated/prisma/index.js';
+
+/** Either an assessment-attempt submission or a standalone practice submission —
+ * see the `Submission.attemptId`/`userId` comment in schema.prisma for why the
+ * table itself is shaped this way (one nullable pair, application-enforced). */
+type SubmissionOwner = { attemptId: string } | { userId: string };
 
 const TEST_RESULT_INCLUDE = {
   attempt: { select: { userId: true, assessmentId: true } },
@@ -34,8 +39,8 @@ export class SubmissionsService {
       throw new UnprocessableEntityException('This question has no public test cases to run against');
     }
 
-    await this.assertNotRateLimited(attemptId, questionId);
-    return this.createSubmission(attemptId, questionId, 'RUN', input, publicTestCaseCount);
+    await this.assertNotRateLimited({ attemptId, questionId });
+    return this.createSubmission({ attemptId }, questionId, 'RUN', input, publicTestCaseCount);
   }
 
   /**
@@ -59,11 +64,49 @@ export class SubmissionsService {
       throw new UnprocessableEntityException('This question has no test cases configured');
     }
 
-    await this.assertNotRateLimited(attemptId, questionId);
-    return this.createSubmission(attemptId, questionId, 'SUBMIT', input, totalTestCaseCount);
+    await this.assertNotRateLimited({ attemptId, questionId });
+    return this.createSubmission({ attemptId }, questionId, 'SUBMIT', input, totalTestCaseCount);
   }
 
-  /** GET /submissions/:id — the student polls this until status leaves PENDING/RUNNING. */
+  /**
+   * GET /practice/questions/:id/run — Practice Mode counterpart to runCode.
+   * No attempt/assessment to validate against: the only gate is that the
+   * question is APPROVED CODING and supports the requested language (a
+   * student can never practice against a question still in review, exactly
+   * like they can never see hidden test cases — see docs/security.md §2).
+   */
+  async runPracticeCode(studentId: string, questionId: string, input: RunCodeInput) {
+    await this.validateQuestionForPracticeExecution(questionId, input.language);
+
+    const publicTestCaseCount = await this.prisma.codingTestCase.count({ where: { questionId, isHidden: false } });
+    if (publicTestCaseCount === 0) {
+      throw new UnprocessableEntityException('This question has no public test cases to run against');
+    }
+
+    await this.assertNotRateLimited({ userId: studentId, questionId });
+    return this.createSubmission({ userId: studentId }, questionId, 'RUN', input, publicTestCaseCount);
+  }
+
+  /** GET /practice/questions/:id/submit — Practice Mode counterpart to submitCode.
+   * Judged against public + hidden test cases exactly like a graded submit, but
+   * never carries marks/score — practice is not part of any assessment. */
+  async submitPracticeCode(studentId: string, questionId: string, input: RunCodeInput) {
+    await this.validateQuestionForPracticeExecution(questionId, input.language);
+
+    const totalTestCaseCount = await this.prisma.codingTestCase.count({ where: { questionId } });
+    if (totalTestCaseCount === 0) {
+      throw new UnprocessableEntityException('This question has no test cases configured');
+    }
+
+    await this.assertNotRateLimited({ userId: studentId, questionId });
+    return this.createSubmission({ userId: studentId }, questionId, 'SUBMIT', input, totalTestCaseCount);
+  }
+
+  /** GET /submissions/:id — the student polls this until status leaves PENDING/RUNNING.
+   * Serves both an assessment-attempt submission and a standalone practice submission
+   * (the same table, same row shape, only `attemptId` vs `userId` differs — see
+   * schema.prisma's Submission model comment) through the one shared ownership +
+   * marks-resolution path. */
   async getSubmission(user: AuthenticatedUser, submissionId: string) {
     const submission = await this.prisma.submission.findUnique({
       where: { id: submissionId },
@@ -71,15 +114,21 @@ export class SubmissionsService {
     });
     if (!submission) throw new NotFoundException('Submission not found');
 
-    if (user.role !== 'ADMIN' && submission.attempt.userId !== user.id) {
+    const ownerId = submission.attempt ? submission.attempt.userId : submission.userId;
+    if (user.role !== 'ADMIN' && ownerId !== user.id) {
       // Not found, not forbidden — matches the ownership-check pattern used
       // throughout AssessmentsService, so submission ids never become an oracle
       // for "does this id exist" to a student who doesn't own it.
       throw new NotFoundException('Submission not found');
     }
 
+    // Practice submissions are never part of an assessment, so they carry no marks
+    // to resolve — always 0, same as a RUN. See toSubmissionDetail: score is only
+    // ever non-zero for a graded SUBMIT that reached ACCEPTED.
     const marks =
-      submission.kind === 'SUBMIT' ? await this.getEffectiveMarks(submission.attempt.assessmentId, submission.questionId) : 0;
+      submission.kind === 'SUBMIT' && submission.attempt
+        ? await this.getEffectiveMarks(submission.attempt.assessmentId, submission.questionId)
+        : 0;
     return toSubmissionDetail(submission, marks);
   }
 
@@ -118,6 +167,37 @@ export class SubmissionsService {
     const hasSubmit = submissions.some((s) => s.kind === 'SUBMIT');
     const marks = hasSubmit ? await this.getEffectiveMarks(attempt.assessmentId, questionId) : 0;
     return submissions.map((s) => toSubmissionSummary(s, marks));
+  }
+
+  /** GET /practice/questions/:id/submissions — paginated Practice Mode counterpart
+   * to getSubmissionHistory, scoped by (userId, questionId) instead of (attemptId,
+   * questionId) since practice has no attempt. Marks are always 0 (see getSubmission). */
+  async getPracticeSubmissionHistory(user: AuthenticatedUser, questionId: string, query: PracticeSubmissionsQueryInput) {
+    const where: Prisma.SubmissionWhereInput = { userId: user.id, questionId };
+    const [items, total] = await Promise.all([
+      this.prisma.submission.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        select: {
+          id: true,
+          kind: true,
+          language: true,
+          status: true,
+          testsPassed: true,
+          testsTotal: true,
+          createdAt: true,
+          completedAt: true,
+        },
+      }),
+      this.prisma.submission.count({ where }),
+    ]);
+
+    return {
+      data: items.map((s) => toSubmissionSummary(s, 0)),
+      meta: { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) },
+    };
   }
 
   // ============ shared helpers ============
@@ -168,16 +248,39 @@ export class SubmissionsService {
   }
 
   /**
+   * Practice Mode's counterpart to validateAttemptForExecution: no attempt/assessment
+   * to check ownership or freshness against, so the only gates are "this question is
+   * approved CODING content" (never let a student run/submit against a question still
+   * in review — docs/security.md §2) and "this question supports the requested language".
+   */
+  private async validateQuestionForPracticeExecution(questionId: string, language: RunCodeInput['language']): Promise<void> {
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+      include: { codingQuestion: { include: { languages: true } } },
+    });
+    if (!question || question.type !== 'CODING' || !question.codingQuestion || question.approvalStatus !== 'APPROVED') {
+      throw new NotFoundException('Question not found');
+    }
+
+    const supported = question.codingQuestion.languages.some((l) => l.language === language);
+    if (!supported) {
+      throw new UnprocessableEntityException(`This question does not support ${language}`);
+    }
+  }
+
+  /**
    * Per-student-per-question throttling (docs/security.md §7) — applies across
    * Run *and* Submit combined (both hit the same execution-service queue), so
    * a student can't sidestep the Run throttle by alternating Run/Submit
    * clicks. Derived from real submission history, not an in-memory counter,
-   * so it holds across API restarts/instances.
+   * so it holds across API restarts/instances. `where` is `{ attemptId, questionId }`
+   * for an assessment attempt or `{ userId, questionId }` for practice — the two
+   * owner shapes this service ever creates a Submission under (see SubmissionOwner).
    */
-  private async assertNotRateLimited(attemptId: string, questionId: string): Promise<void> {
+  private async assertNotRateLimited(where: Prisma.SubmissionWhereInput): Promise<void> {
     const rateLimitMs = this.config.get<number>('RUN_RATE_LIMIT_MS') ?? 2000;
     const last = await this.prisma.submission.findFirst({
-      where: { attemptId, questionId },
+      where,
       orderBy: { createdAt: 'desc' },
       select: { createdAt: true },
     });
@@ -190,7 +293,7 @@ export class SubmissionsService {
   }
 
   private async createSubmission(
-    attemptId: string,
+    owner: SubmissionOwner,
     questionId: string,
     kind: 'RUN' | 'SUBMIT',
     input: RunCodeInput,
@@ -199,7 +302,7 @@ export class SubmissionsService {
     const { submission, job } = await this.prisma.$transaction(async (tx) => {
       const createdSubmission = await tx.submission.create({
         data: {
-          attemptId,
+          ...owner,
           questionId,
           kind,
           language: input.language,

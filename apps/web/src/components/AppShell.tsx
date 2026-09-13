@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
   ClipboardList,
+  Code2,
   Database,
   LogOut,
   Menu,
@@ -39,6 +40,7 @@ const ADMIN_NAV: NavItem[] = [
 
 const STUDENT_NAV: NavItem[] = [
   { label: 'My Assessments', to: '/student', pathname: '/student', icon: <ClipboardList size={17} /> },
+  { label: 'Practice', to: '/student/practice', pathname: '/student/practice', icon: <Code2 size={17} /> },
 ];
 
 function resolveActiveLabel(pathname: string, search: string, items: NavItem[]): string {

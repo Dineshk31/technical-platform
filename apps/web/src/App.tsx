@@ -15,10 +15,16 @@ import { AdminResultDetailPage } from './pages/AdminResultDetailPage';
 import { StudentDashboardPage } from './pages/StudentDashboardPage';
 import { StudentAssessmentDetailPage } from './pages/StudentAssessmentDetailPage';
 import { StudentResultPage } from './pages/StudentResultPage';
+import { PracticeLandingPage } from './pages/PracticeLandingPage';
+import { PracticeExplorerPage } from './pages/PracticeExplorerPage';
 
-// Monaco is multiple MB — code-split so only students actually entering an exam pay
-// for it, not every page load (admin pages, login, etc. stay on the lean main bundle).
+// Monaco is multiple MB — code-split so only students actually entering an exam (or the
+// practice workspace, which embeds the same editor) pay for it, not every page load
+// (admin pages, login, etc. stay on the lean main bundle).
 const StudentExamPage = lazy(() => import('./pages/StudentExamPage').then((m) => ({ default: m.StudentExamPage })));
+const PracticeWorkspacePage = lazy(() =>
+  import('./pages/PracticeWorkspacePage').then((m) => ({ default: m.PracticeWorkspacePage })),
+);
 
 function HomeRedirect() {
   const { user, status } = useAuth();
@@ -61,16 +67,30 @@ export default function App() {
         <Route path="/student" element={<StudentDashboardPage />} />
         <Route path="/student/assessments/:id" element={<StudentAssessmentDetailPage />} />
         <Route path="/student/attempts/:attemptId/result" element={<StudentResultPage />} />
+        <Route path="/student/practice" element={<PracticeLandingPage />} />
+        <Route path="/student/practice/problems" element={<PracticeExplorerPage />} />
       </Route>
 
-      {/* The exam-taking route stays outside the app shell — a focused, distraction-free
-          full-screen layout, per the exam experience's own dedicated design. */}
+      {/* The exam-taking and practice-workspace routes stay outside the app shell —
+          a focused, distraction-free full-screen layout, per the exam experience's
+          own dedicated design (the practice workspace reuses it — same coding-focused
+          layout need, just without a timer or multi-question nav). */}
       <Route
         path="/student/attempts/:attemptId"
         element={
           <ProtectedRoute allow={['STUDENT']}>
             <Suspense fallback={<div className="page-centered">Loading exam…</div>}>
               <StudentExamPage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/practice/problems/:id"
+        element={
+          <ProtectedRoute allow={['STUDENT']}>
+            <Suspense fallback={<div className="page-centered">Loading problem…</div>}>
+              <PracticeWorkspacePage />
             </Suspense>
           </ProtectedRoute>
         }

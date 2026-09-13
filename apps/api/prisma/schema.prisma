@@ -201,6 +201,8 @@ model User {
   attempts                Attempt[]
   results                 Result[]
   refreshTokens           RefreshToken[]
+  practiceSubmissions     Submission[]         @relation("PracticeSubmissions")
+  practiceCodeDrafts      PracticeCodeDraft[]
 
   @@index([roleId])
   @@index([department, batch])
@@ -276,6 +278,7 @@ model CodingQuestion {
   testCases          CodingTestCase[]
   submissions        Submission[]
   codeDrafts         AttemptCodeDraft[]
+  practiceCodeDrafts PracticeCodeDraft[]
 
   @@map("coding_questions")
 }
@@ -539,10 +542,41 @@ model AttemptCodeDraft {
   @@map("attempt_code_drafts")
 }
 
+/// Practice-mode counterpart to AttemptCodeDraft (see that model's comment) — same
+/// "mutable editor state, never executed or scored itself" role, but keyed by
+/// (userId, questionId, language) instead of (attemptId, questionId, language) since
+/// practice has no Attempt row. Kept as a separate model rather than a nullable-attemptId
+/// column on AttemptCodeDraft because the two have different unique-key shapes and this
+/// schema already prefers small explicit models over overloaded nullable columns for that
+/// reason (see CodingReferenceSolution vs CodingStarterTemplate).
+model PracticeCodeDraft {
+  id         String              @id @default(uuid()) @db.Uuid
+  userId     String              @map("user_id") @db.Uuid
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionId String              @map("question_id") @db.Uuid
+  question   CodingQuestion      @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
+  language   ProgrammingLanguage
+  code       String
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, questionId, language])
+  @@index([userId])
+  @@map("practice_code_drafts")
+}
+
 model Submission {
   id            String            @id @default(uuid()) @db.Uuid
-  attemptId     String            @map("attempt_id") @db.Uuid
-  attempt       Attempt           @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  // NULL for a practice submission (see `userId` below) — an assessment submission always
+  // has this set and userId null; a practice submission always has userId set and this
+  // null. Enforced in application code (SubmissionsService/PracticeService), not a DB
+  // CHECK constraint, matching this schema's existing style elsewhere.
+  attemptId     String?           @map("attempt_id") @db.Uuid
+  attempt       Attempt?          @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  // Set only for a practice submission (attemptId null) — the student who submitted it,
+  // since there's no Attempt row to derive ownership from outside an assessment.
+  userId        String?           @map("user_id") @db.Uuid
+  practiceUser  User?             @relation("PracticeSubmissions", fields: [userId], references: [id], onDelete: Cascade)
   questionId    String            @map("question_id") @db.Uuid
   question      CodingQuestion    @relation(fields: [questionId], references: [questionId])
   kind          SubmissionKind
@@ -563,6 +597,7 @@ model Submission {
   executionJob  ExecutionJob?
 
   @@index([attemptId, questionId])
+  @@index([userId, questionId])
   @@index([status])
   @@map("submissions")
 }
