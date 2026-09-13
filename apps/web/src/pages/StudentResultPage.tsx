@@ -111,6 +111,14 @@ export function StudentResultPage() {
             <div className="result-stat-value">{formatDuration(result.timeTakenSeconds)}</div>
             <div className="result-stat-label">Time taken</div>
           </div>
+          {result.rank !== null && (
+            <div className="result-stat">
+              <div className="result-stat-value">
+                #{result.rank} <span style={{ fontSize: '0.6em', color: 'var(--color-muted)' }}>of {result.totalRanked}</span>
+              </div>
+              <div className="result-stat-label">Rank</div>
+            </div>
+          )}
         </div>
         <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', marginTop: '0.9rem', marginBottom: 0 }}>
           Started {new Date(result.startedAt).toLocaleString()}

@@ -386,7 +386,7 @@ export class ResultsService {
       }),
       this.prisma.attempt.findMany({
         where: { assessmentId },
-        include: { result: { select: { totalScore: true, maxScore: true, percentage: true } } },
+        include: { result: { select: { totalScore: true, maxScore: true, percentage: true, rank: true } } },
       }),
     ]);
     const attemptByUser = new Map(attempts.map((a) => [a.userId, a]));
@@ -468,7 +468,7 @@ export class ResultsService {
   }
 
   private async buildResultResponse(assessment: Assessment, attempt: Attempt) {
-    const [structure, submissions, mcqResponses, result] = await Promise.all([
+    const [structure, submissions, mcqResponses, result, totalRanked] = await Promise.all([
       this.prisma.assessment.findUniqueOrThrow({ where: { id: assessment.id }, include: ASSESSMENT_STRUCTURE_INCLUDE }),
       this.prisma.submission.findMany({
         where: { attemptId: attempt.id },
@@ -477,10 +477,13 @@ export class ResultsService {
       }),
       this.prisma.mcqResponse.findMany({ where: { attemptId: attempt.id }, select: { questionId: true, score: true, isCorrect: true } }),
       this.prisma.result.findUnique({ where: { attemptId: attempt.id } }),
+      // Every other finalized attempt on this assessment shares the same rank scale
+      // (see recomputeRanks) — the count of Result rows IS the highest rank assigned.
+      this.prisma.result.count({ where: { assessmentId: assessment.id } }),
     ]);
 
     const outcomes = aggregateQuestionOutcomes(submissions);
     const breakdown = computeFullBreakdown(structure as AssessmentStructure, outcomes, mcqResponses, attempt);
-    return toOverallResult(assessment, attempt, breakdown, result?.finalizedAt ?? null);
+    return toOverallResult(assessment, attempt, breakdown, result?.finalizedAt ?? null, result?.rank ?? null, totalRanked);
   }
 }

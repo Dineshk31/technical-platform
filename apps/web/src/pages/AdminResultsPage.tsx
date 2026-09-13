@@ -106,7 +106,7 @@ export function AdminResultsPage() {
 
         {error && <ErrorState message={error} />}
         {loading ? (
-          <SkeletonTable rows={5} columns={6} />
+          <SkeletonTable rows={5} columns={7} />
         ) : rows.length === 0 ? (
           <EmptyState icon={<Trophy size={22} />} title="No participants match this filter" />
         ) : (
@@ -115,6 +115,7 @@ export function AdminResultsPage() {
               <table className="table">
                 <thead>
                   <tr>
+                    <th>Rank</th>
                     <th>Student</th>
                     <th>Email</th>
                     <th>Status</th>
@@ -127,6 +128,7 @@ export function AdminResultsPage() {
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.userId}>
+                      <td>{r.rank !== null ? `#${r.rank}` : '—'}</td>
                       <td>{r.studentName}</td>
                       <td>{r.studentEmail}</td>
                       <td>

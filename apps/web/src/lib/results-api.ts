@@ -39,6 +39,8 @@ export interface OverallResultDto {
   totalQuestions: number;
   timeTakenSeconds: number;
   finalizedAt: string | null;
+  rank: number | null;
+  totalRanked: number;
   sections: SectionResultDto[];
 }
 
@@ -58,6 +60,7 @@ export interface AdminResultListItemDto {
   totalScore: number | null;
   maxScore: number | null;
   percentage: number | null;
+  rank: number | null;
   submittedAt: string | null;
 }
 

@@ -16,7 +16,14 @@ type AssessmentLike = { id: string; title: string };
  * /assessments/:id/results/:attemptId) — same data, different authorization
  * gate in ResultsService, so there is exactly one place this shape is defined.
  */
-export function toOverallResult(assessment: AssessmentLike, attempt: AttemptLike, breakdown: FullBreakdown, finalizedAt: Date | null) {
+export function toOverallResult(
+  assessment: AssessmentLike,
+  attempt: AttemptLike,
+  breakdown: FullBreakdown,
+  finalizedAt: Date | null,
+  rank: number | null,
+  totalRanked: number,
+) {
   return {
     assessmentId: assessment.id,
     assessmentTitle: assessment.title,
@@ -32,6 +39,11 @@ export function toOverallResult(assessment: AssessmentLike, attempt: AttemptLike
     totalQuestions: breakdown.totalQuestions,
     timeTakenSeconds: breakdown.timeTakenSeconds,
     finalizedAt,
+    // Rank among every finalized attempt on this assessment (see recomputeRanks in
+    // results.service.ts) — null only if this attempt's Result row hasn't finalized yet,
+    // which ensureFinalized always resolves before this DTO is built.
+    rank,
+    totalRanked,
     sections: breakdown.sections,
   };
 }
@@ -45,7 +57,7 @@ type AttemptWithResult = {
   id: string;
   status: string;
   submittedAt: Date | null;
-  result: { totalScore: unknown; maxScore: unknown; percentage: unknown } | null;
+  result: { totalScore: unknown; maxScore: unknown; percentage: unknown; rank: number | null } | null;
 } | null;
 
 /**
@@ -68,6 +80,7 @@ export function toAdminResultListItem(participant: ParticipantLike, attempt: Att
     totalScore: result ? toNum(result.totalScore) : null,
     maxScore: result ? toNum(result.maxScore) : null,
     percentage: result ? toNum(result.percentage) : null,
+    rank: result?.rank ?? null,
     submittedAt: attempt?.submittedAt ?? null,
   };
 }
