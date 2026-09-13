@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Code2, ListChecks, Target } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Code2, History, ListChecks, Target } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { getPracticeProgress, type PracticeProgressDto } from '../lib/practice-api';
 import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/Card';
+import { DifficultyBadge } from '../components/ApprovalBadge';
 import { ErrorState } from '../components/ErrorState';
+import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
+import { statusPillClass, VERDICT_LABELS } from '../lib/verdict';
 
 const DIFFICULTY_ORDER = ['EASY', 'MEDIUM', 'HARD'];
+// How many topics to show before "Show all" — keeps the hub scannable when the
+// question bank grows a long tail of lightly-used topics.
+const TOPIC_PREVIEW_COUNT = 8;
 
 export function PracticeLandingPage() {
   const [progress, setProgress] = useState<PracticeProgressDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAllTopics, setShowAllTopics] = useState(false);
 
   useEffect(() => {
     getPracticeProgress()
@@ -27,6 +34,7 @@ export function PracticeLandingPage() {
   const byDifficulty = progress
     ? [...progress.byDifficulty].sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty))
     : [];
+  const topicsToShow = progress ? (showAllTopics ? progress.byTopic : progress.byTopic.slice(0, TOPIC_PREVIEW_COUNT)) : [];
 
   return (
     <div className="dashboard-body">
@@ -55,6 +63,21 @@ export function PracticeLandingPage() {
       ) : (
         progress && (
           <>
+            {progress.continueQuestion && (
+              <Link to={`/student/practice/problems/${progress.continueQuestion.questionId}`} className="continue-card" style={{ textDecoration: 'none' }}>
+                <div>
+                  <p className="continue-card-label">Continue solving</p>
+                  <p className="continue-card-title">{progress.continueQuestion.title}</p>
+                  <p className="continue-card-meta">
+                    {progress.continueQuestion.difficulty} · {progress.continueQuestion.language}
+                  </p>
+                </div>
+                <button type="button" className="btn-icon btn-on-accent">
+                  Continue <ArrowRight size={15} />
+                </button>
+              </Link>
+            )}
+
             <div className="stat-card-grid">
               <StatCard label="Total problems" value={progress.totalProblems} icon={<ListChecks size={18} />} />
               <StatCard
@@ -72,13 +95,21 @@ export function PracticeLandingPage() {
                 <h2 style={{ margin: 0 }}>Progress by difficulty</h2>
               </div>
               {byDifficulty.length === 0 ? (
-                <p style={{ color: 'var(--color-muted)' }}>No approved practice problems are available yet.</p>
+                <EmptyState
+                  icon={<Code2 size={22} />}
+                  title="No approved practice problems yet"
+                  description="Once an admin approves coding questions, they'll show up here."
+                />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                   {byDifficulty.map((d) => {
                     const pct = d.total > 0 ? Math.round((d.solved / d.total) * 100) : 0;
                     return (
-                      <div key={d.difficulty}>
+                      <Link
+                        key={d.difficulty}
+                        to={`/student/practice/problems?difficulty=${d.difficulty}`}
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
                           <strong>{d.difficulty}</strong>
                           <span style={{ color: 'var(--color-muted)' }}>
@@ -88,12 +119,76 @@ export function PracticeLandingPage() {
                         <div className="progress-track">
                           <div className="progress-fill" style={{ width: `${pct}%` }} />
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
               )}
             </div>
+
+            {progress.byTopic.length > 0 && (
+              <div className="card">
+                <div className="page-header" style={{ marginBottom: '1rem' }}>
+                  <h2 style={{ margin: 0 }}>Progress by topic</h2>
+                  {progress.byTopic.length > TOPIC_PREVIEW_COUNT && (
+                    <button type="button" className="btn-secondary btn-small" onClick={() => setShowAllTopics((v) => !v)}>
+                      {showAllTopics ? 'Show less' : `Show all ${progress.byTopic.length}`}
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.85rem' }}>
+                  {topicsToShow.map((t) => {
+                    const pct = t.total > 0 ? Math.round((t.solved / t.total) * 100) : 0;
+                    return (
+                      <Link
+                        key={t.topic}
+                        to={`/student/practice/problems?topic=${encodeURIComponent(t.topic)}`}
+                        className="card"
+                        style={{ textDecoration: 'none', color: 'inherit', padding: '0.85rem 1rem', margin: 0 }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '0.35rem' }}>
+                          <strong>{t.topic}</strong>
+                          <span style={{ color: 'var(--color-muted)' }}>
+                            {t.solved}/{t.total}
+                          </span>
+                        </div>
+                        <div className="progress-track">
+                          <div className="progress-fill" style={{ width: `${pct}%` }} />
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {progress.recentActivity.length > 0 && (
+              <div className="card">
+                <div className="page-header" style={{ marginBottom: '1rem' }}>
+                  <h2 style={{ margin: 0 }}>Recent activity</h2>
+                </div>
+                <div className="activity-list">
+                  {progress.recentActivity.map((item, i) => (
+                    <Link
+                      key={i}
+                      to={`/student/practice/problems/${item.questionId}`}
+                      className="activity-row"
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <div className="activity-row-main">
+                        <History size={14} style={{ color: 'var(--color-muted)', flexShrink: 0 }} />
+                        <span className="activity-row-title">{item.title}</span>
+                        <DifficultyBadge difficulty={item.difficulty} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span className={`exam-status-pill ${statusPillClass(item.status)}`}>{VERDICT_LABELS[item.status]}</span>
+                        <span className="activity-row-meta">{new Date(item.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )
       )}

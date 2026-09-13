@@ -13,6 +13,10 @@ export const PracticeQuestionQuerySchema = z.object({
   topic: z.enum(CODING_TOPICS).optional(),
   language: z.enum(PROGRAMMING_LANGUAGES).optional(),
   status: z.enum(['SOLVED', 'ATTEMPTED', 'UNSOLVED']).optional(),
+  // 'recommended' = unsolved first (nothing to gain re-suggesting an already-solved
+  // problem), then easiest-first within that — a real, explainable rule over this
+  // student's actual submission history, not an invented/ML recommendation.
+  sort: z.enum(['newest', 'easiest', 'hardest', 'recommended']).default('newest'),
 });
 export type PracticeQuestionQueryInput = z.infer<typeof PracticeQuestionQuerySchema>;
 

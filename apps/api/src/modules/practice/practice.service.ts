@@ -2,7 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { PracticeQuestionQueryInput, SaveCodeDraftInput } from '@technical-platform/shared';
 import { Prisma } from '../../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { computePracticeStatus, toPracticeQuestionDetail, toPracticeQuestionListItem } from './dto/practice.dto.js';
+import {
+  computePracticeStatus,
+  toPracticeQuestionDetail,
+  toPracticeQuestionListItem,
+  type PracticeQuestionStatus,
+} from './dto/practice.dto.js';
 
 const LIST_INCLUDE = {
   codingQuestion: { include: { languages: true } },
@@ -49,11 +54,46 @@ export class PracticeService {
       where.id = { notIn: [...attemptedIds] };
     }
 
+    const statusOf = (id: string): PracticeQuestionStatus =>
+      solvedIds.has(id) ? 'SOLVED' : attemptedIds.has(id) ? 'ATTEMPTED' : 'NOT_ATTEMPTED';
+
+    // 'newest'/'easiest'/'hardest' sort at the database level and paginate there —
+    // cheap and scales normally. Native Postgres enums order by declaration sequence
+    // (EASY, MEDIUM, HARD in schema.prisma), so `orderBy: { difficulty }` sorts
+    // correctly with no extra mapping. 'recommended' needs this student's own
+    // solved/attempted status, which isn't a column Postgres can sort by directly —
+    // so for that one sort only, every matching question is pulled (bounded to a
+    // generous cap; this platform's real question-bank scale is nowhere near it)
+    // and ranked in application code instead.
+    if (query.sort === 'recommended') {
+      const RECOMMENDED_SCAN_CAP = 2000;
+      const all = await this.prisma.question.findMany({
+        where,
+        include: LIST_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        take: RECOMMENDED_SCAN_CAP,
+      });
+      const difficultyRank: Record<string, number> = { EASY: 0, MEDIUM: 1, HARD: 2 };
+      const statusRank: Record<string, number> = { NOT_ATTEMPTED: 0, ATTEMPTED: 1, SOLVED: 2 };
+      const ranked = all
+        .map((q) => ({ q, status: statusOf(q.id) }))
+        .sort((a, b) => statusRank[a.status] - statusRank[b.status] || difficultyRank[a.q.difficulty] - difficultyRank[b.q.difficulty]);
+      const total = ranked.length;
+      const page = ranked.slice((query.page - 1) * query.pageSize, (query.page - 1) * query.pageSize + query.pageSize);
+      return {
+        data: page.map(({ q, status }) => toPracticeQuestionListItem(q, status)),
+        meta: { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) },
+      };
+    }
+
+    const orderBy: Prisma.QuestionOrderByWithRelationInput =
+      query.sort === 'easiest' ? { difficulty: 'asc' } : query.sort === 'hardest' ? { difficulty: 'desc' } : { createdAt: 'desc' };
+
     const [items, total] = await Promise.all([
       this.prisma.question.findMany({
         where,
         include: LIST_INCLUDE,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),
@@ -61,9 +101,7 @@ export class PracticeService {
     ]);
 
     return {
-      data: items.map((q) =>
-        toPracticeQuestionListItem(q, solvedIds.has(q.id) ? 'SOLVED' : attemptedIds.has(q.id) ? 'ATTEMPTED' : 'NOT_ATTEMPTED'),
-      ),
+      data: items.map((q) => toPracticeQuestionListItem(q, statusOf(q.id))),
       meta: { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) },
     };
   }
@@ -118,11 +156,20 @@ export class PracticeService {
    * Home (StudentHomePage), so "continue where you left off" is defined once.
    */
   async getProgress(userId: string) {
-    const [totalByDifficulty, { solvedIds, attemptedIds }, recentSubmissions, recentDrafts] = await Promise.all([
+    const [totalByDifficulty, questionTopics, { solvedIds, attemptedIds }, recentSubmissions, recentDrafts] = await Promise.all([
       this.prisma.question.groupBy({
         by: ['difficulty'],
         where: { type: 'CODING', approvalStatus: 'APPROVED' },
         _count: { _all: true },
+      }),
+      // Topics are a `String[]` (a question can carry several) — Prisma's `groupBy`
+      // can't unnest an array column, so this is aggregated in application code below
+      // from the full (id, topics) list rather than in SQL. Fine at this platform's
+      // scale (the same "pull the small real list, aggregate in JS" pattern already
+      // used for difficulty/status elsewhere in this service).
+      this.prisma.question.findMany({
+        where: { type: 'CODING', approvalStatus: 'APPROVED' },
+        select: { id: true, topics: true },
       }),
       this.getMyStatusSets(userId),
       this.prisma.submission.findMany({
@@ -176,6 +223,25 @@ export class PracticeService {
       attempted: attemptedQuestions.filter((q) => q.difficulty === d.difficulty).length,
     }));
 
+    const byTopic: { topic: string; total: number; solved: number; attempted: number }[] = [];
+    {
+      const stats = new Map<string, { total: number; solved: number; attempted: number }>();
+      for (const q of questionTopics) {
+        for (const topic of q.topics) {
+          const entry = stats.get(topic) ?? { total: 0, solved: 0, attempted: 0 };
+          entry.total += 1;
+          if (solvedIds.has(q.id)) entry.solved += 1;
+          else if (attemptedIds.has(q.id)) entry.attempted += 1;
+          stats.set(topic, entry);
+        }
+      }
+      byTopic.push(
+        ...[...stats.entries()]
+          .map(([topic, s]) => ({ topic, ...s }))
+          .sort((a, b) => b.total - a.total || a.topic.localeCompare(b.topic)),
+      );
+    }
+
     const recentActivity = recentSubmissions.map((s) => ({
       questionId: s.questionId,
       title: s.question.question.title,
@@ -218,6 +284,7 @@ export class PracticeService {
       solved: solvedQuestions.length,
       attempted: attemptedQuestions.length,
       byDifficulty,
+      byTopic,
       recentActivity,
       continueQuestion,
     };

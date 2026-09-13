@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Code2 } from 'lucide-react';
 import { CODING_TOPICS, DIFFICULTY_LEVELS, PROGRAMMING_LANGUAGES } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
-import { listPracticeQuestions, type PracticeQuestionListItem } from '../lib/practice-api';
+import { listPracticeQuestions, type PracticeQuestionListItem, type PracticeSortOption } from '../lib/practice-api';
 import { DifficultyBadge } from '../components/ApprovalBadge';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
@@ -12,6 +12,12 @@ import { SkeletonTable } from '../components/Skeleton';
 import { QUESTION_STATUS_LABELS, questionStatusPillClass } from '../lib/verdict';
 
 const STATUS_OPTIONS = ['SOLVED', 'ATTEMPTED', 'UNSOLVED'] as const;
+const SORT_OPTIONS: { value: PracticeSortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'recommended', label: 'Recommended' },
+  { value: 'easiest', label: 'Easiest first' },
+  { value: 'hardest', label: 'Hardest first' },
+];
 
 export function PracticeExplorerPage() {
   // Same URL-as-source-of-truth pattern as AdminQuestionBankPage — filters survive
@@ -21,6 +27,7 @@ export function PracticeExplorerPage() {
   const topic = searchParams.get('topic') ?? '';
   const language = searchParams.get('language') ?? '';
   const status = searchParams.get('status') ?? '';
+  const sort = (searchParams.get('sort') as PracticeSortOption) || 'newest';
   const urlSearch = searchParams.get('search') ?? '';
   const page = Number(searchParams.get('page') ?? '1');
 
@@ -29,6 +36,7 @@ export function PracticeExplorerPage() {
 
   const [questions, setQuestions] = useState<PracticeQuestionListItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
@@ -44,12 +52,14 @@ export function PracticeExplorerPage() {
         topic: topic || undefined,
         language: language || undefined,
         status: (status as PracticeQuestionListItem['status'] | 'UNSOLVED') || undefined,
+        sort,
         page,
         pageSize: 20,
       });
       if (requestId !== requestIdRef.current) return;
       setQuestions(result.data);
       setTotalPages(result.meta.totalPages);
+      setTotal(result.meta.total);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
       setError(err instanceof ApiError ? err.message : 'Failed to load problems');
@@ -89,7 +99,7 @@ export function PracticeExplorerPage() {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [difficulty, topic, language, status, urlSearch, page]);
+  }, [difficulty, topic, language, status, sort, urlSearch, page]);
 
   return (
     <div className="dashboard-body">
@@ -98,7 +108,7 @@ export function PracticeExplorerPage() {
       </Link>
 
       <div className="page-header">
-        <h1 style={{ margin: 0 }}>Problems</h1>
+        <h1 style={{ margin: 0 }}>Problems{!loading && ` (${total})`}</h1>
       </div>
 
       <div className="card">
@@ -145,6 +155,17 @@ export function PracticeExplorerPage() {
           <button className="btn-secondary btn-small" onClick={handleSearch}>
             Search
           </button>
+          <select
+            value={sort}
+            onChange={(e) => setFilter('sort', e.target.value === 'newest' ? '' : e.target.value)}
+            style={{ marginLeft: 'auto' }}
+          >
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                Sort: {s.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {error && <ErrorState message={error} />}

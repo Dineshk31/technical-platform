@@ -26,6 +26,8 @@ export interface PracticeQuestionListItem {
   status: PracticeQuestionStatus;
 }
 
+export type PracticeSortOption = 'newest' | 'easiest' | 'hardest' | 'recommended';
+
 export interface ListPracticeQuestionsParams {
   page?: number;
   pageSize?: number;
@@ -34,6 +36,7 @@ export interface ListPracticeQuestionsParams {
   topic?: string;
   language?: string;
   status?: PracticeQuestionStatus | 'UNSOLVED';
+  sort?: PracticeSortOption;
 }
 
 function toQueryString(params: object): string {
@@ -70,6 +73,7 @@ export interface PracticeProgressDto {
   solved: number;
   attempted: number;
   byDifficulty: { difficulty: string; total: number; solved: number; attempted: number }[];
+  byTopic: { topic: string; total: number; solved: number; attempted: number }[];
   recentActivity: PracticeActivityItem[];
   continueQuestion: PracticeContinueQuestion | null;
 }
