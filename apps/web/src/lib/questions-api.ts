@@ -110,6 +110,7 @@ export interface ListQuestionsParams {
   language?: string;
   source?: string;
   type?: string;
+  sort?: 'newest' | 'oldest' | 'title' | 'easiest' | 'hardest';
 }
 
 function toQueryString(params: ListQuestionsParams): string {

@@ -10,7 +10,15 @@ import {
   QUESTION_TYPE_CODES,
 } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
-import { listQuestions, type QuestionListItem } from '../lib/questions-api';
+import { listQuestions, type ListQuestionsParams, type QuestionListItem } from '../lib/questions-api';
+
+const SORT_OPTIONS: { value: NonNullable<ListQuestionsParams['sort']>; label: string }[] = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'title', label: 'Title (A-Z)' },
+  { value: 'easiest', label: 'Easiest first' },
+  { value: 'hardest', label: 'Hardest first' },
+];
 import { ApprovalBadge, DifficultyBadge, QuestionTypeBadge, SourceBadge } from '../components/ApprovalBadge';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -28,6 +36,7 @@ export function AdminQuestionBankPage() {
   const approvalStatus = searchParams.get('approvalStatus') ?? '';
   const source = searchParams.get('source') ?? '';
   const urlSearch = searchParams.get('search') ?? '';
+  const sort = (searchParams.get('sort') as ListQuestionsParams['sort']) || 'newest';
 
   // Free-text search is buffered locally so it doesn't refetch on every keystroke —
   // applied to the URL (and thus refetched) on Enter/Search click, or kept in sync if
@@ -57,6 +66,7 @@ export function AdminQuestionBankPage() {
         topic: topic || undefined,
         approvalStatus: approvalStatus || undefined,
         source: source || undefined,
+        sort,
         pageSize: 50,
       });
       if (requestId !== requestIdRef.current) return;
@@ -88,7 +98,7 @@ export function AdminQuestionBankPage() {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, difficulty, topic, approvalStatus, source, urlSearch]);
+  }, [type, difficulty, topic, approvalStatus, source, urlSearch, sort]);
 
   const isAiReviewQueue = source === 'AI_GENERATED' && approvalStatus === 'PENDING_REVIEW';
   const topicOptions = type === 'MCQ' ? MCQ_TOPICS : type === 'CODING' ? CODING_TOPICS : [...CODING_TOPICS, ...MCQ_TOPICS];
@@ -188,6 +198,17 @@ export function AdminQuestionBankPage() {
           <button className="btn-secondary btn-small" onClick={handleSearch}>
             Search
           </button>
+          <select
+            value={sort}
+            onChange={(e) => setFilter('sort', e.target.value === 'newest' ? '' : e.target.value)}
+            style={{ marginLeft: 'auto' }}
+          >
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                Sort: {s.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {error && <ErrorState message={error} />}

@@ -122,11 +122,22 @@ export class QuestionsService {
       ...(query.source ? { source: query.source } : {}),
     };
 
+    const orderBy: Prisma.QuestionOrderByWithRelationInput =
+      query.sort === 'oldest'
+        ? { createdAt: 'asc' }
+        : query.sort === 'title'
+          ? { title: 'asc' }
+          : query.sort === 'easiest'
+            ? { difficulty: 'asc' }
+            : query.sort === 'hardest'
+              ? { difficulty: 'desc' }
+              : { createdAt: 'desc' };
+
     const [items, total] = await Promise.all([
       this.prisma.question.findMany({
         where,
         include: LIST_INCLUDE,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),

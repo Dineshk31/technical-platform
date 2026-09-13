@@ -90,6 +90,7 @@ export const ListQuestionsQuerySchema = z.object({
   language: z.enum(PROGRAMMING_LANGUAGES).optional(),
   source: z.enum(QUESTION_SOURCE_CODES).optional(),
   type: z.enum(QUESTION_TYPE_CODES).optional(),
+  sort: z.enum(['newest', 'oldest', 'title', 'easiest', 'hardest']).default('newest'),
 });
 export type ListQuestionsQueryInput = z.infer<typeof ListQuestionsQuerySchema>;
 
