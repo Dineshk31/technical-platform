@@ -32,6 +32,7 @@ import { ExecutionResultPanel } from './exam/ExecutionResultPanel';
 import { SubmissionHistoryPanel } from './exam/SubmissionHistoryPanel';
 import { McqQuestionPanel } from './exam/McqQuestionPanel';
 import { SaveIndicator, type SaveState } from './exam/SaveIndicator';
+import { SubmitReviewModal } from './exam/SubmitReviewModal';
 
 const STATUS_POLL_MS = 15_000;
 const SAVE_DEBOUNCE_MS = 1500;
@@ -99,6 +100,7 @@ export function StudentExamPage() {
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showSubmitReview, setShowSubmitReview] = useState(false);
   const [requestConfirm, confirmDialog] = useConfirm();
 
   // ---- Phase 5: code draft state ----
@@ -480,25 +482,42 @@ export function StudentExamPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestionId]);
 
-  async function handleSubmit() {
-    if (!assessmentId) return;
+  /** Opens the full review-before-you-submit surface. Flushes any pending
+   * debounced draft save first, then re-fetches the question list — each
+   * question's `status` (solved/attempted/not-attempted) is a server-computed
+   * snapshot taken once at page load and otherwise never refreshed during the
+   * session (an MCQ answer or a code Submit only ever updates their own local
+   * state, not this list) — see docs comment on `questionsData`. The review
+   * screen's entire purpose is an accurate answered/unanswered count, so it
+   * cannot be built on that stale snapshot; refetch right before showing it. */
+  const [refreshingReview, setRefreshingReview] = useState(false);
+  async function openSubmitReview() {
     if (currentKey) flushPending(currentKey);
-    const unanswered = flatQuestions.filter((q) => q.status === 'NOT_ATTEMPTED').length;
-    const ok = await requestConfirm({
-      title: 'Submit and finish this assessment?',
-      description:
-        unanswered > 0
-          ? `You have ${unanswered} unanswered question(s). Once submitted, you will not be able to make further changes.`
-          : 'Once submitted, you will not be able to make further changes.',
-      confirmLabel: 'Submit assessment',
-      confirmVariant: 'danger',
-    });
-    if (!ok) return;
+    if (assessmentId) {
+      setRefreshingReview(true);
+      try {
+        const fresh = await getStudentQuestions(assessmentId);
+        setQuestionsData(fresh);
+      } catch {
+        // Best-effort — if the refresh fails, the review still opens with
+        // whatever status was last known rather than blocking the student.
+      } finally {
+        setRefreshingReview(false);
+      }
+    }
+    setShowSubmitReview(true);
+  }
+
+  /** The actual, deliberate submission — only ever reachable from inside the
+   * review modal, never directly from the topbar button. */
+  async function performSubmit() {
+    if (!assessmentId) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
       await submitAttempt(assessmentId);
       await refreshStatus(assessmentId);
+      setShowSubmitReview(false);
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : 'Failed to submit');
     } finally {
@@ -516,6 +535,17 @@ export function StudentExamPage() {
   return (
     <div className="exam-shell">
       {confirmDialog}
+      <SubmitReviewModal
+        open={showSubmitReview}
+        onClose={() => setShowSubmitReview(false)}
+        sections={questionsData.sections}
+        onSelectQuestion={(id) => {
+          setShowSubmitReview(false);
+          selectQuestion(id);
+        }}
+        onConfirmSubmit={() => void performSubmit()}
+        submitting={submitting}
+      />
       <div className="exam-topbar">
         <div className="exam-topbar-brand">
           <div>
@@ -531,8 +561,8 @@ export function StudentExamPage() {
             {isActive && remainingMs !== null ? formatDuration(remainingMs) : status.status.replace('_', ' ')}
           </span>
           {isActive ? (
-            <button className="btn-icon" onClick={() => void handleSubmit()} disabled={submitting}>
-              <Send size={15} /> {submitting ? 'Submitting…' : 'Submit assessment'}
+            <button className="btn-icon" onClick={() => void openSubmitReview()} disabled={submitting || refreshingReview}>
+              <Send size={15} /> {refreshingReview ? 'Loading…' : submitting ? 'Submitting…' : 'Submit assessment'}
             </button>
           ) : (
             <>
