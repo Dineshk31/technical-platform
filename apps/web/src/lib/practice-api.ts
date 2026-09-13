@@ -49,11 +49,29 @@ export function listPracticeQuestions(params: ListPracticeQuestionsParams = {}) 
   return apiFetch<PaginatedResult<PracticeQuestionListItem>>(`/practice/questions${toQueryString(params)}`);
 }
 
+export interface PracticeActivityItem {
+  questionId: string;
+  title: string;
+  difficulty: string;
+  kind: 'RUN' | 'SUBMIT';
+  status: SubmissionStatus;
+  createdAt: string;
+}
+
+export interface PracticeContinueQuestion {
+  questionId: string;
+  title: string;
+  difficulty: string;
+  language: ProgrammingLanguageCode;
+}
+
 export interface PracticeProgressDto {
   totalProblems: number;
   solved: number;
   attempted: number;
   byDifficulty: { difficulty: string; total: number; solved: number; attempted: number }[];
+  recentActivity: PracticeActivityItem[];
+  continueQuestion: PracticeContinueQuestion | null;
 }
 
 export function getPracticeProgress() {

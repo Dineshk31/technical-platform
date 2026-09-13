@@ -108,9 +108,10 @@ export interface AttemptDto {
 
 // ---- Admin ----
 
-export function listAssessments(params: { page?: number; status?: string; search?: string } = {}) {
+export function listAssessments(params: { page?: number; pageSize?: number; status?: string; search?: string } = {}) {
   const qs = new URLSearchParams();
   if (params.page) qs.set('page', String(params.page));
+  if (params.pageSize) qs.set('pageSize', String(params.pageSize));
   if (params.status) qs.set('status', params.status);
   if (params.search) qs.set('search', params.search);
   const query = qs.toString();

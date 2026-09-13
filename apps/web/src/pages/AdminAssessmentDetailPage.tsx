@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, PlayCircle, Trash2, Users } from 'lucide-react';
+import { ArrowLeft, Check, PlayCircle, Trash2, Users } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import {
   addSection,
@@ -23,6 +23,7 @@ import { QuestionPicker } from '../components/QuestionPicker';
 import { QuestionTypeBadge } from '../components/ApprovalBadge';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingRow } from '../components/Skeleton';
+import { Stepper, type StepDefinition } from '../components/Stepper';
 import { useConfirm } from '../components/useConfirm';
 
 export function AdminAssessmentDetailPage() {
@@ -96,83 +97,279 @@ export function AdminAssessmentDetailPage() {
         <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           {assessment.title} <StatusBadge status={assessment.effectiveStatus} />
         </h1>
+        <div className="action-row" style={{ marginBottom: 0 }}>
+          {!isDraft && (
+            <Link to={`/admin/assessments/${assessment.id}/results`}>
+              <button className="btn-secondary btn-icon">
+                <Users size={15} /> View results
+              </button>
+            </Link>
+          )}
+          {isPublished && assessment.effectiveStatus === 'PUBLISHED' && (
+            <button className="btn-secondary" disabled={actionPending} onClick={() => void runAction(() => unpublishAssessment(assessment.id))}>
+              Unpublish
+            </button>
+          )}
+          {assessment.effectiveStatus === 'COMPLETED' && (
+            <button className="btn-secondary" disabled={actionPending} onClick={() => void runAction(() => archiveAssessment(assessment.id))}>
+              Archive
+            </button>
+          )}
+          {isDraft && (
+            <button className="btn-danger btn-icon" disabled={actionPending} onClick={() => void handleDeleteDraft()}>
+              <Trash2 size={15} /> Delete draft
+            </button>
+          )}
+        </div>
       </div>
 
       {actionError && <ErrorState message={actionError} />}
 
-      <div className="action-row">
-        {!isDraft && (
-          <Link to={`/admin/assessments/${assessment.id}/results`}>
-            <button className="btn-secondary btn-icon">
-              <Users size={15} /> View results
-            </button>
-          </Link>
-        )}
-        {isDraft && (
-          <button className="btn-icon" disabled={actionPending} onClick={() => void runAction(() => publishAssessment(assessment.id))}>
-            <PlayCircle size={15} /> Publish
-          </button>
-        )}
-        {isPublished && assessment.effectiveStatus === 'PUBLISHED' && (
+      {isDraft ? (
+        <DraftBuilder assessment={assessment} onChanged={refresh} requestConfirm={requestConfirm} />
+      ) : (
+        <PublishedView assessment={assessment} onChanged={refresh} />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// DRAFT — the guided, step-based builder
+// ============================================================
+
+type BuilderStepKey = 'details' | 'questions' | 'participants' | 'review';
+
+function DraftBuilder({
+  assessment,
+  onChanged,
+  requestConfirm,
+}: {
+  assessment: AdminAssessmentDetail;
+  onChanged: () => Promise<void>;
+  requestConfirm: ReturnType<typeof useConfirm>[0];
+}) {
+  const [step, setStep] = useState<BuilderStepKey>('details');
+
+  const hasSections = assessment.sectionsCount > 0;
+  const everySectionHasQuestions = assessment.sections.length > 0 && assessment.sections.every((s) => s.questions.length > 0);
+  const hasParticipants = assessment.participantsCount > 0;
+  const validWindow = new Date(assessment.endAt) > new Date(assessment.startAt) && new Date(assessment.endAt) > new Date();
+
+  const steps: StepDefinition[] = [
+    { key: 'details', label: 'Assessment details', hint: `${assessment.durationMinutes} min window`, done: validWindow },
+    {
+      key: 'questions',
+      label: 'Build assessment',
+      hint: `${assessment.sectionsCount} section(s) · ${assessment.questionsCount} question(s)`,
+      done: hasSections && everySectionHasQuestions,
+    },
+    { key: 'participants', label: 'Participants', hint: `${assessment.participantsCount} assigned`, done: hasParticipants },
+    { key: 'review', label: 'Review & publish' },
+  ];
+
+  return (
+    <>
+      <Stepper steps={steps} currentKey={step} onSelect={(k) => setStep(k as BuilderStepKey)} />
+
+      {step === 'details' && (
+        <div className="card">
+          <h2>Assessment details</h2>
+          <MetaForm assessment={assessment} onSaved={onChanged} />
+        </div>
+      )}
+
+      {step === 'questions' && (
+        <div className="card">
+          <h2>
+            Sections ({assessment.sectionsCount}) · {assessment.questionsCount} question(s) · {assessment.maxMarks} marks
+          </h2>
+          <SectionsPanel assessment={assessment} onChanged={onChanged} editable />
+        </div>
+      )}
+
+      {step === 'participants' && (
+        <div className="card">
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Users size={17} /> Participants ({assessment.participantsCount})
+          </h2>
+          <ParticipantsPanel assessment={assessment} onChanged={onChanged} />
+        </div>
+      )}
+
+      {step === 'review' && (
+        <ReviewAndPublish
+          assessment={assessment}
+          checklist={{ hasSections, everySectionHasQuestions, hasParticipants, validWindow }}
+          onChanged={onChanged}
+          requestConfirm={requestConfirm}
+          goToStep={setStep}
+        />
+      )}
+    </>
+  );
+}
+
+function ReviewAndPublish({
+  assessment,
+  checklist,
+  onChanged,
+  requestConfirm,
+  goToStep,
+}: {
+  assessment: AdminAssessmentDetail;
+  checklist: { hasSections: boolean; everySectionHasQuestions: boolean; hasParticipants: boolean; validWindow: boolean };
+  onChanged: () => Promise<void>;
+  requestConfirm: ReturnType<typeof useConfirm>[0];
+  goToStep: (key: BuilderStepKey) => void;
+}) {
+  const [publishIssues, setPublishIssues] = useState<{ field?: string; issue: string }[] | null>(null);
+  const [publishing, setPublishing] = useState(false);
+
+  const localChecklist = [
+    { key: 'window', label: 'Valid time window (end after start, end in the future)', ok: checklist.validWindow, step: 'details' as const },
+    { key: 'sections', label: 'At least one section', ok: checklist.hasSections, step: 'questions' as const },
+    { key: 'questions', label: 'Every section has at least one question', ok: checklist.everySectionHasQuestions, step: 'questions' as const },
+    { key: 'participants', label: 'At least one participant assigned', ok: checklist.hasParticipants, step: 'participants' as const },
+  ];
+  const allLocalChecksPass = localChecklist.every((c) => c.ok);
+
+  return (
+    <div className="card">
+      <h2>Review & publish</h2>
+      <p className="field-hint" style={{ marginTop: 0 }}>
+        {assessment.sectionsCount} section(s) · {assessment.questionsCount} question(s) · {assessment.maxMarks} marks ·{' '}
+        {assessment.participantsCount} participant(s)
+      </p>
+
+      <div className="checklist">
+        {localChecklist.map((c) => (
           <button
-            className="btn-secondary"
-            disabled={actionPending}
-            onClick={() => void runAction(() => unpublishAssessment(assessment.id))}
+            key={c.key}
+            type="button"
+            className={`checklist-item ${c.ok ? 'ok' : 'pending'}`}
+            style={{ border: 'none', width: '100%', cursor: 'pointer' }}
+            onClick={() => goToStep(c.step)}
           >
-            Unpublish
+            {c.ok ? <Check size={14} /> : <span style={{ width: 14 }} />} {c.label}
           </button>
-        )}
-        {assessment.effectiveStatus === 'COMPLETED' && (
-          <button
-            className="btn-secondary"
-            disabled={actionPending}
-            onClick={() => void runAction(() => archiveAssessment(assessment.id))}
-          >
-            Archive
-          </button>
-        )}
-        {isDraft && (
-          <button className="btn-danger btn-icon" disabled={actionPending} onClick={() => void handleDeleteDraft()}>
-            <Trash2 size={15} /> Delete
-          </button>
-        )}
+        ))}
+        <div className="checklist-item" style={{ background: 'var(--color-surface-secondary)', color: 'var(--color-muted)' }}>
+          Every attached question is currently APPROVED, and its test cases/options are still valid — checked by the
+          server the moment you click Publish below.
+        </div>
       </div>
 
+      {publishIssues && publishIssues.length > 0 && (
+        <div style={{ marginTop: '1rem' }}>
+          <p className="form-error" style={{ marginBottom: '0.4rem' }}>
+            The server blocked publishing for these reasons:
+          </p>
+          <ul>
+            {publishIssues.map((issue, i) => (
+              <li key={i} style={{ color: 'var(--color-error)', fontSize: '0.85rem' }}>
+                {issue.issue}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="action-row" style={{ marginTop: '1.2rem' }}>
+        <button
+          className="btn-icon"
+          disabled={publishing}
+          onClick={async () => {
+            const okToProceed = await requestConfirm({
+              title: 'Publish this assessment?',
+              description: `"${assessment.title}" will become visible to its assigned participants and cannot have its questions or timing changed afterward.${allLocalChecksPass ? '' : ' Some checks above are still incomplete — publishing will likely be rejected until they are fixed.'}`,
+              confirmLabel: 'Publish assessment',
+              confirmVariant: 'success',
+            });
+            if (!okToProceed) return;
+            setPublishIssues(null);
+            setPublishing(true);
+            try {
+              await publishAssessment(assessment.id);
+              await onChanged();
+            } catch (err) {
+              if (err instanceof ApiError && err.details) {
+                setPublishIssues(err.details);
+              } else if (err instanceof ApiError) {
+                setPublishIssues([{ issue: err.message }]);
+              }
+            } finally {
+              setPublishing(false);
+            }
+          }}
+        >
+          <PlayCircle size={15} /> {publishing ? 'Publishing…' : 'Publish'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// PUBLISHED / COMPLETED / ARCHIVED — the locked detail view
+// ============================================================
+
+function PublishedView({ assessment, onChanged }: { assessment: AdminAssessmentDetail; onChanged: () => Promise<void> }) {
+  return (
+    <>
       <div className="card">
         <h2>Details</h2>
-        <MetaForm assessment={assessment} onSaved={refresh} />
+        <MetaForm assessment={assessment} onSaved={onChanged} />
       </div>
 
       <div className="card">
         <h2>
           Sections ({assessment.sectionsCount}) · {assessment.questionsCount} question(s) · {assessment.maxMarks} marks
         </h2>
-        <SectionsPanel assessment={assessment} onChanged={refresh} editable={isDraft} />
+        <SectionsPanel assessment={assessment} onChanged={onChanged} editable={false} />
       </div>
 
       <div className="card">
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Users size={17} /> Participants ({assessment.participantsCount})
         </h2>
-        <ParticipantsPanel assessment={assessment} onChanged={refresh} />
+        <ParticipantsPanel assessment={assessment} onChanged={onChanged} />
       </div>
-    </div>
+    </>
   );
 }
 
+// ============================================================
+// Shared step content (used by both the draft builder and the locked view)
+// ============================================================
+
 function MetaForm({ assessment, onSaved }: { assessment: AdminAssessmentDetail; onSaved: () => Promise<void> }) {
+  const isDraft = assessment.status === 'DRAFT';
+  const [title, setTitle] = useState(assessment.title);
   const [description, setDescription] = useState(assessment.description ?? '');
   const [instructions, setInstructions] = useState(assessment.instructions ?? '');
+  const [durationMinutes, setDurationMinutes] = useState(assessment.durationMinutes);
+  const [startAt, setStartAt] = useState(toLocalInputValue(assessment.startAt));
+  const [endAt, setEndAt] = useState(toLocalInputValue(assessment.endAt));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const isDraft = assessment.status === 'DRAFT';
+  const [saved, setSaved] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setSaved(false);
     setSaving(true);
     try {
-      await updateAssessment(assessment.id, { description: description || null, instructions: instructions || null });
+      await updateAssessment(assessment.id, {
+        title: isDraft ? title : undefined,
+        description: description || null,
+        instructions: instructions || null,
+        durationMinutes: isDraft ? durationMinutes : undefined,
+        startAt: isDraft ? new Date(startAt) : undefined,
+        endAt: isDraft ? new Date(endAt) : undefined,
+      });
+      setSaved(true);
       await onSaved();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to save');
@@ -181,31 +378,82 @@ function MetaForm({ assessment, onSaved }: { assessment: AdminAssessmentDetail; 
     }
   }
 
+  if (!isDraft) {
+    return (
+      <>
+        <p style={{ margin: '0 0 0.8rem', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
+          Duration: {assessment.durationMinutes} min · {new Date(assessment.startAt).toLocaleString()} →{' '}
+          {new Date(assessment.endAt).toLocaleString()} (locked — unpublish to edit timing/duration/title)
+        </p>
+        <form onSubmit={handleSubmit} className="form-grid">
+          <div className="field-full">
+            <label htmlFor="desc">Description</label>
+            <input id="desc" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} />
+          </div>
+          <div className="field-full">
+            <label htmlFor="instr">Instructions</label>
+            <input id="instr" value={instructions} onChange={(e) => setInstructions(e.target.value)} style={{ width: '100%' }} />
+          </div>
+          {error && <p className="form-error field-full">{error}</p>}
+          <div className="field-full">
+            <button type="submit" className="btn-secondary" disabled={saving}>
+              {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </>
+    );
+  }
+
   return (
-    <>
-      <p style={{ margin: '0 0 0.8rem', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
-        Duration: {assessment.durationMinutes} min · {new Date(assessment.startAt).toLocaleString()} →{' '}
-        {new Date(assessment.endAt).toLocaleString()}
-        {!isDraft && ' (locked — unpublish to edit timing/duration/title)'}
-      </p>
-      <form onSubmit={handleSubmit} className="form-grid">
-        <div className="field-full">
-          <label htmlFor="desc">Description</label>
-          <input id="desc" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} />
-        </div>
-        <div className="field-full">
-          <label htmlFor="instr">Instructions</label>
-          <input id="instr" value={instructions} onChange={(e) => setInstructions(e.target.value)} style={{ width: '100%' }} />
-        </div>
-        {error && <p className="form-error field-full">{error}</p>}
-        <div className="field-full">
-          <button type="submit" className="btn-secondary" disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </form>
-    </>
+    <form onSubmit={handleSubmit} className="form-grid">
+      <div className="field-full">
+        <label htmlFor="title">Title</label>
+        <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required style={{ width: '100%' }} />
+      </div>
+      <div className="field-full">
+        <label htmlFor="description">Description</label>
+        <input id="description" value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} />
+      </div>
+      <div className="field-full">
+        <label htmlFor="instr">Instructions</label>
+        <input id="instr" value={instructions} onChange={(e) => setInstructions(e.target.value)} style={{ width: '100%' }} />
+      </div>
+      <div>
+        <label htmlFor="duration">Duration (minutes)</label>
+        <input
+          id="duration"
+          type="number"
+          min={1}
+          max={600}
+          value={durationMinutes}
+          onChange={(e) => setDurationMinutes(Number(e.target.value))}
+          required
+        />
+      </div>
+      <div />
+      <div>
+        <label htmlFor="startAt">Start</label>
+        <input id="startAt" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} required />
+      </div>
+      <div>
+        <label htmlFor="endAt">End</label>
+        <input id="endAt" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} required />
+      </div>
+      {error && <p className="form-error field-full">{error}</p>}
+      <div className="field-full">
+        <button type="submit" className="btn-secondary" disabled={saving}>
+          {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save details'}
+        </button>
+      </div>
+    </form>
   );
+}
+
+function toLocalInputValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function SectionsPanel({
@@ -235,15 +483,13 @@ function SectionsPanel({
 
   return (
     <>
-      {assessment.sections.length === 0 && <p>No sections yet.</p>}
+      {assessment.sections.length === 0 && (
+        <p style={{ color: 'var(--color-muted)' }}>
+          No sections yet. {editable ? 'Add one below to start attaching questions.' : ''}
+        </p>
+      )}
       {assessment.sections.map((section) => (
-        <SectionBlock
-          key={section.id}
-          assessmentId={assessment.id}
-          section={section}
-          onChanged={onChanged}
-          editable={editable}
-        />
+        <SectionBlock key={section.id} assessmentId={assessment.id} section={section} onChanged={onChanged} editable={editable} />
       ))}
 
       {editable && (
@@ -430,7 +676,7 @@ function ParticipantsPanel({
   return (
     <>
       {assessment.participants.length === 0 ? (
-        <p>No participants assigned yet.</p>
+        <p style={{ color: 'var(--color-muted)' }}>No participants assigned yet.</p>
       ) : (
         <table className="table">
           <thead>

@@ -713,3 +713,261 @@ button.btn-ghost .spinner {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
 }
+
+/* ---------- Actionable stat cards (Command Center / Student Home) ---------- */
+
+a.stat-card-link {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+a.stat-card-link:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+a.stat-card-link .stat-card-hint {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.stat-card-attention {
+  border-color: rgba(154, 107, 0, 0.35);
+  background: var(--color-warning-subtle);
+}
+.stat-card-attention .stat-card-icon {
+  background: rgba(154, 107, 0, 0.16);
+  color: var(--color-warning);
+}
+.stat-card-attention .stat-card-hint {
+  color: var(--color-warning);
+}
+
+/* ---------- Section headers within a page (not a new Card) ---------- */
+
+.section-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: var(--space-7) 0 var(--space-3);
+  gap: var(--space-3);
+}
+.section-title-row h2 {
+  margin: 0;
+  font-size: var(--text-section-title);
+}
+.section-title-row .section-title-link {
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+/* ---------- Continue-learning hero card ---------- */
+
+.continue-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  color: var(--color-on-accent);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+.continue-card-label {
+  font-size: var(--text-label);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+  margin: 0 0 0.3rem;
+  font-weight: 700;
+}
+.continue-card-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+.continue-card-meta {
+  font-size: var(--text-small);
+  opacity: 0.9;
+  margin: 0;
+}
+.continue-card .btn-on-accent {
+  background: var(--color-on-accent);
+  color: var(--color-primary);
+  border: none;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.continue-card .btn-on-accent:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* ---------- Recent activity list ---------- */
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+}
+.activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.activity-row:last-child {
+  border-bottom: none;
+}
+.activity-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.activity-row-title {
+  font-weight: 600;
+  font-size: var(--text-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-row-meta {
+  font-size: var(--text-label);
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+/* ---------- Assessment groups (Available now / Upcoming / Completed) ---------- */
+
+.assessment-group-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-small);
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: var(--space-5) 0 0.6rem;
+}
+.assessment-group-title:first-child {
+  margin-top: 0;
+}
+.assessment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 0.6rem;
+  background: var(--color-surface);
+}
+.assessment-row-title {
+  font-weight: 600;
+  font-size: var(--text-body);
+  margin: 0 0 0.2rem;
+}
+.assessment-row-meta {
+  font-size: var(--text-label);
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* ---------- Stepper (Assessment Builder) ---------- */
+
+.stepper {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  overflow-x: auto;
+}
+.stepper-step {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: var(--space-4) var(--space-4);
+  border: none;
+  border-right: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  text-align: left;
+  min-width: 168px;
+  cursor: pointer;
+}
+.stepper-step:last-child {
+  border-right: none;
+}
+.stepper-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.stepper-step-index {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-label);
+  font-weight: 700;
+  flex-shrink: 0;
+  background: var(--color-surface-secondary);
+  color: var(--color-muted);
+}
+.stepper-step-label {
+  font-size: var(--text-small);
+  font-weight: 600;
+  line-height: 1.2;
+}
+.stepper-step-hint {
+  font-size: var(--text-label);
+  color: var(--color-muted);
+  font-weight: 400;
+}
+.stepper-step.current {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+}
+.stepper-step.current .stepper-step-index {
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+}
+.stepper-step.done .stepper-step-index {
+  background: var(--color-success);
+  color: var(--color-on-accent);
+}
+.stepper-step.done {
+  color: var(--color-text);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: var(--text-small);
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
+}
+.checklist-item.ok {
+  color: var(--color-success-strong);
+  background: var(--color-success-subtle);
+}
+.checklist-item.pending {
+  color: var(--color-warning);
+  background: var(--color-warning-subtle);
+}

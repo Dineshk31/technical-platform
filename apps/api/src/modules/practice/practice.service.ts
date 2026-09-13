@@ -107,17 +107,49 @@ export class PracticeService {
     return { questionId: draft.questionId, language: draft.language, updatedAt: draft.updatedAt };
   }
 
-  /** Practice landing page stats — total available problems, solved, attempted,
-   * and the same breakdown by difficulty. Every number here comes straight from
-   * `questions`/`submissions`; nothing is estimated or hardcoded. */
+  /**
+   * Practice landing page stats — total available problems, solved, attempted,
+   * the same breakdown by difficulty, this student's last few real submissions
+   * (for a "recent activity" feed), and a single "continue" pick (the most
+   * recently touched — by submission or saved draft — question that isn't
+   * solved yet). Every number/row here comes straight from `questions` /
+   * `submissions` / `practice_code_drafts`; nothing is estimated, guessed, or
+   * hardcoded. Reused as-is by both the Practice landing page and Student
+   * Home (StudentHomePage), so "continue where you left off" is defined once.
+   */
   async getProgress(userId: string) {
-    const [totalByDifficulty, { solvedIds, attemptedIds }] = await Promise.all([
+    const [totalByDifficulty, { solvedIds, attemptedIds }, recentSubmissions, recentDrafts] = await Promise.all([
       this.prisma.question.groupBy({
         by: ['difficulty'],
         where: { type: 'CODING', approvalStatus: 'APPROVED' },
         _count: { _all: true },
       }),
       this.getMyStatusSets(userId),
+      this.prisma.submission.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          questionId: true,
+          kind: true,
+          status: true,
+          language: true,
+          createdAt: true,
+          question: { select: { question: { select: { title: true, difficulty: true } } } },
+        },
+      }),
+      this.prisma.practiceCodeDraft.findMany({
+        where: { userId },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+        select: {
+          questionId: true,
+          language: true,
+          updatedAt: true,
+          question: { select: { question: { select: { title: true, difficulty: true } } } },
+        },
+      }),
     ]);
 
     const attemptedOnlyIds = [...attemptedIds].filter((id) => !solvedIds.has(id));
@@ -144,11 +176,50 @@ export class PracticeService {
       attempted: attemptedQuestions.filter((q) => q.difficulty === d.difficulty).length,
     }));
 
+    const recentActivity = recentSubmissions.map((s) => ({
+      questionId: s.questionId,
+      title: s.question.question.title,
+      difficulty: s.question.question.difficulty,
+      kind: s.kind,
+      status: s.status,
+      createdAt: s.createdAt,
+    }));
+
+    type ContinueCandidate = { questionId: string; title: string; difficulty: string; language: string; at: Date };
+    const continueCandidates: ContinueCandidate[] = [
+      ...recentSubmissions.map((s) => ({
+        questionId: s.questionId,
+        title: s.question.question.title,
+        difficulty: s.question.question.difficulty,
+        language: s.language,
+        at: s.createdAt,
+      })),
+      ...recentDrafts.map((d) => ({
+        questionId: d.questionId,
+        title: d.question.question.title,
+        difficulty: d.question.question.difficulty,
+        language: d.language,
+        at: d.updatedAt,
+      })),
+    ]
+      .filter((c) => !solvedIds.has(c.questionId))
+      .sort((a, b) => b.at.getTime() - a.at.getTime());
+    const continueQuestion = continueCandidates[0]
+      ? {
+          questionId: continueCandidates[0].questionId,
+          title: continueCandidates[0].title,
+          difficulty: continueCandidates[0].difficulty,
+          language: continueCandidates[0].language,
+        }
+      : null;
+
     return {
       totalProblems,
       solved: solvedQuestions.length,
       attempted: attemptedQuestions.length,
       byDifficulty,
+      recentActivity,
+      continueQuestion,
     };
   }
 

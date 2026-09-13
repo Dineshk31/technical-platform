@@ -1,16 +1,22 @@
-import type { ApiErrorBody, AuthenticatedUser } from '@technical-platform/shared';
+import type { ApiErrorBody, ApiErrorDetail, AuthenticatedUser } from '@technical-platform/shared';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000/api/v1';
 
 export class ApiError extends Error {
   status: number;
   code: string;
+  /** Per-field validation/readiness issues (e.g. publish-blockers) — present only
+   * on the error shapes that carry them (see ApiErrorBody). Lets a caller like the
+   * assessment builder's Review step render the server's own checklist instead of
+   * re-deriving publish rules client-side. */
+  details?: ApiErrorDetail[];
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details?: ApiErrorDetail[]) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -68,6 +74,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, _retr
       response.status,
       body?.error?.code ?? 'UNKNOWN_ERROR',
       body?.error?.message ?? `Request failed with status ${response.status}`,
+      body?.error?.details,
     );
   }
 

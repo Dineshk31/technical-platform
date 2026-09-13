@@ -12,7 +12,7 @@ import { AdminMcqFormPage } from './pages/AdminMcqFormPage';
 import { AdminAIGeneratorPage } from './pages/AdminAIGeneratorPage';
 import { AdminResultsPage } from './pages/AdminResultsPage';
 import { AdminResultDetailPage } from './pages/AdminResultDetailPage';
-import { StudentDashboardPage } from './pages/StudentDashboardPage';
+import { StudentHomePage } from './pages/StudentHomePage';
 import { StudentAssessmentDetailPage } from './pages/StudentAssessmentDetailPage';
 import { StudentResultPage } from './pages/StudentResultPage';
 import { PracticeLandingPage } from './pages/PracticeLandingPage';
@@ -64,7 +64,7 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/student" element={<StudentDashboardPage />} />
+        <Route path="/student" element={<StudentHomePage />} />
         <Route path="/student/assessments/:id" element={<StudentAssessmentDetailPage />} />
         <Route path="/student/attempts/:attemptId/result" element={<StudentResultPage />} />
         <Route path="/student/practice" element={<PracticeLandingPage />} />
