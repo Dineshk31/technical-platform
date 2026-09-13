@@ -33,7 +33,9 @@ interface ContinueAction {
  * student with nothing specifically unfinished.
  */
 function resolveContinueAction(assessments: StudentAssignedListItem[], progress: PracticeProgressDto | null): ContinueAction | null {
-  const activeStarted = assessments.find((a) => a.status === 'ACTIVE' && a.hasStarted && a.attemptId);
+  const activeStarted = assessments.find(
+    (a) => a.status === 'ACTIVE' && a.hasStarted && a.attemptId && a.attemptStatus === 'IN_PROGRESS',
+  );
   if (activeStarted) {
     return {
       label: 'Assessment in progress',
@@ -109,7 +111,13 @@ export function StudentHomePage() {
   const firstName = user?.name?.split(' ')[0];
   const continueAction = resolveContinueAction(assessments, progress);
 
-  const active = assessments.filter((a) => a.status === 'ACTIVE');
+  const activeInProgress = assessments.filter(
+    (a) => a.status === 'ACTIVE' && a.hasStarted && a.attemptStatus === 'IN_PROGRESS',
+  );
+  const activeNotStarted = assessments.filter((a) => a.status === 'ACTIVE' && !a.hasStarted);
+  const activeAwaitingResults = assessments.filter(
+    (a) => a.status === 'ACTIVE' && a.hasStarted && a.attemptStatus !== 'IN_PROGRESS',
+  );
   const upcoming = assessments.filter((a) => a.status === 'PUBLISHED');
   const completed = assessments.filter((a) => a.status === 'COMPLETED' || a.status === 'ARCHIVED');
 
@@ -206,10 +214,26 @@ export function StudentHomePage() {
               />
             ) : (
               <>
-                {active.length > 0 && (
+                {activeInProgress.length > 0 && (
+                  <>
+                    <div className="assessment-group-title">In progress</div>
+                    {activeInProgress.map((a) => (
+                      <AssessmentRow key={a.id} assessment={a} />
+                    ))}
+                  </>
+                )}
+                {activeNotStarted.length > 0 && (
                   <>
                     <div className="assessment-group-title">Available now</div>
-                    {active.map((a) => (
+                    {activeNotStarted.map((a) => (
+                      <AssessmentRow key={a.id} assessment={a} />
+                    ))}
+                  </>
+                )}
+                {activeAwaitingResults.length > 0 && (
+                  <>
+                    <div className="assessment-group-title">Submitted — awaiting results</div>
+                    {activeAwaitingResults.map((a) => (
                       <AssessmentRow key={a.id} assessment={a} />
                     ))}
                   </>
@@ -270,13 +294,14 @@ export function StudentHomePage() {
 }
 
 function AssessmentRow({ assessment }: { assessment: StudentAssignedListItem }) {
+  const isOngoing = assessment.hasStarted && assessment.attemptStatus === 'IN_PROGRESS' && assessment.status === 'ACTIVE';
   const linkTo =
     assessment.hasStarted && assessment.attemptId
-      ? assessment.status === 'ACTIVE'
+      ? isOngoing
         ? `/student/attempts/${assessment.attemptId}`
         : `/student/attempts/${assessment.attemptId}/result`
       : `/student/assessments/${assessment.id}`;
-  const linkLabel = assessment.hasStarted ? (assessment.status === 'ACTIVE' ? 'Resume' : 'View result') : 'View';
+  const linkLabel = assessment.hasStarted ? (isOngoing ? 'Resume' : 'View result') : 'View';
 
   return (
     <div className="assessment-row">

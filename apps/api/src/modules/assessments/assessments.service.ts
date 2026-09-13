@@ -425,7 +425,7 @@ export class AssessmentsService {
     const assessmentIds = participantRows.map((p) => p.assessmentId);
     const attempts = await this.prisma.attempt.findMany({
       where: { userId: studentId, assessmentId: { in: assessmentIds } },
-      select: { id: true, assessmentId: true },
+      select: { id: true, assessmentId: true, status: true },
     });
     const attemptByAssessment = new Map(attempts.map((a) => [a.assessmentId, a]));
 

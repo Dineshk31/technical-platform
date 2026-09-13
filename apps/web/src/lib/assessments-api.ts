@@ -96,6 +96,7 @@ export interface StudentAssignedListItem {
   maxMarks: number;
   hasStarted: boolean;
   attemptId: string | null;
+  attemptStatus: string | null;
 }
 
 export interface AttemptDto {

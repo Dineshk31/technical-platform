@@ -120,7 +120,7 @@ export function toStudentAssessmentDetail(a: Assessment) {
 
 export type StudentAssignedListSource = {
   assessment: Assessment;
-  attempt: Pick<Attempt, 'id'> | null;
+  attempt: Pick<Attempt, 'id' | 'status'> | null;
 };
 
 export function toStudentAssignedListItem({ assessment: a, attempt }: StudentAssignedListSource) {
@@ -134,5 +134,6 @@ export function toStudentAssignedListItem({ assessment: a, attempt }: StudentAss
     maxMarks: toNum(a.maxMarks),
     hasStarted: attempt !== null,
     attemptId: attempt?.id ?? null,
+    attemptStatus: attempt?.status ?? null,
   };
 }
