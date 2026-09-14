@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
+  BookOpen,
   CalendarClock,
   ClipboardList,
   Code2,
@@ -39,11 +40,13 @@ const ADMIN_NAV: NavItem[] = [
     search: 'source=AI_GENERATED',
     icon: <ListChecks size={17} />,
   },
+  { label: 'Lessons', to: '/admin/lessons', pathname: '/admin/lessons', icon: <BookOpen size={17} /> },
   { label: 'Users', to: '/admin/users', pathname: '/admin/users', icon: <Users size={17} /> },
 ];
 
 const STUDENT_NAV: NavItem[] = [
   { label: 'Home', to: '/student', pathname: '/student', icon: <Home size={17} /> },
+  { label: 'Learn', to: '/student/learn', pathname: '/student/learn', icon: <BookOpen size={17} /> },
   { label: 'Practice', to: '/student/practice', pathname: '/student/practice', icon: <Code2 size={17} /> },
   { label: 'Assessments', to: '/student/assessments', pathname: '/student/assessments', icon: <CalendarClock size={17} /> },
 ];

@@ -7,8 +7,14 @@ import type { WeakArea } from '../lib/weak-areas';
  * area" just to fill space (see resolveWeakAreas' documented rule). Reuses the
  * same `.assessment-row` layout as the Assessments list rather than inventing a
  * new row shape for a third "list of things with a CTA" pattern.
+ *
+ * `topicsWithLessons` (optional — only ever passed when Learn content exists
+ * for at least one weak topic, real data from LearnProgressDto.byTopic, see
+ * docs/PHASE_16_LEARN_ARCHITECTURE_AUDIT.md §9) adds a second, secondary
+ * "Learn this topic first" link alongside the existing Practice CTA — never
+ * shown for a topic with no published lessons.
  */
-export function WeakAreasCard({ areas }: { areas: WeakArea[] }) {
+export function WeakAreasCard({ areas, topicsWithLessons }: { areas: WeakArea[]; topicsWithLessons?: Set<string> }) {
   if (areas.length === 0) return null;
 
   return (
@@ -27,9 +33,16 @@ export function WeakAreasCard({ areas }: { areas: WeakArea[] }) {
               {a.solved} solved · {a.attempted} attempted · {a.total} problems total
             </p>
           </div>
-          <Link to={`/student/practice/problems?topic=${encodeURIComponent(a.topic)}`}>
-            <button className="btn-secondary btn-small">Practice {a.topic} →</button>
-          </Link>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {topicsWithLessons?.has(a.topic) && (
+              <Link to={`/student/learn/${encodeURIComponent(a.topic)}`}>
+                <button className="btn-secondary btn-small">Learn {a.topic} first →</button>
+              </Link>
+            )}
+            <Link to={`/student/practice/problems?topic=${encodeURIComponent(a.topic)}`}>
+              <button className="btn-secondary btn-small">Practice {a.topic} →</button>
+            </Link>
+          </div>
         </div>
       ))}
     </div>

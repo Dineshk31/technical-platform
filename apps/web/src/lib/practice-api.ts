@@ -66,6 +66,7 @@ export interface PracticeContinueQuestion {
   title: string;
   difficulty: string;
   language: ProgrammingLanguageCode;
+  lastActivityAt: string;
 }
 
 export interface PracticeProgressDto {

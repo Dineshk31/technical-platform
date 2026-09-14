@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Code2, History, ListChecks, Target } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { getPracticeProgress, type PracticeProgressDto } from '../lib/practice-api';
+import { getLearnProgress, type LearnProgressDto } from '../lib/learn-api';
 import { resolveWeakAreas } from '../lib/weak-areas';
 import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/Card';
@@ -20,13 +21,17 @@ const TOPIC_PREVIEW_COUNT = 8;
 
 export function PracticeLandingPage() {
   const [progress, setProgress] = useState<PracticeProgressDto | null>(null);
+  const [learnProgress, setLearnProgress] = useState<LearnProgressDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllTopics, setShowAllTopics] = useState(false);
 
   useEffect(() => {
-    getPracticeProgress()
-      .then(setProgress)
+    Promise.all([getPracticeProgress(), getLearnProgress()])
+      .then(([p, l]) => {
+        setProgress(p);
+        setLearnProgress(l);
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load your practice progress'))
       .finally(() => setLoading(false));
   }, []);
@@ -38,6 +43,7 @@ export function PracticeLandingPage() {
     : [];
   const topicsToShow = progress ? (showAllTopics ? progress.byTopic : progress.byTopic.slice(0, TOPIC_PREVIEW_COUNT)) : [];
   const weakAreas = progress ? resolveWeakAreas(progress.byTopic) : [];
+  const topicsWithLessons = learnProgress ? new Set(learnProgress.byTopic.map((t) => t.topic)) : undefined;
 
   return (
     <div className="dashboard-body">
@@ -129,7 +135,7 @@ export function PracticeLandingPage() {
               )}
             </div>
 
-            {weakAreas.length > 0 && <WeakAreasCard areas={weakAreas} />}
+            {weakAreas.length > 0 && <WeakAreasCard areas={weakAreas} topicsWithLessons={topicsWithLessons} />}
 
             {progress.byTopic.length > 0 && (
               <div className="card">

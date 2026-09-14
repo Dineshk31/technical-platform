@@ -13,12 +13,17 @@ import { AdminAIGeneratorPage } from './pages/AdminAIGeneratorPage';
 import { AdminResultsPage } from './pages/AdminResultsPage';
 import { AdminResultDetailPage } from './pages/AdminResultDetailPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
+import { AdminLessonsPage } from './pages/AdminLessonsPage';
+import { AdminLessonFormPage } from './pages/AdminLessonFormPage';
 import { StudentHomePage } from './pages/StudentHomePage';
 import { StudentAssessmentsPage } from './pages/StudentAssessmentsPage';
 import { StudentAssessmentDetailPage } from './pages/StudentAssessmentDetailPage';
 import { StudentResultPage } from './pages/StudentResultPage';
 import { PracticeLandingPage } from './pages/PracticeLandingPage';
 import { PracticeExplorerPage } from './pages/PracticeExplorerPage';
+import { LearnLandingPage } from './pages/LearnLandingPage';
+import { LearnTopicPage } from './pages/LearnTopicPage';
+import { LearnLessonPage } from './pages/LearnLessonPage';
 
 // Monaco is multiple MB — code-split so only students actually entering an exam (or the
 // practice workspace, which embeds the same editor) pay for it, not every page load
@@ -58,6 +63,9 @@ export default function App() {
         <Route path="/admin/assessments/:id/results" element={<AdminResultsPage />} />
         <Route path="/admin/assessments/:id/results/:attemptId" element={<AdminResultDetailPage />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/admin/lessons" element={<AdminLessonsPage />} />
+        <Route path="/admin/lessons/new" element={<AdminLessonFormPage />} />
+        <Route path="/admin/lessons/:id/edit" element={<AdminLessonFormPage />} />
       </Route>
 
       <Route
@@ -73,6 +81,9 @@ export default function App() {
         <Route path="/student/attempts/:attemptId/result" element={<StudentResultPage />} />
         <Route path="/student/practice" element={<PracticeLandingPage />} />
         <Route path="/student/practice/problems" element={<PracticeExplorerPage />} />
+        <Route path="/student/learn" element={<LearnLandingPage />} />
+        <Route path="/student/learn/:topic" element={<LearnTopicPage />} />
+        <Route path="/student/learn/:topic/lessons/:id" element={<LearnLessonPage />} />
       </Route>
 
       {/* The exam-taking and practice-workspace routes stay outside the app shell —

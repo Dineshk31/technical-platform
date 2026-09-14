@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { listAssignedAssessments, type StudentAssignedListItem } from '../lib/assessments-api';
 import { groupStudentAssessments } from '../lib/assessment-groups';
 import { getPracticeProgress, type PracticeProgressDto } from '../lib/practice-api';
+import { getLearnProgress, type LearnProgressDto } from '../lib/learn-api';
 import { resolveWeakAreas } from '../lib/weak-areas';
 import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/Card';
@@ -32,11 +33,17 @@ interface ContinueAction {
  * waterfall over actual state, never an invented recommendation (see
  * docs/PRODUCT_TRANSFORMATION_AUDIT.md §5 P0-A). Priority: a truly live,
  * already-started assessment (time-sensitive) > a live assessment not yet
- * started > the most recently touched, unsolved practice problem > a
- * first-time nudge into Practice > a generic "keep going" for an experienced
- * student with nothing specifically unfinished.
+ * started > whichever of {continue practicing, continue learning} the
+ * student touched more recently (see docs/PHASE_16_LEARN_ARCHITECTURE_AUDIT.md
+ * §9 — a real recency comparison, not a fixed Learn-before-Practice pillar
+ * order) > a first-time nudge into Practice > a generic "keep going" for an
+ * experienced student with nothing specifically unfinished.
  */
-function resolveContinueAction(assessments: StudentAssignedListItem[], progress: PracticeProgressDto | null): ContinueAction | null {
+function resolveContinueAction(
+  assessments: StudentAssignedListItem[],
+  progress: PracticeProgressDto | null,
+  learnProgress: LearnProgressDto | null,
+): ContinueAction | null {
   const activeStarted = assessments.find(
     (a) => a.status === 'ACTIVE' && a.hasStarted && a.attemptId && a.attemptStatus === 'IN_PROGRESS',
   );
@@ -61,16 +68,34 @@ function resolveContinueAction(assessments: StudentAssignedListItem[], progress:
     };
   }
 
-  if (progress?.continueQuestion) {
-    const q = progress.continueQuestion;
-    return {
-      label: 'Continue practicing',
-      title: q.title,
-      meta: `${q.difficulty} · ${q.language}`,
-      to: `/student/practice/problems/${q.questionId}`,
-      cta: 'Continue problem',
-    };
-  }
+  const practiceCandidate = progress?.continueQuestion
+    ? {
+        at: new Date(progress.continueQuestion.lastActivityAt).getTime(),
+        action: {
+          label: 'Continue practicing',
+          title: progress.continueQuestion.title,
+          meta: `${progress.continueQuestion.difficulty} · ${progress.continueQuestion.language}`,
+          to: `/student/practice/problems/${progress.continueQuestion.questionId}`,
+          cta: 'Continue problem',
+        } satisfies ContinueAction,
+      }
+    : null;
+  const learnCandidate = learnProgress?.continueLesson
+    ? {
+        at: new Date(learnProgress.continueLesson.lastActivityAt).getTime(),
+        action: {
+          label: 'Continue learning',
+          title: learnProgress.continueLesson.title,
+          meta: learnProgress.continueLesson.topic,
+          to: `/student/learn/${encodeURIComponent(learnProgress.continueLesson.topic)}/lessons/${learnProgress.continueLesson.lessonId}`,
+          cta: 'Continue lesson',
+        } satisfies ContinueAction,
+      }
+    : null;
+  const mostRecent = [practiceCandidate, learnCandidate]
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .sort((a, b) => b.at - a.at)[0];
+  if (mostRecent) return mostRecent.action;
 
   if (progress && progress.solved === 0) {
     return {
@@ -99,21 +124,23 @@ export function StudentHomePage() {
   const { user } = useAuth();
   const [assessments, setAssessments] = useState<StudentAssignedListItem[]>([]);
   const [progress, setProgress] = useState<PracticeProgressDto | null>(null);
+  const [learnProgress, setLearnProgress] = useState<LearnProgressDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([listAssignedAssessments(), getPracticeProgress()])
-      .then(([a, p]) => {
+    Promise.all([listAssignedAssessments(), getPracticeProgress(), getLearnProgress()])
+      .then(([a, p, l]) => {
         setAssessments(a.data);
         setProgress(p);
+        setLearnProgress(l);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load your dashboard'))
       .finally(() => setLoading(false));
   }, []);
 
   const firstName = user?.name?.split(' ')[0];
-  const continueAction = resolveContinueAction(assessments, progress);
+  const continueAction = resolveContinueAction(assessments, progress, learnProgress);
 
   const { activeInProgress, activeNotStarted, activeAwaitingResults, upcoming, completed } =
     groupStudentAssessments(assessments);
@@ -123,6 +150,7 @@ export function StudentHomePage() {
     : [];
   const remaining = progress ? Math.max(0, progress.totalProblems - progress.solved - progress.attempted) : 0;
   const weakAreas = progress ? resolveWeakAreas(progress.byTopic) : [];
+  const topicsWithLessons = learnProgress ? new Set(learnProgress.byTopic.map((t) => t.topic)) : undefined;
 
   return (
     <div className="dashboard-body">
@@ -195,7 +223,7 @@ export function StudentHomePage() {
 
           {weakAreas.length > 0 && (
             <div style={{ marginTop: 'var(--space-6)' }}>
-              <WeakAreasCard areas={weakAreas} />
+              <WeakAreasCard areas={weakAreas} topicsWithLessons={topicsWithLessons} />
             </div>
           )}
 

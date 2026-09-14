@@ -276,6 +276,10 @@ export class PracticeService {
           title: continueCandidates[0].title,
           difficulty: continueCandidates[0].difficulty,
           language: continueCandidates[0].language,
+          // Exposed so Student Home can compare recency against the Learn
+          // pillar's own continueLesson pick (see LearnService.getProgress) —
+          // "what did you touch most recently" rather than a fixed pillar order.
+          lastActivityAt: continueCandidates[0].at,
         }
       : null;
 

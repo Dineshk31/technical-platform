@@ -203,6 +203,8 @@ model User {
   refreshTokens           RefreshToken[]
   practiceSubmissions     Submission[]         @relation("PracticeSubmissions")
   practiceCodeDrafts      PracticeCodeDraft[]
+  createdLessons          Lesson[]                @relation("LessonCreatedBy")
+  lessonProgress          LessonProgress[]
 
   @@index([roleId])
   @@index([department, batch])
@@ -703,4 +705,55 @@ model Result {
   @@index([assessmentId, rank])
   @@index([userId])
   @@map("results")
+}
+
+// ================================================================
+// Learn (Phase 16)
+// ================================================================
+
+/// A single learning-content unit, grouped by `topic`. Deliberately keyed by
+/// a plain string validated against the same CODING_TOPICS vocabulary
+/// Question.topics already uses (packages/shared/src/enums/question.enum.ts)
+/// rather than a separate Topic table — see docs/PHASE_16_LEARN_ARCHITECTURE_AUDIT.md
+/// §7 for why: that vocabulary is already the closed, load-bearing join key
+/// for Practice/weak-area/Explorer filtering, and a second Topic table would
+/// only risk the two lists drifting apart.
+model Lesson {
+  id             String   @id @default(uuid()) @db.Uuid
+  topic          String
+  title          String
+  summary        String
+  concept        String
+  example        String?
+  commonMistakes String?  @map("common_mistakes")
+  orderIndex     Int      @default(0) @map("order_index")
+  // Mirrors Question.approvalStatus gating student visibility — only
+  // published lessons are ever served to students (see LearnService).
+  isPublished    Boolean  @default(false) @map("is_published")
+  createdById    String   @map("created_by") @db.Uuid
+  createdBy      User     @relation("LessonCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  progress LessonProgress[]
+
+  @@index([topic, orderIndex])
+  @@index([isPublished])
+  @@map("lessons")
+}
+
+/// Binary completion, mirroring the platform's existing solved/not-solved
+/// mental model rather than partial progress — a lesson is either read and
+/// marked complete, or it isn't. Re-completing is a harmless upsert.
+model LessonProgress {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String   @map("lesson_id") @db.Uuid
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@map("lesson_progress")
 }

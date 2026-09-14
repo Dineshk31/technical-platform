@@ -15,6 +15,7 @@ import { SubmissionsModule } from './modules/submissions/submissions.module.js';
 import { ResultsModule } from './modules/results/results.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { PracticeModule } from './modules/practice/practice.module.js';
+import { LearnModule } from './modules/learn/learn.module.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PracticeModule } from './modules/practice/practice.module.js';
     ResultsModule,
     AiModule,
     PracticeModule,
+    LearnModule,
   ],
   providers: [
     // Order matters: JwtAuthGuard establishes req.user first, RolesGuard then checks it.
