@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Code2, History, ListChecks, Target } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { getPracticeProgress, type PracticeProgressDto } from '../lib/practice-api';
+import { resolveWeakAreas } from '../lib/weak-areas';
 import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/Card';
+import { WeakAreasCard } from '../components/WeakAreasCard';
 import { DifficultyBadge } from '../components/ApprovalBadge';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
@@ -35,6 +37,7 @@ export function PracticeLandingPage() {
     ? [...progress.byDifficulty].sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty))
     : [];
   const topicsToShow = progress ? (showAllTopics ? progress.byTopic : progress.byTopic.slice(0, TOPIC_PREVIEW_COUNT)) : [];
+  const weakAreas = progress ? resolveWeakAreas(progress.byTopic) : [];
 
   return (
     <div className="dashboard-body">
@@ -125,6 +128,8 @@ export function PracticeLandingPage() {
                 </div>
               )}
             </div>
+
+            {weakAreas.length > 0 && <WeakAreasCard areas={weakAreas} />}
 
             {progress.byTopic.length > 0 && (
               <div className="card">

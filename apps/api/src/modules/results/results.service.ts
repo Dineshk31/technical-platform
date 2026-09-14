@@ -318,6 +318,33 @@ async function recomputeRanks(prisma: PrismaService, assessmentId: string): Prom
   await prisma.$transaction(sorted.map((r, index) => prisma.result.update({ where: { id: r.id }, data: { rank: index + 1 } })));
 }
 
+/** Roster ordering for the admin results page (§P1-8 of the transformation plan
+ * — sortable, not just a bare alphabetical table). Ranked/scored rows always
+ * sort before not-started/not-finalized ones regardless of the chosen mode,
+ * since `null` has no rank/score to compare. */
+function sortResultRows(
+  rows: ReturnType<typeof toAdminResultListItem>[],
+  sort: ListResultsQueryInput['sort'],
+): ReturnType<typeof toAdminResultListItem>[] {
+  const byName = (a: (typeof rows)[number], b: (typeof rows)[number]) => a.studentName.localeCompare(b.studentName);
+  if (sort === 'name') return rows.slice().sort(byName);
+  if (sort === 'score') {
+    return rows.slice().sort((a, b) => {
+      if (a.totalScore === null && b.totalScore === null) return byName(a, b);
+      if (a.totalScore === null) return 1;
+      if (b.totalScore === null) return -1;
+      return b.totalScore - a.totalScore || byName(a, b);
+    });
+  }
+  // 'rank' (default)
+  return rows.slice().sort((a, b) => {
+    if (a.rank === null && b.rank === null) return byName(a, b);
+    if (a.rank === null) return 1;
+    if (b.rank === null) return -1;
+    return a.rank - b.rank;
+  });
+}
+
 @Injectable()
 export class ResultsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -391,9 +418,8 @@ export class ResultsService {
     ]);
     const attemptByUser = new Map(attempts.map((a) => [a.userId, a]));
 
-    let rows = participants
-      .map((p) => toAdminResultListItem(p, attemptByUser.get(p.userId) ?? null))
-      .sort((a, b) => a.studentName.localeCompare(b.studentName));
+    let rows = participants.map((p) => toAdminResultListItem(p, attemptByUser.get(p.userId) ?? null));
+    rows = sortResultRows(rows, query.sort);
 
     if (query.status) {
       rows = rows.filter((r) => r.attemptStatus === query.status);

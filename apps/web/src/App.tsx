@@ -12,7 +12,9 @@ import { AdminMcqFormPage } from './pages/AdminMcqFormPage';
 import { AdminAIGeneratorPage } from './pages/AdminAIGeneratorPage';
 import { AdminResultsPage } from './pages/AdminResultsPage';
 import { AdminResultDetailPage } from './pages/AdminResultDetailPage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
 import { StudentHomePage } from './pages/StudentHomePage';
+import { StudentAssessmentsPage } from './pages/StudentAssessmentsPage';
 import { StudentAssessmentDetailPage } from './pages/StudentAssessmentDetailPage';
 import { StudentResultPage } from './pages/StudentResultPage';
 import { PracticeLandingPage } from './pages/PracticeLandingPage';
@@ -55,6 +57,7 @@ export default function App() {
         <Route path="/admin/questions/:id/edit" element={<AdminQuestionFormPage />} />
         <Route path="/admin/assessments/:id/results" element={<AdminResultsPage />} />
         <Route path="/admin/assessments/:id/results/:attemptId" element={<AdminResultDetailPage />} />
+        <Route path="/admin/users" element={<AdminUsersPage />} />
       </Route>
 
       <Route
@@ -65,6 +68,7 @@ export default function App() {
         }
       >
         <Route path="/student" element={<StudentHomePage />} />
+        <Route path="/student/assessments" element={<StudentAssessmentsPage />} />
         <Route path="/student/assessments/:id" element={<StudentAssessmentDetailPage />} />
         <Route path="/student/attempts/:attemptId/result" element={<StudentResultPage />} />
         <Route path="/student/practice" element={<PracticeLandingPage />} />

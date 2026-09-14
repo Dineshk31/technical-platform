@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
+  CalendarClock,
   ClipboardList,
   Code2,
   Database,
@@ -9,6 +10,7 @@ import {
   Menu,
   Sparkles,
   ListChecks,
+  Users,
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +24,7 @@ interface NavItem {
 }
 
 const ADMIN_NAV: NavItem[] = [
-  { label: 'Assessments', to: '/admin', pathname: '/admin', icon: <ClipboardList size={17} /> },
+  { label: 'Command Center', to: '/admin', pathname: '/admin', icon: <ClipboardList size={17} /> },
   { label: 'Question Bank', to: '/admin/questions', pathname: '/admin/questions', icon: <Database size={17} /> },
   {
     label: 'AI Generator',
@@ -37,11 +39,13 @@ const ADMIN_NAV: NavItem[] = [
     search: 'source=AI_GENERATED',
     icon: <ListChecks size={17} />,
   },
+  { label: 'Users', to: '/admin/users', pathname: '/admin/users', icon: <Users size={17} /> },
 ];
 
 const STUDENT_NAV: NavItem[] = [
   { label: 'Home', to: '/student', pathname: '/student', icon: <Home size={17} /> },
   { label: 'Practice', to: '/student/practice', pathname: '/student/practice', icon: <Code2 size={17} /> },
+  { label: 'Assessments', to: '/student/assessments', pathname: '/student/assessments', icon: <CalendarClock size={17} /> },
 ];
 
 function resolveActiveLabel(pathname: string, search: string, items: NavItem[]): string {
@@ -69,7 +73,7 @@ export function AppShell({ role }: { role: 'ADMIN' | 'STUDENT' }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const items = role === 'ADMIN' ? ADMIN_NAV : STUDENT_NAV;
-  const title = resolveActiveLabel(location.pathname, location.search, items) || (role === 'ADMIN' ? 'Assessments' : 'My Assessments');
+  const title = resolveActiveLabel(location.pathname, location.search, items) || (role === 'ADMIN' ? 'Command Center' : 'Home');
 
   return (
     <div className="app-shell">

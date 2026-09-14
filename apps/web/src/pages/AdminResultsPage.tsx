@@ -1,16 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Medal, Trophy } from 'lucide-react';
 import { ATTEMPT_STATUS_CODES } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { getAdminAssessment, type AdminAssessmentDetail } from '../lib/assessments-api';
-import { listAssessmentResults, type AdminResultListItemDto } from '../lib/results-api';
+import { listAssessmentResults, type AdminResultListItemDto, type ResultsSortOption } from '../lib/results-api';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { SkeletonTable } from '../components/Skeleton';
 
 const STATUS_FILTERS = ['NOT_STARTED', ...ATTEMPT_STATUS_CODES] as const;
+const SORT_OPTIONS: { value: ResultsSortOption; label: string }[] = [
+  { value: 'rank', label: 'Rank' },
+  { value: 'score', label: 'Score' },
+  { value: 'name', label: 'Name' },
+];
 const PAGE_SIZE = 20;
+
+function RankCell({ rank }: { rank: number | null }) {
+  if (rank === null) return <span style={{ color: 'var(--color-muted)' }}>—</span>;
+  if (rank <= 3) {
+    return (
+      <span className={`rank-pill rank-pill-${rank}`}>
+        {rank === 1 ? <Trophy size={12} /> : <Medal size={12} />} #{rank}
+      </span>
+    );
+  }
+  return <span className="rank-pill">#{rank}</span>;
+}
 
 export function AdminResultsPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +36,7 @@ export function AdminResultsPage() {
   const [meta, setMeta] = useState({ page: 1, pageSize: PAGE_SIZE, total: 0, totalPages: 1 });
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<ResultsSortOption>('rank');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +58,7 @@ export function AdminResultsPage() {
         pageSize: PAGE_SIZE,
         status: status || undefined,
         search: search || undefined,
+        sort,
       });
       setRows(result.data);
       setMeta(result.meta);
@@ -53,7 +72,7 @@ export function AdminResultsPage() {
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, status, page]);
+  }, [id, status, sort, page]);
 
   return (
     <div className="dashboard-body">
@@ -102,6 +121,13 @@ export function AdminResultsPage() {
           >
             Search
           </button>
+          <select value={sort} onChange={(e) => setSort(e.target.value as ResultsSortOption)} style={{ marginLeft: 'auto' }}>
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>
+                Sort: {s.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {error && <ErrorState message={error} />}
@@ -112,7 +138,7 @@ export function AdminResultsPage() {
         ) : (
           <>
             <div className="table-wrap">
-              <table className="table">
+              <table className="table results-table">
                 <thead>
                   <tr>
                     <th>Rank</th>
@@ -127,8 +153,10 @@ export function AdminResultsPage() {
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.userId}>
-                      <td>{r.rank !== null ? `#${r.rank}` : '—'}</td>
+                    <tr key={r.userId} className={r.rank !== null && r.rank <= 3 ? `results-row-top results-row-top-${r.rank}` : ''}>
+                      <td>
+                        <RankCell rank={r.rank} />
+                      </td>
                       <td>{r.studentName}</td>
                       <td>{r.studentEmail}</td>
                       <td>

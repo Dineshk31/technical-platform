@@ -10,5 +10,9 @@ export const ListResultsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   status: z.enum([...ATTEMPT_STATUS_CODES, 'NOT_STARTED']).optional(),
   search: z.string().trim().min(1).max(200).optional(),
+  // 'rank' (default) puts ranked finishers first in finish order, unranked
+  // (not-yet-finalized/not-started) participants after — a real leaderboard
+  // ordering, not just an alphabetical roster.
+  sort: z.enum(['rank', 'name', 'score']).default('rank'),
 });
 export type ListResultsQueryInput = z.infer<typeof ListResultsQuerySchema>;

@@ -7,17 +7,20 @@ import { getGenericStarterCode, type ProgrammingLanguageCode } from '@technical-
 import { ApiError } from '../lib/api-client';
 import { pollSubmission, type SubmissionDetailDto } from '../lib/attempts-api';
 import {
+  getNextRecommendedProblem,
   getPracticeQuestion,
   getPracticeSubmissionHistory,
   runPracticeCode,
   savePracticeDraft,
   submitPracticeCode,
   type PracticeQuestionDetail,
+  type PracticeQuestionListItem,
 } from '../lib/practice-api';
 import { DifficultyBadge } from '../components/ApprovalBadge';
 import { useConfirm } from '../components/useConfirm';
 import { QUESTION_STATUS_LABELS, questionStatusPillClass } from '../lib/verdict';
 import { ExecutionResultPanel } from './exam/ExecutionResultPanel';
+import { PracticeCompletionPanel } from './practice/PracticeCompletionPanel';
 import { PracticeSubmissionHistoryPanel } from './practice/PracticeSubmissionHistoryPanel';
 import { SaveIndicator, type SaveState } from './exam/SaveIndicator';
 import type { SubmissionHistoryItemDto } from '../lib/attempts-api';
@@ -56,6 +59,9 @@ export function PracticeWorkspacePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitAbortRef = useRef<AbortController | null>(null);
 
+  const [nextProblem, setNextProblem] = useState<PracticeQuestionListItem | null>(null);
+  const [nextProblemLoading, setNextProblemLoading] = useState(false);
+
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<SubmissionHistoryItemDto[]>([]);
@@ -63,6 +69,23 @@ export function PracticeWorkspacePage() {
   useEffect(() => {
     if (!questionId) return;
     let cancelled = false;
+    // Reset every run/submit-derived UI state left over from whichever problem was open
+    // before — otherwise navigating via "Next problem" (or browser back/forward between
+    // two problem URLs, which React Router doesn't remount for) would show this new
+    // problem's title inside the previous problem's stale completion banner and test
+    // results, a confusing "wrong data" state rather than a clean load.
+    setLoading(true);
+    setError(null);
+    setEditedByLanguage({});
+    setSaveStateByLanguage({});
+    setRunResult(null);
+    setRunError(null);
+    setSubmitResult(null);
+    setSubmitError(null);
+    setNextProblem(null);
+    setNextProblemLoading(false);
+    setHistoryOpen(false);
+    setHistory([]);
     (async () => {
       try {
         const q = await getPracticeQuestion(questionId);
@@ -150,6 +173,7 @@ export function PracticeWorkspacePage() {
     setRunError(null);
     setSubmitResult(null);
     setSubmitError(null);
+    setNextProblem(null);
   }
 
   async function handleReset() {
@@ -233,12 +257,20 @@ export function PracticeWorkspacePage() {
 
     setSubmitting(true);
     setSubmitError(null);
+    setNextProblem(null);
     try {
       const { submissionId } = await submitPracticeCode(questionId, language, code);
       const result = await pollSubmission(submissionId, { signal: controller.signal });
       setSubmitResult(result);
       void loadHistory();
       void refreshQuestionStatus();
+      if (result.status === 'ACCEPTED') {
+        setNextProblemLoading(true);
+        getNextRecommendedProblem(questionId, question.topics[0])
+          .then(setNextProblem)
+          .catch(() => setNextProblem(null))
+          .finally(() => setNextProblemLoading(false));
+      }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       setSubmitError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Failed to submit solution');
@@ -394,6 +426,18 @@ export function PracticeWorkspacePage() {
                 />
               </div>
               {historyOpen && <PracticeSubmissionHistoryPanel items={history} loading={historyLoading} />}
+              {submitResult && !submitting && submitResult.status === 'ACCEPTED' && (
+                <PracticeCompletionPanel
+                  title={question.title}
+                  difficulty={question.difficulty}
+                  result={submitResult}
+                  nextProblem={nextProblem}
+                  nextProblemLoading={nextProblemLoading}
+                  onViewHistory={() => {
+                    if (!historyOpen) toggleHistory();
+                  }}
+                />
+              )}
               {submitResult && !submitting && <ExecutionResultPanel title="Submission Result" result={submitResult} />}
               {runError && <div className="exam-run-status error">{runError}</div>}
               {runResult && !running ? (

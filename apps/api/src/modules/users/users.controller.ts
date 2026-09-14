@@ -1,9 +1,16 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Query, UsePipes } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Query, UsePipes } from '@nestjs/common';
 import type { AuthenticatedUser } from '@technical-platform/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
-import { CreateUserSchema, ListUsersQuerySchema, type CreateUserInput, type ListUsersQueryInput } from './schemas/user.schema.js';
+import {
+  CreateUserSchema,
+  ListUsersQuerySchema,
+  UpdateUserSchema,
+  type CreateUserInput,
+  type ListUsersQueryInput,
+  type UpdateUserInput,
+} from './schemas/user.schema.js';
 import { UsersService } from './users.service.js';
 
 @Controller('users')
@@ -31,5 +38,15 @@ export class UsersController {
       throw new ForbiddenException('You can only view your own profile');
     }
     return this.usersService.findById(id);
+  }
+
+  @Roles('ADMIN')
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateUserSchema)) body: UpdateUserInput,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.usersService.update(id, body, currentUser);
   }
 }

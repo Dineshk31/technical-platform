@@ -69,12 +69,18 @@ export interface PaginatedResults<T> {
   meta: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
-export function listAssessmentResults(assessmentId: string, params: { page?: number; pageSize?: number; status?: string; search?: string } = {}) {
+export type ResultsSortOption = 'rank' | 'name' | 'score';
+
+export function listAssessmentResults(
+  assessmentId: string,
+  params: { page?: number; pageSize?: number; status?: string; search?: string; sort?: ResultsSortOption } = {},
+) {
   const qs = new URLSearchParams();
   if (params.page) qs.set('page', String(params.page));
   if (params.pageSize) qs.set('pageSize', String(params.pageSize));
   if (params.status) qs.set('status', params.status);
   if (params.search) qs.set('search', params.search);
+  if (params.sort) qs.set('sort', params.sort);
   const query = qs.toString();
   return apiFetch<PaginatedResults<AdminResultListItemDto>>(`/assessments/${assessmentId}/results${query ? `?${query}` : ''}`);
 }

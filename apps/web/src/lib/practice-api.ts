@@ -143,3 +143,30 @@ export function getPracticeSubmissionHistory(questionId: string, params: { page?
 // directly — GET /submissions/:id already serves practice-owned submissions
 // exactly like attempt-owned ones (see SubmissionsService.getSubmission), so
 // there is nothing practice-specific to add here.
+
+/**
+ * The "what should I solve next" rule for the post-solve completion moment —
+ * a real, explainable waterfall over this student's own state, never an invented
+ * recommendation: prefer an unsolved problem sharing the just-solved problem's
+ * primary topic (relevance), ordered easiest-first among unsolved (the existing
+ * 'recommended' sort, already shipped in the Explorer), excluding the problem
+ * just solved. Falls back to the same ordering with no topic constraint when
+ * nothing else matches that topic.
+ */
+export async function getNextRecommendedProblem(
+  excludeId: string,
+  primaryTopic?: string,
+): Promise<PracticeQuestionListItem | null> {
+  if (primaryTopic) {
+    const withTopic = await listPracticeQuestions({
+      status: 'UNSOLVED',
+      sort: 'recommended',
+      topic: primaryTopic,
+      pageSize: 5,
+    });
+    const match = withTopic.data.find((q) => q.id !== excludeId);
+    if (match) return match;
+  }
+  const general = await listPracticeQuestions({ status: 'UNSOLVED', sort: 'recommended', pageSize: 5 });
+  return general.data.find((q) => q.id !== excludeId) ?? null;
+}

@@ -4,9 +4,13 @@ import { ArrowRight, CalendarClock, Code2, History, ListChecks, Target } from 'l
 import { ApiError } from '../lib/api-client';
 import { useAuth } from '../context/AuthContext';
 import { listAssignedAssessments, type StudentAssignedListItem } from '../lib/assessments-api';
+import { groupStudentAssessments } from '../lib/assessment-groups';
 import { getPracticeProgress, type PracticeProgressDto } from '../lib/practice-api';
+import { resolveWeakAreas } from '../lib/weak-areas';
 import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/Card';
+import { AssessmentRow } from '../components/AssessmentRow';
+import { WeakAreasCard } from '../components/WeakAreasCard';
 import { DifficultyBadge } from '../components/ApprovalBadge';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -111,20 +115,14 @@ export function StudentHomePage() {
   const firstName = user?.name?.split(' ')[0];
   const continueAction = resolveContinueAction(assessments, progress);
 
-  const activeInProgress = assessments.filter(
-    (a) => a.status === 'ACTIVE' && a.hasStarted && a.attemptStatus === 'IN_PROGRESS',
-  );
-  const activeNotStarted = assessments.filter((a) => a.status === 'ACTIVE' && !a.hasStarted);
-  const activeAwaitingResults = assessments.filter(
-    (a) => a.status === 'ACTIVE' && a.hasStarted && a.attemptStatus !== 'IN_PROGRESS',
-  );
-  const upcoming = assessments.filter((a) => a.status === 'PUBLISHED');
-  const completed = assessments.filter((a) => a.status === 'COMPLETED' || a.status === 'ARCHIVED');
+  const { activeInProgress, activeNotStarted, activeAwaitingResults, upcoming, completed } =
+    groupStudentAssessments(assessments);
 
   const byDifficulty = progress
     ? [...progress.byDifficulty].sort((a, b) => DIFFICULTY_ORDER.indexOf(a.difficulty) - DIFFICULTY_ORDER.indexOf(b.difficulty))
     : [];
   const remaining = progress ? Math.max(0, progress.totalProblems - progress.solved - progress.attempted) : 0;
+  const weakAreas = progress ? resolveWeakAreas(progress.byTopic) : [];
 
   return (
     <div className="dashboard-body">
@@ -195,8 +193,19 @@ export function StudentHomePage() {
             </>
           )}
 
+          {weakAreas.length > 0 && (
+            <div style={{ marginTop: 'var(--space-6)' }}>
+              <WeakAreasCard areas={weakAreas} />
+            </div>
+          )}
+
           <div className="section-title-row">
             <h2>Assessments</h2>
+            {assessments.length > 0 && (
+              <Link to="/student/assessments" className="section-title-link">
+                View all assessments →
+              </Link>
+            )}
           </div>
           <div className="card">
             {assessments.length === 0 ? (
@@ -289,31 +298,6 @@ export function StudentHomePage() {
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function AssessmentRow({ assessment }: { assessment: StudentAssignedListItem }) {
-  const isOngoing = assessment.hasStarted && assessment.attemptStatus === 'IN_PROGRESS' && assessment.status === 'ACTIVE';
-  const linkTo =
-    assessment.hasStarted && assessment.attemptId
-      ? isOngoing
-        ? `/student/attempts/${assessment.attemptId}`
-        : `/student/attempts/${assessment.attemptId}/result`
-      : `/student/assessments/${assessment.id}`;
-  const linkLabel = assessment.hasStarted ? (isOngoing ? 'Resume' : 'View result') : 'View';
-
-  return (
-    <div className="assessment-row">
-      <div>
-        <p className="assessment-row-title">{assessment.title}</p>
-        <p className="assessment-row-meta">
-          {new Date(assessment.startAt).toLocaleString()} → {new Date(assessment.endAt).toLocaleString()} · {assessment.maxMarks} marks
-        </p>
-      </div>
-      <Link to={linkTo}>
-        <button className="btn-secondary btn-small">{linkLabel}</button>
-      </Link>
     </div>
   );
 }
