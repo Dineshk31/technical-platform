@@ -29,6 +29,15 @@ export interface UpdateUserInput {
   isActive?: boolean;
 }
 
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRoleCode;
+  department?: string;
+  batch?: string;
+}
+
 function toQueryString(params: object): string {
   const qs = new URLSearchParams();
   for (const [key, value] of Object.entries(params) as [string, string | number | undefined][]) {
@@ -44,4 +53,8 @@ export function listUsers(params: ListUsersParams = {}) {
 
 export function updateUser(id: string, input: UpdateUserInput) {
   return apiFetch<UserDto>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export function createUser(input: CreateUserInput) {
+  return apiFetch<UserDto>('/users', { method: 'POST', body: JSON.stringify(input) });
 }

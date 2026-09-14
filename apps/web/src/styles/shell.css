@@ -166,7 +166,18 @@
 .app-main-scroll {
   flex: 1;
   overflow-y: auto;
+  /* Without an overflow set on this axis, a wide child (e.g. a table inside
+     .table-wrap) forces this flex item's automatic min-width to its content's
+     intrinsic width instead of the available space (CSS Flexbox §4.5) — that
+     growth then propagates up through .app-content/.app-shell to the page
+     itself, so the whole page scrolls horizontally on narrow viewports
+     instead of just the table (Phase 17 audit finding, §3.5 / P0-3/P2-1).
+     overflow-x: hidden here makes this item's min-width resolve to 0, so it
+     correctly shrinks to the real available width and .table-wrap's own
+     `overflow-x: auto` becomes the thing that actually scrolls. */
+  overflow-x: hidden;
   min-height: 0;
+  min-width: 0;
 }
 
 .app-sidebar-toggle {

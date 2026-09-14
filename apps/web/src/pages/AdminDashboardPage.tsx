@@ -161,8 +161,17 @@ export function AdminDashboardPage() {
           value={overview?.activeCount ?? '—'}
           hint="Within their start/end window"
           icon={<PlayCircle size={18} />}
+          to="/admin?status=ACTIVE"
         />
-        <StatCard label="Upcoming" value={overview?.upcomingCount ?? '—'} hint="Published, not yet open" icon={<ClipboardList size={18} />} />
+        <StatCard
+          label="Upcoming"
+          value={overview?.upcomingCount ?? '—'}
+          hint="Published, not yet open"
+          icon={<ClipboardList size={18} />}
+          to="/admin?status=PUBLISHED"
+        />
+        {/* No single destination shows "participants assigned" as one list (it's a sum across every
+            assessment's own roster) — left as a plain, non-linked stat rather than invented a page for it. */}
         <StatCard label="Participants assigned" value={overview?.participants ?? '—'} icon={<Users size={18} />} />
       </div>
 
@@ -209,6 +218,7 @@ export function AdminDashboardPage() {
             <option value="">All statuses</option>
             <option value="DRAFT">Draft</option>
             <option value="PUBLISHED">Published</option>
+            <option value="ACTIVE">Active</option>
             <option value="COMPLETED">Completed</option>
             <option value="ARCHIVED">Archived</option>
           </select>

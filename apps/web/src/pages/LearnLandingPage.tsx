@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BookOpen, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle2, PartyPopper } from 'lucide-react';
+import { CODING_TOPICS } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { getLearnProgress, type LearnProgressDto } from '../lib/learn-api';
 import { PageHeader } from '../components/PageHeader';
@@ -67,6 +68,30 @@ export function LearnLandingPage() {
                   Continue <ArrowRight size={15} />
                 </button>
               </Link>
+            )}
+
+            {/* Honest completion state (§P1-A, Phase 17) — only every topic that
+                currently HAS lessons is counted as "available"; this never implies
+                the full CODING_TOPICS catalog is covered, since most of it isn't yet. */}
+            {!progress.continueLesson && progress.totalLessons > 0 && progress.completedLessons === progress.totalLessons && (
+              <div className="practice-completion">
+                <div className="practice-completion-head">
+                  <PartyPopper size={22} />
+                  <div>
+                    <p className="practice-completion-eyebrow">You're caught up</p>
+                    <p className="practice-completion-title">You've completed every published lesson</p>
+                    <p className="practice-completion-meta">
+                      {progress.byTopic.length} of {CODING_TOPICS.length} topics have lessons so far — more will appear
+                      here as they're published.
+                    </p>
+                  </div>
+                </div>
+                <div className="practice-completion-actions">
+                  <Link to="/student/practice/problems" className="btn-icon btn-on-accent" style={{ textDecoration: 'none' }}>
+                    Keep practicing <ArrowRight size={15} />
+                  </Link>
+                </div>
+              </div>
             )}
 
             <div className="stat-card-grid" style={{ marginBottom: 'var(--space-6)' }}>

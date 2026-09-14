@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Ban, CheckCircle2, Pencil, Users as UsersIcon } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Ban, CheckCircle2, Pencil, UserPlus, Users as UsersIcon } from 'lucide-react';
 import { USER_ROLE_CODES, type UserRoleCode } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
-import { listUsers, updateUser, type UpdateUserInput, type UserDto } from '../lib/users-api';
+import { createUser, listUsers, updateUser, type CreateUserInput, type UpdateUserInput, type UserDto } from '../lib/users-api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { useConfirm } from '../components/useConfirm';
@@ -47,6 +47,16 @@ export function AdminUsersPage() {
   const [editBatch, setEditBatch] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState<UserRoleCode>('STUDENT');
+  const [newDepartment, setNewDepartment] = useState('');
+  const [newBatch, setNewBatch] = useState('');
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   async function refresh() {
     const requestId = ++requestIdRef.current;
@@ -137,10 +147,62 @@ export function AdminUsersPage() {
     void applyUpdate(u.id, { isActive: activating }, activating ? `${u.name} reactivated.` : `${u.name} deactivated.`);
   }
 
+  function openCreate() {
+    setNewName('');
+    setNewEmail('');
+    setNewPassword('');
+    setNewRole('STUDENT');
+    setNewDepartment('');
+    setNewBatch('');
+    setCreateError(null);
+    setCreating(true);
+  }
+
+  async function handleCreateSubmit(e: FormEvent) {
+    e.preventDefault();
+    setCreateSubmitting(true);
+    setCreateError(null);
+    try {
+      const input: CreateUserInput = {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        password: newPassword,
+        role: newRole,
+        department: newDepartment.trim() || undefined,
+        batch: newBatch.trim() || undefined,
+      };
+      const created = await createUser(input);
+      setCreating(false);
+      showToast('success', `${created.name}'s account was created.`);
+      // Land the admin on an unfiltered, first page view so the new account —
+      // sorted newest-first by the list endpoint — is immediately visible
+      // without a manual refresh, even if a filter was active when created.
+      setSearchInput('');
+      setSearch('');
+      setRole('');
+      setDepartment('');
+      setBatch('');
+      if (page !== 1) setPage(1);
+      else void refresh();
+    } catch (err) {
+      setCreateError(err instanceof ApiError ? err.message : 'Failed to create user');
+    } finally {
+      setCreateSubmitting(false);
+    }
+  }
+
   return (
     <div className="dashboard-body">
       {confirmDialog}
-      <PageHeader title="Users" subtitle="Search, filter, and manage every account on the platform." />
+      <PageHeader
+        title="Users"
+        subtitle="Search, filter, and manage every account on the platform."
+        actions={
+          <Button icon={<UserPlus size={16} />} onClick={openCreate}>
+            Create user
+          </Button>
+        }
+      />
 
       <div className="card">
         <div className="filters-row">
@@ -317,6 +379,74 @@ export function AdminUsersPage() {
             </div>
           </>
         )}
+      </Modal>
+
+      <Modal open={creating} onClose={() => (createSubmitting ? undefined : setCreating(false))}>
+        <form onSubmit={handleCreateSubmit}>
+          <p className="modal-title">Create user</p>
+          <p className="modal-body" style={{ marginBottom: '1rem' }}>
+            They can sign in immediately with the email and password you set here.
+          </p>
+
+          <label htmlFor="new-name">Full name</label>
+          <input
+            id="new-name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            required
+            maxLength={200}
+            autoFocus
+          />
+
+          <label htmlFor="new-email">Email</label>
+          <input
+            id="new-email"
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            required
+          />
+
+          <label htmlFor="new-password">Password</label>
+          <input
+            id="new-password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            minLength={8}
+            maxLength={200}
+          />
+          <p className="field-hint" style={{ marginTop: '-0.6rem' }}>
+            At least 8 characters. They can change this after signing in.
+          </p>
+
+          <label htmlFor="new-role">Role</label>
+          <select id="new-role" value={newRole} onChange={(e) => setNewRole(e.target.value as UserRoleCode)}>
+            {USER_ROLE_CODES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="new-department">Department (optional)</label>
+          <input id="new-department" value={newDepartment} onChange={(e) => setNewDepartment(e.target.value)} maxLength={200} />
+
+          <label htmlFor="new-batch">Batch (optional)</label>
+          <input id="new-batch" value={newBatch} onChange={(e) => setNewBatch(e.target.value)} maxLength={100} />
+
+          {createError && <p className="form-error">{createError}</p>}
+
+          <div className="modal-actions">
+            <Button type="button" variant="secondary" onClick={() => setCreating(false)} disabled={createSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={createSubmitting}>
+              {createSubmitting ? 'Creating…' : 'Create user'}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

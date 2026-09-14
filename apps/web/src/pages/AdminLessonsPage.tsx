@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BookOpen, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { CODING_TOPICS } from '@technical-platform/shared';
@@ -34,6 +34,25 @@ export function AdminLessonsPage() {
 
   const [requestConfirm, confirmDialog] = useConfirm();
   const { showToast } = useToast();
+
+  // Coverage snapshot is deliberately independent of the filtered table above —
+  // an admin who has filtered to one topic must still see the real, whole-catalog
+  // picture ("18 of 20 topics have no lessons yet"), not a filtered subset of it.
+  // Capped at the list endpoint's own max page size (100); if the bank ever grows
+  // past that, this undercounts rather than crashes — acceptable for a lightweight
+  // awareness panel, not a hard requirement to re-architect around (§P1-A).
+  const [topicsWithLessons, setTopicsWithLessons] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    listLessons({ pageSize: 100 })
+      .then((result) => setTopicsWithLessons(new Set(result.data.map((l) => l.topic))))
+      .catch(() => setTopicsWithLessons(null));
+  }, []);
+
+  const topicsWithoutLessons = useMemo(
+    () => (topicsWithLessons ? CODING_TOPICS.filter((t) => !topicsWithLessons.has(t)) : []),
+    [topicsWithLessons],
+  );
 
   async function refresh() {
     const requestId = ++requestIdRef.current;
@@ -109,6 +128,9 @@ export function AdminLessonsPage() {
       await deleteLesson(lesson.id);
       setLessons((prev) => prev.filter((l) => l.id !== lesson.id));
       showToast('success', `"${lesson.title}" deleted.`);
+      listLessons({ pageSize: 100 })
+        .then((result) => setTopicsWithLessons(new Set(result.data.map((l) => l.topic))))
+        .catch(() => undefined);
     } catch (err) {
       showToast('error', err instanceof ApiError ? err.message : 'Failed to delete lesson');
     }
@@ -128,6 +150,43 @@ export function AdminLessonsPage() {
           </Link>
         }
       />
+
+      {topicsWithLessons && (
+        <div className="card" style={{ padding: 'var(--space-4) var(--space-5)' }}>
+          {topicsWithoutLessons.length === 0 ? (
+            <p style={{ margin: 0 }}>Every topic has at least one lesson started.</p>
+          ) : (
+            <>
+              <p style={{ margin: '0 0 0.5rem' }}>
+                <strong>
+                  {topicsWithLessons.size} of {CODING_TOPICS.length} topics
+                </strong>{' '}
+                have at least one lesson. {topicsWithoutLessons.length} have none yet:
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {topicsWithoutLessons.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className="topic-tag"
+                    style={{
+                      border: 'none',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      fontSize: 'var(--text-label)',
+                      fontWeight: 500,
+                    }}
+                    onClick={() => setFilter('topic', t)}
+                    title={`Show lessons for ${t}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <div className="filters-row">
@@ -203,7 +262,11 @@ export function AdminLessonsPage() {
                           {l.isPublished ? <EyeOff size={13} /> : <Eye size={13} />}
                           {l.isPublished ? 'Unpublish' : 'Publish'}
                         </button>
-                        <button className="btn-danger btn-small btn-icon" onClick={() => void handleDelete(l)}>
+                        <button
+                          className="btn-danger btn-small btn-icon"
+                          onClick={() => void handleDelete(l)}
+                          aria-label={`Delete "${l.title}"`}
+                        >
                           <Trash2 size={13} />
                         </button>
                       </div>

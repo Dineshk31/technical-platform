@@ -50,7 +50,7 @@ export class AssessmentsService {
 
   async list(query: ListAssessmentsQueryInput) {
     const where: Prisma.AssessmentWhereInput = {
-      ...(query.status ? { status: query.status } : {}),
+      ...buildStatusFilter(query.status),
       ...(query.search ? { title: { contains: query.search, mode: 'insensitive' } } : {}),
     };
 
@@ -812,6 +812,30 @@ export class AssessmentsService {
 
 function paginationMeta(page: number, pageSize: number, total: number) {
   return { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
+}
+
+/**
+ * The `status` query filter is typed against the full ASSESSMENT_STATUS_CODES
+ * enum (DRAFT/PUBLISHED/ACTIVE/COMPLETED/ARCHIVED), but the stored `status`
+ * column is only ever literally DRAFT/PUBLISHED/ARCHIVED — ACTIVE and COMPLETED
+ * are derived from the time window at read time (see computeEffectiveStatus)
+ * and are never written to the database. A naive `{ status: 'ACTIVE' }` filter
+ * therefore always matched zero rows — a real, pre-existing bug (found during
+ * the Phase 17 audit while wiring Command Center's "Active now"/"Upcoming" stat
+ * cards to real destinations). Translate the two derived values into the same
+ * time-window logic computeEffectiveStatus uses; DRAFT/PUBLISHED/ARCHIVED keep
+ * their existing, correct, literal-column behavior unchanged.
+ */
+function buildStatusFilter(status: ListAssessmentsQueryInput['status']): Prisma.AssessmentWhereInput {
+  if (!status) return {};
+  const now = new Date();
+  if (status === 'ACTIVE') {
+    return { status: 'PUBLISHED', startAt: { lte: now }, endAt: { gte: now } };
+  }
+  if (status === 'COMPLETED') {
+    return { status: 'PUBLISHED', endAt: { lt: now } };
+  }
+  return { status };
 }
 
 function toAttemptDto(attempt: { id: string; assessmentId: string; startedAt: Date; endsAt: Date; status: string }) {
