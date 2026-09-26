@@ -6,14 +6,14 @@ import { toNum } from '../assessments/dto/assessment.dto.js';
 import { computeEffectiveStatus } from '../assessments/utils/assessment-status.util.js';
 import { resolveQuestionMarks } from '../scoring/scoring.util.js';
 import { toAdminResultListItem, toOverallResult } from './dto/result.dto.js';
-import { aggregateQuestionOutcomes, type QuestionOutcome } from './results.util.js';
+import { aggregateQuestionOutcomes, computeTopicBreakdown, type QuestionOutcome, type TopicResultDetail } from './results.util.js';
 
 export type FinalizeReason = 'MANUAL' | 'EXPIRY';
 
 const ASSESSMENT_STRUCTURE_INCLUDE = {
   sections: {
     include: {
-      questions: { include: { question: { select: { id: true, title: true, type: true, difficulty: true, marks: true } } } },
+      questions: { include: { question: { select: { id: true, title: true, type: true, difficulty: true, marks: true, topics: true } } } },
     },
   },
 } satisfies Prisma.AssessmentInclude;
@@ -27,7 +27,7 @@ type AssessmentStructure = Assessment & {
       questionId: string;
       marksOverride: Prisma.Decimal | null;
       orderIndex: number;
-      question: { id: string; title: string; type: string; difficulty: string; marks: Prisma.Decimal };
+      question: { id: string; title: string; type: string; difficulty: string; marks: Prisma.Decimal; topics: string[] };
     }>;
   }>;
 };
@@ -38,6 +38,7 @@ export interface QuestionResultDetail {
   questionId: string;
   title: string;
   difficulty: string;
+  topics: string[];
   maxMarks: number;
   marksObtained: number;
   status: 'NOT_ATTEMPTED' | 'ATTEMPTED' | 'SOLVED';
@@ -67,6 +68,7 @@ export interface FullBreakdown {
   timeTakenSeconds: number;
   totalQuestions: number;
   sections: SectionResultDetail[];
+  topics: TopicResultDetail[];
 }
 
 /**
@@ -146,6 +148,7 @@ function computeFullBreakdown(
         questionId: aq.questionId,
         title: aq.question.title,
         difficulty: aq.question.difficulty,
+        topics: aq.question.topics,
         maxMarks: marks,
         marksObtained,
         status,
@@ -188,6 +191,7 @@ function computeFullBreakdown(
     timeTakenSeconds,
     totalQuestions,
     sections,
+    topics: computeTopicBreakdown(sections.flatMap((s) => s.questions)),
   };
 }
 

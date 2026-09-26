@@ -5,6 +5,7 @@ import { ApiError } from '../lib/api-client';
 import { getAdminResultDetail, type AdminResultDetailDto } from '../lib/results-api';
 import { StatusBadge } from '../components/StatusBadge';
 import { ResultBreakdown } from '../components/ResultBreakdown';
+import { TopicPerformanceCard } from '../components/TopicPerformanceCard';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingRow } from '../components/Skeleton';
 
@@ -82,6 +83,7 @@ export function AdminResultDetailPage() {
             </p>
           </div>
 
+          <TopicPerformanceCard topics={detail.topics} />
           <ResultBreakdown sections={detail.sections} />
         </>
       )}

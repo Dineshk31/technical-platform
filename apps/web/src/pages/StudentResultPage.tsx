@@ -6,6 +6,8 @@ import { getAttemptDetail } from '../lib/attempts-api';
 import { getStudentResult, type OverallResultDto } from '../lib/results-api';
 import { StatusBadge } from '../components/StatusBadge';
 import { ResultBreakdown } from '../components/ResultBreakdown';
+import { TopicPerformanceCard } from '../components/TopicPerformanceCard';
+import { ResultNextSteps } from '../components/ResultNextSteps';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingRow } from '../components/Skeleton';
 
@@ -126,6 +128,8 @@ export function StudentResultPage() {
         </p>
       </div>
 
+      <TopicPerformanceCard topics={result.topics} />
+      <ResultNextSteps topics={result.topics} />
       <ResultBreakdown sections={result.sections} />
     </div>
   );

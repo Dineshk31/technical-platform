@@ -7,6 +7,7 @@ export interface QuestionResultDto {
   questionId: string;
   title: string;
   difficulty: string;
+  topics: string[];
   maxMarks: number;
   marksObtained: number;
   status: QuestionResultStatus;
@@ -22,6 +23,18 @@ export interface SectionResultDto {
   totalQuestions: number;
   solvedQuestions: number;
   questions: QuestionResultDto[];
+}
+
+/** One topic's share of an attempt — computed server-side (computeTopicBreakdown).
+ * `needsWork` = earned less than half of the topic's available marks. */
+export interface TopicResultDto {
+  topic: string;
+  maxMarks: number;
+  marksObtained: number;
+  percentage: number;
+  totalQuestions: number;
+  solvedQuestions: number;
+  needsWork: boolean;
 }
 
 export interface OverallResultDto {
@@ -42,6 +55,7 @@ export interface OverallResultDto {
   rank: number | null;
   totalRanked: number;
   sections: SectionResultDto[];
+  topics: TopicResultDto[];
 }
 
 /** GET /assessments/:id/result — the caller's own result. Rejected with a 409

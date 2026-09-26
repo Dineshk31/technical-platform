@@ -45,6 +45,8 @@ export function toOverallResult(
     rank,
     totalRanked,
     sections: breakdown.sections,
+    // Weakest-first per-topic view + the "needs work" flag — see computeTopicBreakdown.
+    topics: breakdown.topics,
   };
 }
 

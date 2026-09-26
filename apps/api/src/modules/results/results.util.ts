@@ -56,3 +56,61 @@ export function aggregateQuestionOutcomes(submissions: SubmissionOutcomeRow[]): 
   }
   return outcomes;
 }
+
+export interface TopicQuestionInput {
+  topics: string[];
+  maxMarks: number;
+  marksObtained: number;
+  status: 'NOT_ATTEMPTED' | 'ATTEMPTED' | 'SOLVED';
+}
+
+export interface TopicResultDetail {
+  topic: string;
+  maxMarks: number;
+  marksObtained: number;
+  percentage: number;
+  totalQuestions: number;
+  solvedQuestions: number;
+  needsWork: boolean;
+}
+
+/** Below this share of a topic's available marks, the topic is flagged "needs work". */
+export const TOPIC_NEEDS_WORK_THRESHOLD = 0.5;
+
+/**
+ * Per-topic view of one attempt, derived at read time from the same per-question
+ * rows the section breakdown already produces — nothing new is stored, so it can
+ * never disagree with the score. A question tagged with several topics counts
+ * toward each of them (it genuinely tests all of them). Questions with no topics
+ * are skipped rather than lumped into a fake "Other" bucket.
+ *
+ * The rule is deliberately simple and shown to the student verbatim: a topic
+ * "needs work" when they earned less than half of its available marks. Topics
+ * worth 0 marks are never flagged. Ordered weakest-first so the page leads with
+ * what to do next.
+ */
+export function computeTopicBreakdown(questions: TopicQuestionInput[]): TopicResultDetail[] {
+  const byTopic = new Map<string, { maxMarks: number; marksObtained: number; totalQuestions: number; solvedQuestions: number }>();
+  for (const q of questions) {
+    for (const topic of new Set(q.topics)) {
+      const entry = byTopic.get(topic) ?? { maxMarks: 0, marksObtained: 0, totalQuestions: 0, solvedQuestions: 0 };
+      entry.maxMarks += q.maxMarks;
+      entry.marksObtained += q.marksObtained;
+      entry.totalQuestions += 1;
+      if (q.status === 'SOLVED') entry.solvedQuestions += 1;
+      byTopic.set(topic, entry);
+    }
+  }
+
+  return [...byTopic.entries()]
+    .map(([topic, e]) => {
+      const ratio = e.maxMarks > 0 ? e.marksObtained / e.maxMarks : 0;
+      return {
+        topic,
+        ...e,
+        percentage: Math.round(ratio * 10000) / 100,
+        needsWork: e.maxMarks > 0 && ratio < TOPIC_NEEDS_WORK_THRESHOLD,
+      };
+    })
+    .sort((a, b) => Number(b.needsWork) - Number(a.needsWork) || a.percentage - b.percentage || a.topic.localeCompare(b.topic));
+}
