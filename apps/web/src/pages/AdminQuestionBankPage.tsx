@@ -5,11 +5,11 @@ import {
   CODING_TOPICS,
   DIFFICULTY_LEVELS,
   APPROVAL_STATUS_CODES,
-  MCQ_TOPICS,
   QUESTION_SOURCE_CODES,
   QUESTION_TYPE_CODES,
 } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
+import { TopicOptions } from '../components/TopicOptions';
 import { listQuestions, type ListQuestionsParams, type QuestionListItem } from '../lib/questions-api';
 
 const SORT_OPTIONS: { value: NonNullable<ListQuestionsParams['sort']>; label: string }[] = [
@@ -101,7 +101,8 @@ export function AdminQuestionBankPage() {
   }, [type, difficulty, topic, approvalStatus, source, urlSearch, sort]);
 
   const isAiReviewQueue = source === 'AI_GENERATED' && approvalStatus === 'PENDING_REVIEW';
-  const topicOptions = type === 'MCQ' ? MCQ_TOPICS : type === 'CODING' ? CODING_TOPICS : [...CODING_TOPICS, ...MCQ_TOPICS];
+  // Coding problems only use DSA topics; MCQs (and "all types") can carry any catalog topic.
+  const topicOptions = type === 'CODING' ? CODING_TOPICS : undefined;
 
   function editLink(q: QuestionListItem): string {
     return q.type === 'MCQ' ? `/admin/questions/mcq/${q.id}/edit` : `/admin/questions/${q.id}/edit`;
@@ -173,11 +174,7 @@ export function AdminQuestionBankPage() {
           </select>
           <select value={topic} onChange={(e) => setFilter('topic', e.target.value)}>
             <option value="">All topics</option>
-            {topicOptions.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
+            <TopicOptions only={topicOptions} />
           </select>
           <select value={approvalStatus} onChange={(e) => setFilter('approvalStatus', e.target.value)}>
             <option value="">All statuses</option>

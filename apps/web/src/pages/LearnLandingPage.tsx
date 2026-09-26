@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BookOpen, CheckCircle2, PartyPopper } from 'lucide-react';
-import { CODING_TOPICS } from '@technical-platform/shared';
+import { TOPICS } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { getLearnProgress, type LearnProgressDto } from '../lib/learn-api';
 import { PageHeader } from '../components/PageHeader';
@@ -72,7 +72,7 @@ export function LearnLandingPage() {
 
             {/* Honest completion state (§P1-A, Phase 17) — only every topic that
                 currently HAS lessons is counted as "available"; this never implies
-                the full CODING_TOPICS catalog is covered, since most of it isn't yet. */}
+                the full TOPICS catalog is covered, since most of it isn't yet. */}
             {!progress.continueLesson && progress.totalLessons > 0 && progress.completedLessons === progress.totalLessons && (
               <div className="practice-completion">
                 <div className="practice-completion-head">
@@ -81,7 +81,7 @@ export function LearnLandingPage() {
                     <p className="practice-completion-eyebrow">You're caught up</p>
                     <p className="practice-completion-title">You've completed every published lesson</p>
                     <p className="practice-completion-meta">
-                      {progress.byTopic.length} of {CODING_TOPICS.length} topics have lessons so far — more will appear
+                      {progress.byTopic.length} of {TOPICS.length} topics have lessons so far — more will appear
                       here as they're published.
                     </p>
                   </div>

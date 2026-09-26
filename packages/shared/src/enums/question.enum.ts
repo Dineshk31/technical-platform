@@ -59,3 +59,32 @@ export const MCQ_TOPICS = [
   'Software Engineering',
 ] as const;
 export type McqTopic = (typeof MCQ_TOPICS)[number];
+
+/**
+ * Phase 18 — the one topic catalog that Learn, knowledge checks, Practice and
+ * assessment analysis all share. It is simply the union of the two lists above, so
+ * every topic already stored on a question or lesson stays valid (no data rewrite).
+ *
+ * Who may use what:
+ *   - coding problems: CODING_TOPICS only (Practice/Explorer are DSA-shaped);
+ *   - MCQs and lessons: any TOPICS entry — so a knowledge-check MCQ can be tagged
+ *     "Arrays" and count toward the same per-topic performance as a coding problem.
+ *
+ * TOPIC_AREAS groups the catalog for pickers and coverage panels; a unit test keeps it
+ * an exact partition of TOPICS.
+ */
+export const TOPICS = [...CODING_TOPICS, ...MCQ_TOPICS] as const;
+export type Topic = (typeof TOPICS)[number];
+
+export const TOPIC_AREAS: readonly { area: string; topics: readonly Topic[] }[] = [
+  { area: 'Data Structures & Algorithms', topics: CODING_TOPICS },
+  { area: 'Programming', topics: ['Programming', 'OOP'] },
+  {
+    area: 'CS Fundamentals',
+    topics: ['DSA', 'DBMS', 'Operating Systems', 'Computer Networks', 'Computer Architecture', 'Software Engineering'],
+  },
+];
+
+export function isTopic(value: string): value is Topic {
+  return (TOPICS as readonly string[]).includes(value);
+}

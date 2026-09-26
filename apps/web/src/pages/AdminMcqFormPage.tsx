@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { DIFFICULTY_LEVELS, MCQ_TOPICS, MCQ_TYPES } from '@technical-platform/shared';
+import { DIFFICULTY_LEVELS, MCQ_TYPES, TOPIC_AREAS, type Topic } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import {
   createMcqQuestion,
@@ -121,7 +121,7 @@ export function AdminMcqFormPage() {
       codeSnippet: codeSnippet.trim() || undefined,
       explanation: explanation.trim() || undefined,
       difficulty: difficulty as (typeof DIFFICULTY_LEVELS)[number],
-      topics: topics as (typeof MCQ_TOPICS)[number][],
+      topics: topics as Topic[],
       tags: tagsText.split(',').map((s) => s.trim()).filter(Boolean),
       negativeMarkingValue: Number(negativeMarkingValue),
       options: options.filter((o) => o.optionText.trim()).map((o) => ({ optionText: o.optionText.trim(), isCorrect: o.isCorrect })),
@@ -282,14 +282,23 @@ export function AdminMcqFormPage() {
               ))}
             </select>
             <label>Topics</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-              {MCQ_TOPICS.map((t) => (
-                <label key={t} className="checkbox-row" style={{ marginBottom: 0, fontWeight: 400 }}>
-                  <input type="checkbox" checked={topics.includes(t)} onChange={() => toggleTopic(t)} />
-                  {t}
-                </label>
-              ))}
-            </div>
+            {/* Any catalog topic (Phase 18): a knowledge check for an Arrays lesson is tagged
+                "Arrays" so it counts toward the same topic performance as coding problems. */}
+            {TOPIC_AREAS.map(({ area, topics: areaTopics }) => (
+              <fieldset key={area} style={{ border: 'none', padding: 0, margin: '0 0 0.75rem' }}>
+                <legend className="field-hint" style={{ padding: 0, marginBottom: '0.3rem' }}>
+                  {area}
+                </legend>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {areaTopics.map((t) => (
+                    <label key={t} className="checkbox-row" style={{ marginBottom: 0, fontWeight: 400 }}>
+                      <input type="checkbox" checked={topics.includes(t)} onChange={() => toggleTopic(t)} />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ))}
             <label>Tags (comma-separated, optional)</label>
             <input value={tagsText} onChange={(e) => setTagsText(e.target.value)} style={{ width: '100%' }} />
           </div>

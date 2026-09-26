@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Eye, EyeOff, Search } from 'lucide-react';
-import { CODING_TOPICS, DIFFICULTY_LEVELS, MCQ_TOPICS } from '@technical-platform/shared';
+import { CODING_TOPICS, DIFFICULTY_LEVELS } from '@technical-platform/shared';
+import { TopicOptions } from './TopicOptions';
 import { ApiError } from '../lib/api-client';
 import { getQuestion, listQuestions, type QuestionDetail, type QuestionListItem } from '../lib/questions-api';
 import { DifficultyBadge } from './ApprovalBadge';
@@ -32,7 +33,7 @@ export function QuestionPicker({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<QuestionDetail | null>(null);
 
-  const topics = questionType === 'MCQ' ? MCQ_TOPICS : CODING_TOPICS;
+  const topics = questionType === 'MCQ' ? undefined : CODING_TOPICS;
 
   async function runSearch() {
     setLoading(true);
@@ -89,11 +90,7 @@ export function QuestionPicker({
         </select>
         <select value={topic} onChange={(e) => setTopic(e.target.value)}>
           <option value="">All topics</option>
-          {topics.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
+          <TopicOptions only={topics} />
         </select>
         <button type="button" className="btn-secondary btn-small" onClick={() => void runSearch()}>
           Search

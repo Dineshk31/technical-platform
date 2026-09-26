@@ -3,11 +3,11 @@ import {
   APPROVAL_STATUS_CODES,
   CODING_TOPICS,
   DIFFICULTY_LEVELS,
-  MCQ_TOPICS,
   MCQ_TYPES,
   PROGRAMMING_LANGUAGES,
   QUESTION_SOURCE_CODES,
   QUESTION_TYPE_CODES,
+  TOPICS,
 } from '../enums/question.enum.js';
 
 const ExampleSchema = z.object({
@@ -139,7 +139,9 @@ export const McqQuestionFieldsSchema = z
     codeSnippet: z.string().trim().max(20000).optional(),
     explanation: z.string().trim().max(5000).optional(),
     difficulty: z.enum(DIFFICULTY_LEVELS),
-    topics: z.array(z.enum(MCQ_TOPICS)).min(1).max(5),
+    // Any catalog topic (Phase 18) — a knowledge-check MCQ is tagged with its lesson's
+    // DSA topic (e.g. "Arrays"), a fundamentals MCQ with e.g. "DBMS".
+    topics: z.array(z.enum(TOPICS)).min(1).max(5),
     tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
     marks: z.number().positive().max(1000),
     // default 0 = no negative marking, matching coding_questions'-sibling column default.
@@ -181,7 +183,7 @@ export const UpdateMcqQuestionSchema = z.object({
   codeSnippet: z.string().trim().max(20000).nullable().optional(),
   explanation: z.string().trim().max(5000).nullable().optional(),
   difficulty: z.enum(DIFFICULTY_LEVELS).optional(),
-  topics: z.array(z.enum(MCQ_TOPICS)).min(1).max(5).optional(),
+  topics: z.array(z.enum(TOPICS)).min(1).max(5).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   marks: z.number().positive().max(1000).optional(),
   negativeMarkingValue: z.number().min(0).max(1000).optional(),

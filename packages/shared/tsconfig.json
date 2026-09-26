@@ -3,7 +3,9 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -15,5 +17,10 @@
     "composite": true,
     "incremental": true
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ]
 }

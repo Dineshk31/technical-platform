@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { CODING_TOPICS, type CodingTopic } from '@technical-platform/shared';
+import { CODING_TOPICS, type Topic } from '@technical-platform/shared';
+import { TopicOptions } from '../components/TopicOptions';
 import { ApiError } from '../lib/api-client';
 import { createLesson, deleteLesson, getAdminLesson, updateLesson, type AdminLessonDetail } from '../lib/learn-api';
 import { useConfirm } from '../components/useConfirm';
@@ -21,7 +22,7 @@ export function AdminLessonFormPage() {
   const [loading, setLoading] = useState(isEdit);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [topic, setTopic] = useState<CodingTopic>(CODING_TOPICS[0]);
+  const [topic, setTopic] = useState<Topic>(CODING_TOPICS[0]);
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [concept, setConcept] = useState('');
@@ -36,7 +37,7 @@ export function AdminLessonFormPage() {
     getAdminLesson(id)
       .then((l) => {
         setLesson(l);
-        setTopic(l.topic as CodingTopic);
+        setTopic(l.topic as Topic);
         setTitle(l.title);
         setSummary(l.summary);
         setConcept(l.concept);
@@ -144,12 +145,8 @@ export function AdminLessonFormPage() {
             <div className="form-grid">
               <div>
                 <label>Topic</label>
-                <select value={topic} onChange={(e) => setTopic(e.target.value as CodingTopic)}>
-                  {CODING_TOPICS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
+                <select value={topic} onChange={(e) => setTopic(e.target.value as Topic)}>
+                  <TopicOptions />
                 </select>
               </div>
               <div className="field-full">

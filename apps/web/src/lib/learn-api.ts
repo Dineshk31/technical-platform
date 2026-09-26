@@ -1,4 +1,4 @@
-import type { CodingTopic } from '@technical-platform/shared';
+import type { Topic } from '@technical-platform/shared';
 import { apiFetch } from './api-client';
 import type { PaginatedResult } from './practice-api';
 
@@ -28,7 +28,7 @@ export interface ListLessonsParams {
 }
 
 export interface LessonInput {
-  topic: CodingTopic;
+  topic: Topic;
   title: string;
   summary: string;
   concept: string;

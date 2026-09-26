@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BookOpen, Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
-import { CODING_TOPICS } from '@technical-platform/shared';
+import { TOPIC_AREAS, TOPICS } from '@technical-platform/shared';
+import { TopicOptions } from '../components/TopicOptions';
 import { ApiError } from '../lib/api-client';
 import { deleteLesson, listLessons, updateLesson, type AdminLessonListItem } from '../lib/learn-api';
 import { useConfirm } from '../components/useConfirm';
@@ -50,7 +51,7 @@ export function AdminLessonsPage() {
   }, []);
 
   const topicsWithoutLessons = useMemo(
-    () => (topicsWithLessons ? CODING_TOPICS.filter((t) => !topicsWithLessons.has(t)) : []),
+    () => (topicsWithLessons ? TOPICS.filter((t) => !topicsWithLessons.has(t)) : []),
     [topicsWithLessons],
   );
 
@@ -159,30 +160,41 @@ export function AdminLessonsPage() {
             <>
               <p style={{ margin: '0 0 0.5rem' }}>
                 <strong>
-                  {topicsWithLessons.size} of {CODING_TOPICS.length} topics
+                  {topicsWithLessons.size} of {TOPICS.length} topics
                 </strong>{' '}
                 have at least one lesson. {topicsWithoutLessons.length} have none yet:
               </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {topicsWithoutLessons.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className="topic-tag"
-                    style={{
-                      border: 'none',
-                      cursor: 'pointer',
-                      font: 'inherit',
-                      fontSize: 'var(--text-label)',
-                      fontWeight: 500,
-                    }}
-                    onClick={() => setFilter('topic', t)}
-                    title={`Show lessons for ${t}`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+              {TOPIC_AREAS.map(({ area, topics }) => {
+                const missing = topics.filter((t) => topicsWithoutLessons.includes(t));
+                if (missing.length === 0) return null;
+                return (
+                  <div key={area} style={{ marginTop: '0.5rem' }}>
+                    <p className="field-hint" style={{ margin: '0 0 0.3rem' }}>
+                      {area}
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {missing.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          className="topic-tag"
+                          style={{
+                            border: 'none',
+                            cursor: 'pointer',
+                            font: 'inherit',
+                            fontSize: 'var(--text-label)',
+                            fontWeight: 500,
+                          }}
+                          onClick={() => setFilter('topic', t)}
+                          title={`Show lessons for ${t}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
@@ -199,11 +211,7 @@ export function AdminLessonsPage() {
           />
           <select value={topic} onChange={(e) => setFilter('topic', e.target.value)}>
             <option value="">All topics</option>
-            {CODING_TOPICS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
+            <TopicOptions />
           </select>
           <select value={published} onChange={(e) => setFilter('published', e.target.value)}>
             <option value="">Any status</option>
