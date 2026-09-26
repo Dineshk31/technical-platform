@@ -28,6 +28,14 @@ export class ResultsController {
     return this.results.listResults(assessmentId, query);
   }
 
+  // Must stay declared before ':id/results/:attemptId' — routes match in
+  // registration order, so the literal 'summary' segment has to win first.
+  @Roles('ADMIN')
+  @Get(':id/results/summary')
+  getResultsSummary(@Param('id') assessmentId: string) {
+    return this.results.getResultsSummary(assessmentId);
+  }
+
   @Roles('ADMIN')
   @Get(':id/results/:attemptId')
   getAdminResultDetail(@Param('id') assessmentId: string, @Param('attemptId') attemptId: string) {

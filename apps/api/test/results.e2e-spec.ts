@@ -573,6 +573,76 @@ describe('Results, scoring, and attempt finalization (e2e)', () => {
     });
   });
 
+  describe('class summary and topic breakdown', () => {
+    it('summarizes an assessment nobody has finished honestly (no fake averages)', async () => {
+      const q = await createQuestion();
+      const assessmentId = await setupAssessment({ title: 'Summary Empty', sections: [{ title: 'S1', questions: [{ questionId: q }] }] });
+      await startAttempt(assessmentId, studentToken);
+
+      const res = await request(server).get(`/api/v1/assessments/${assessmentId}/results/summary`).set('Authorization', `Bearer ${adminToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ participants: 2, notStarted: 1, inProgress: 1, completed: 0, averagePercentage: null, topics: [] });
+      expect(res.body.questions).toHaveLength(1);
+      expect(res.body.questions[0]).toMatchObject({ questionId: q, attempted: 0, solved: 0, solveRate: 0 });
+    });
+
+    it('aggregates per-question and per-topic performance across students, matching each student result', async () => {
+      const qArrays = await createQuestion({ topics: ['Arrays'] });
+      const qDp = await createQuestion({ topics: ['Dynamic Programming'] });
+      const assessmentId = await setupAssessment({
+        title: 'Summary Class',
+        sections: [{ title: 'S1', questions: [{ questionId: qArrays, marksOverride: 10 }, { questionId: qDp, marksOverride: 10 }] }],
+      });
+
+      const aliceAttempt = await startAttempt(assessmentId, studentToken);
+      await submitAndWait(aliceAttempt, qArrays, studentToken, CORRECT);
+      await new Promise((r) => setTimeout(r, 2100));
+      await submitAndWait(aliceAttempt, qDp, studentToken, WRONG);
+      await request(server).post(`/api/v1/assessments/${assessmentId}/submit`).set('Authorization', `Bearer ${studentToken}`);
+
+      await startAttempt(assessmentId, otherStudentToken);
+      await request(server).post(`/api/v1/assessments/${assessmentId}/submit`).set('Authorization', `Bearer ${otherStudentToken}`);
+
+      const res = await request(server).get(`/api/v1/assessments/${assessmentId}/results/summary`).set('Authorization', `Bearer ${adminToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        participants: 2,
+        notStarted: 0,
+        inProgress: 0,
+        completed: 2,
+        averagePercentage: 25,
+        highestPercentage: 50,
+        lowestPercentage: 0,
+      });
+      expect(res.body.questions.map((q: { questionId: string; attempted: number; solved: number; solveRate: number }) => [q.questionId, q.attempted, q.solved, q.solveRate])).toEqual([
+        [qArrays, 1, 1, 50],
+        [qDp, 1, 0, 0],
+      ]);
+      expect(res.body.topics).toEqual([
+        { topic: 'Dynamic Programming', averagePercentage: 0, studentsNeedingWork: 2, students: 2 },
+        { topic: 'Arrays', averagePercentage: 50, studentsNeedingWork: 1, students: 2 },
+      ]);
+      assertNoHiddenLeak(res.body);
+
+      // The student's own result carries the same per-topic rule.
+      await prisma.assessment.update({ where: { id: assessmentId }, data: { endAt: new Date(Date.now() - 1000) } });
+      const own = await request(server).get(`/api/v1/assessments/${assessmentId}/result`).set('Authorization', `Bearer ${studentToken}`);
+      expect(own.status).toBe(200);
+      expect(own.body.topics).toEqual([
+        { topic: 'Dynamic Programming', maxMarks: 10, marksObtained: 0, percentage: 0, totalQuestions: 1, solvedQuestions: 0, needsWork: true },
+        { topic: 'Arrays', maxMarks: 10, marksObtained: 10, percentage: 100, totalQuestions: 1, solvedQuestions: 1, needsWork: false },
+      ]);
+    }, 45_000);
+
+    it('rejects a STUDENT (403) and unauthenticated callers (401) on the summary endpoint', async () => {
+      const assessmentId = await setupAssessment({ title: 'Summary Sec', sections: [{ title: 'S1', questions: [] }] });
+      const asStudent = await request(server).get(`/api/v1/assessments/${assessmentId}/results/summary`).set('Authorization', `Bearer ${studentToken}`);
+      const anonymous = await request(server).get(`/api/v1/assessments/${assessmentId}/results/summary`);
+      expect(asStudent.status).toBe(403);
+      expect(anonymous.status).toBe(401);
+    });
+  });
+
   describe('security', () => {
     it("never lets one student read another student's result — even a shared assessment resolves to each caller's own attempt (ownership, not just a shared id)", async () => {
       const q = await createQuestion();

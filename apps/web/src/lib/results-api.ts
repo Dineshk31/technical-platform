@@ -112,3 +112,41 @@ export type AdminResultDetailDto =
 export function getAdminResultDetail(assessmentId: string, attemptId: string) {
   return apiFetch<AdminResultDetailDto>(`/assessments/${assessmentId}/results/${attemptId}`);
 }
+
+export interface ClassQuestionSummaryDto {
+  questionId: string;
+  title: string;
+  difficulty: string;
+  topics: string[];
+  maxMarks: number;
+  attempted: number;
+  solved: number;
+  averageMarks: number;
+  solveRate: number;
+}
+
+export interface ClassTopicSummaryDto {
+  topic: string;
+  averagePercentage: number;
+  studentsNeedingWork: number;
+  students: number;
+}
+
+/** GET /assessments/:id/results/summary — ADMIN class overview across every
+ * finalized attempt (see ResultsService.getResultsSummary). Averages are null
+ * until at least one attempt has finished. */
+export interface ClassResultsSummaryDto {
+  participants: number;
+  notStarted: number;
+  inProgress: number;
+  completed: number;
+  averagePercentage: number | null;
+  highestPercentage: number | null;
+  lowestPercentage: number | null;
+  questions: ClassQuestionSummaryDto[];
+  topics: ClassTopicSummaryDto[];
+}
+
+export function getResultsSummary(assessmentId: string) {
+  return apiFetch<ClassResultsSummaryDto>(`/assessments/${assessmentId}/results/summary`);
+}

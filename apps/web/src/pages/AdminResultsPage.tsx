@@ -4,7 +4,14 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Medal, Trophy } from 'lucide-reac
 import { ATTEMPT_STATUS_CODES } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { getAdminAssessment, type AdminAssessmentDetail } from '../lib/assessments-api';
-import { listAssessmentResults, type AdminResultListItemDto, type ResultsSortOption } from '../lib/results-api';
+import {
+  getResultsSummary,
+  listAssessmentResults,
+  type AdminResultListItemDto,
+  type ClassResultsSummaryDto,
+  type ResultsSortOption,
+} from '../lib/results-api';
+import { ClassResultsOverview } from '../components/ClassResultsOverview';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { SkeletonTable } from '../components/Skeleton';
@@ -40,12 +47,18 @@ export function AdminResultsPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ClassResultsSummaryDto | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     getAdminAssessment(id)
       .then(setAssessment)
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Failed to load assessment'));
+    // Loaded independently of the roster, so one failing never hides the other.
+    getResultsSummary(id)
+      .then(setSummary)
+      .catch((err) => setSummaryError(err instanceof ApiError ? err.message : 'Failed to load class overview'));
   }, [id]);
 
   async function refresh() {
@@ -83,6 +96,10 @@ export function AdminResultsPage() {
       <div className="page-header">
         <h1 style={{ margin: 0 }}>Results {assessment ? `— ${assessment.title}` : ''}</h1>
       </div>
+
+      {summaryError ? <ErrorState message={summaryError} /> : summary && <ClassResultsOverview summary={summary} />}
+
+      <h2 style={{ margin: '0.5rem 0 0.75rem' }}>Students</h2>
 
       <div className="card">
         <div className="filters-row">

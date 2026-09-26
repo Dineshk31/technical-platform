@@ -6,7 +6,13 @@ import { toNum } from '../assessments/dto/assessment.dto.js';
 import { computeEffectiveStatus } from '../assessments/utils/assessment-status.util.js';
 import { resolveQuestionMarks } from '../scoring/scoring.util.js';
 import { toAdminResultListItem, toOverallResult } from './dto/result.dto.js';
-import { aggregateQuestionOutcomes, computeTopicBreakdown, type QuestionOutcome, type TopicResultDetail } from './results.util.js';
+import {
+  aggregateClassResults,
+  aggregateQuestionOutcomes,
+  computeTopicBreakdown,
+  type QuestionOutcome,
+  type TopicResultDetail,
+} from './results.util.js';
 
 export type FinalizeReason = 'MANUAL' | 'EXPIRY';
 
@@ -442,6 +448,68 @@ export class ResultsService {
     return {
       data: page,
       meta: { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) },
+    };
+  }
+
+  /**
+   * GET /assessments/:id/results/summary — ADMIN class overview: per-question solve
+   * rates and per-topic averages across every *finalized* attempt. Recomputes each
+   * attempt with computeFullBreakdown (the same function behind every individual
+   * result) instead of trusting a second formula, then aggregates with the pure
+   * aggregateClassResults. Three queries regardless of class size: attempts, then
+   * all their submissions and MCQ responses in one batch each.
+   */
+  async getResultsSummary(assessmentId: string) {
+    const structure = await this.prisma.assessment.findUnique({ where: { id: assessmentId }, include: ASSESSMENT_STRUCTURE_INCLUDE });
+    if (!structure) throw new NotFoundException('Assessment not found');
+
+    const [participants, attempts] = await Promise.all([
+      this.prisma.assessmentParticipant.count({ where: { assessmentId } }),
+      this.prisma.attempt.findMany({
+        where: { assessmentId },
+        select: { id: true, startedAt: true, submittedAt: true, result: { select: { id: true } } },
+      }),
+    ]);
+    const finalized = attempts.filter((a) => a.result !== null);
+    const ids = finalized.map((a) => a.id);
+
+    const [submissions, mcqResponses] =
+      ids.length > 0
+        ? await Promise.all([
+            this.prisma.submission.findMany({
+              where: { attemptId: { in: ids } },
+              orderBy: { createdAt: 'asc' },
+              select: { attemptId: true, questionId: true, kind: true, status: true, createdAt: true },
+            }),
+            this.prisma.mcqResponse.findMany({
+              where: { attemptId: { in: ids } },
+              select: { attemptId: true, questionId: true, score: true, isCorrect: true },
+            }),
+          ])
+        : [[], []];
+
+    const typedStructure = structure as AssessmentStructure;
+    const breakdowns = finalized.map((attempt) => {
+      const b = computeFullBreakdown(
+        typedStructure,
+        aggregateQuestionOutcomes(submissions.filter((s) => s.attemptId === attempt.id)),
+        mcqResponses.filter((r) => r.attemptId === attempt.id),
+        attempt,
+      );
+      return { percentage: b.percentage, questions: b.sections.flatMap((sec) => sec.questions), topics: b.topics };
+    });
+
+    // An empty breakdown gives the assessment's question order and resolved marks
+    // (marksOverride applied) without duplicating that logic here.
+    const questionOrder = computeFullBreakdown(typedStructure, new Map(), [], { startedAt: new Date(), submittedAt: null })
+      .sections.flatMap((sec) => sec.questions)
+      .map(({ questionId, title, difficulty, topics, maxMarks }) => ({ questionId, title, difficulty, topics, maxMarks }));
+
+    return {
+      participants,
+      notStarted: Math.max(0, participants - attempts.length),
+      inProgress: attempts.length - finalized.length,
+      ...aggregateClassResults(questionOrder, breakdowns),
     };
   }
 

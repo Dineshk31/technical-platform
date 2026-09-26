@@ -114,3 +114,116 @@ export function computeTopicBreakdown(questions: TopicQuestionInput[]): TopicRes
     })
     .sort((a, b) => Number(b.needsWork) - Number(a.needsWork) || a.percentage - b.percentage || a.topic.localeCompare(b.topic));
 }
+
+export interface ClassQuestionInput {
+  questionId: string;
+  title: string;
+  difficulty: string;
+  topics: string[];
+  maxMarks: number;
+  marksObtained: number;
+  status: 'NOT_ATTEMPTED' | 'ATTEMPTED' | 'SOLVED';
+}
+
+/** One finalized attempt's breakdown, as produced by computeFullBreakdown. */
+export interface ClassAttemptInput {
+  percentage: number;
+  questions: ClassQuestionInput[];
+  topics: TopicResultDetail[];
+}
+
+export interface ClassQuestionSummary {
+  questionId: string;
+  title: string;
+  difficulty: string;
+  topics: string[];
+  maxMarks: number;
+  attempted: number;
+  solved: number;
+  averageMarks: number;
+  solveRate: number;
+}
+
+export interface ClassTopicSummary {
+  topic: string;
+  averagePercentage: number;
+  studentsNeedingWork: number;
+  students: number;
+}
+
+export interface ClassResultsSummary {
+  completed: number;
+  averagePercentage: number | null;
+  highestPercentage: number | null;
+  lowestPercentage: number | null;
+  questions: ClassQuestionSummary[];
+  topics: ClassTopicSummary[];
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Class-level view of an assessment, aggregated from every finalized attempt's own
+ * breakdown — the same per-attempt numbers each student sees, so the class view can
+ * never disagree with an individual result. `questionOrder` is the assessment's
+ * question order, so questions nobody reached still appear (0 attempted), not vanish.
+ *
+ * Per topic: the mean of each student's topic percentage, and how many students had
+ * that topic flagged `needsWork` (the same rule as the student's own result page).
+ * Topics are ordered weakest-first — what an instructor would reteach first.
+ */
+export function aggregateClassResults(
+  questionOrder: Omit<ClassQuestionInput, 'marksObtained' | 'status'>[],
+  attempts: ClassAttemptInput[],
+): ClassResultsSummary {
+  const completed = attempts.length;
+
+  const questions = questionOrder.map((q) => {
+    let attempted = 0;
+    let solved = 0;
+    let marks = 0;
+    for (const a of attempts) {
+      const row = a.questions.find((r) => r.questionId === q.questionId);
+      if (!row) continue;
+      if (row.status !== 'NOT_ATTEMPTED') attempted += 1;
+      if (row.status === 'SOLVED') solved += 1;
+      marks += row.marksObtained;
+    }
+    return {
+      ...q,
+      attempted,
+      solved,
+      averageMarks: completed > 0 ? round2(marks / completed) : 0,
+      solveRate: completed > 0 ? round2((solved / completed) * 100) : 0,
+    };
+  });
+
+  const topicStats = new Map<string, { sum: number; students: number; needsWork: number }>();
+  for (const a of attempts) {
+    for (const t of a.topics) {
+      const entry = topicStats.get(t.topic) ?? { sum: 0, students: 0, needsWork: 0 };
+      entry.sum += t.percentage;
+      entry.students += 1;
+      if (t.needsWork) entry.needsWork += 1;
+      topicStats.set(t.topic, entry);
+    }
+  }
+  const topics = [...topicStats.entries()]
+    .map(([topic, e]) => ({
+      topic,
+      averagePercentage: round2(e.sum / e.students),
+      studentsNeedingWork: e.needsWork,
+      students: e.students,
+    }))
+    .sort((a, b) => a.averagePercentage - b.averagePercentage || b.studentsNeedingWork - a.studentsNeedingWork || a.topic.localeCompare(b.topic));
+
+  const percentages = attempts.map((a) => a.percentage);
+  return {
+    completed,
+    averagePercentage: completed > 0 ? round2(percentages.reduce((s, p) => s + p, 0) / completed) : null,
+    highestPercentage: completed > 0 ? Math.max(...percentages) : null,
+    lowestPercentage: completed > 0 ? Math.min(...percentages) : null,
+    questions,
+    topics,
+  };
+}
