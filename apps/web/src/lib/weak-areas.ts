@@ -18,7 +18,7 @@ export interface WeakArea extends TopicProgress {}
  */
 export function resolveWeakAreas(byTopic: TopicProgress[], limit = 3): WeakArea[] {
   return byTopic
-    .filter((t) => t.total >= 2 && t.solved === 0)
+    .filter((t) => t.total >= 2 && t.solved === 0 && t.attempted > 0)
     .sort((a, b) => b.attempted - a.attempted || b.total - a.total)
     .slice(0, limit);
 }
