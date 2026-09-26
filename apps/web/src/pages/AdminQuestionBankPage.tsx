@@ -20,6 +20,7 @@ const SORT_OPTIONS: { value: NonNullable<ListQuestionsParams['sort']>; label: st
   { value: 'hardest', label: 'Hardest first' },
 ];
 import { ApprovalBadge, DifficultyBadge, QuestionTypeBadge, SourceBadge } from '../components/ApprovalBadge';
+import { VerificationBadge } from '../components/VerificationPanel';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
 import { SkeletonTable } from '../components/Skeleton';
@@ -265,7 +266,10 @@ export function AdminQuestionBankPage() {
                         : `${q.publicTestCaseCount} public / ${q.hiddenTestCaseCount} hidden`}
                     </td>
                     <td>
-                      <ApprovalBadge status={q.approvalStatus} />
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.3rem' }}>
+                        <ApprovalBadge status={q.approvalStatus} />
+                        {q.verificationStatus && <VerificationBadge status={q.verificationStatus} />}
+                      </div>
                     </td>
                   </tr>
                 ))}

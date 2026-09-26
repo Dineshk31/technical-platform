@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { AppModule } from '../src/app.module.js';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { approveVerifiedCodingQuestion } from './verification-helpers.js';
 
 /**
  * Phase 7 — Submit Solution (final judging against public + hidden test
@@ -80,6 +81,8 @@ describe('Submit Solution — final judging with hidden test cases (e2e)', () =>
     await prisma.assessmentQuestion.deleteMany({ where: { section: { assessmentId: { in: assessmentIds } } } });
     await prisma.assessmentSection.deleteMany({ where: { assessmentId: { in: assessmentIds } } });
     await prisma.assessment.deleteMany({ where: { id: { in: assessmentIds } } });
+    // Phase 18: verification runs reference the question without a cascade.
+    await prisma.submission.deleteMany({ where: { questionId: { in: questionIds }, kind: 'VERIFY' } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await app.close();
@@ -114,7 +117,7 @@ describe('Submit Solution — final judging with hidden test cases (e2e)', () =>
     expect(res.status).toBe(201);
     const questionId = res.body.id as string;
     questionIds.push(questionId);
-    await request(server).post(`/api/v1/questions/${questionId}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'APPROVED' });
+    await approveVerifiedCodingQuestion(server, adminToken, questionId);
     return questionId;
   }
 
@@ -396,7 +399,7 @@ describe('Submit Solution — final judging with hidden test cases (e2e)', () =>
     });
 
     it('rejects an unsupported language for this question (422)', async () => {
-      const pyOnly = await createQuestion({ supportedLanguages: ['PYTHON'], referenceSolutions: { PYTHON: 'print(1)' } });
+      const pyOnly = await createQuestion({ supportedLanguages: ['PYTHON'], referenceSolutions: { PYTHON: 'a, b = map(int, input().split())\nprint(a + b)' } });
       const localAssessment = await createActiveAssessmentWith(pyOnly, 20);
       const localAttempt = await startAttempt(localAssessment, studentToken);
       const res = await request(server)

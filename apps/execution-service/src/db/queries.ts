@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import type { SupportedLanguage } from '../runners/runner-factory.js';
-import type { SubmissionStatusValue } from './types.js';
+import type { SubmissionKindValue, SubmissionStatusValue } from './types.js';
 
 export interface ClaimedJob {
   jobId: string;
@@ -36,7 +36,7 @@ export async function claimNextQueuedJob(pool: Pool): Promise<ClaimedJob | null>
 export interface SubmissionForExecution {
   id: string;
   questionId: string;
-  kind: 'RUN' | 'SUBMIT';
+  kind: SubmissionKindValue;
   language: SupportedLanguage;
   code: string;
   timeLimitSeconds: number;
@@ -47,7 +47,7 @@ export async function loadSubmissionForExecution(pool: Pool, submissionId: strin
   const result = await pool.query<{
     id: string;
     question_id: string;
-    kind: 'RUN' | 'SUBMIT';
+    kind: SubmissionKindValue;
     language: SupportedLanguage;
     code: string;
     time_limit_seconds: string;
@@ -87,11 +87,11 @@ export interface TestCaseRow {
   orderIndex: number;
 }
 
-/** Public-only for RUN, public+hidden for SUBMIT — enforced here by `kind`, not by
- * trusting the caller, so a future SUBMIT path reusing this worker can never leak
+/** Public-only for RUN, public+hidden for SUBMIT and VERIFY — enforced here by `kind`,
+ * not by trusting the caller, so a future path reusing this worker can never leak
  * hidden test cases through a caller mistake (docs/coding-engine.md §5). */
-export async function loadTestCases(pool: Pool, questionId: string, kind: 'RUN' | 'SUBMIT'): Promise<TestCaseRow[]> {
-  const includeHidden = kind === 'SUBMIT';
+export async function loadTestCases(pool: Pool, questionId: string, kind: SubmissionKindValue): Promise<TestCaseRow[]> {
+  const includeHidden = kind !== 'RUN';
   const result = await pool.query<{ id: string; is_hidden: boolean; input: string; expected_output: string; order_index: number }>(
     `SELECT id, is_hidden, input, expected_output, order_index
      FROM coding_test_cases

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { CODING_TOPICS, DIFFICULTY_LEVELS, PROGRAMMING_LANGUAGES } from '@technical-platform/shared';
@@ -11,12 +11,14 @@ import {
   removeTestCase,
   reviewQuestion,
   updateQuestion,
+  verifyQuestion,
   updateTestCase,
   type CodingQuestionDetail,
   type TestCaseItem,
 } from '../lib/questions-api';
 import { ApprovalBadge, SourceBadge } from '../components/ApprovalBadge';
 import { QuestionReviewPanel } from '../components/QuestionReviewPanel';
+import { VerificationPanel } from '../components/VerificationPanel';
 import { ErrorState } from '../components/ErrorState';
 import { LoadingRow } from '../components/Skeleton';
 import { useConfirm } from '../components/useConfirm';
@@ -59,6 +61,7 @@ export function AdminQuestionFormPage() {
   const [hiddenTestCases, setHiddenTestCases] = useState<TestCaseRow[]>([{ input: '', expectedOutput: '' }]);
 
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [requestConfirm, confirmDialog] = useConfirm();
 
@@ -91,10 +94,15 @@ export function AdminQuestionFormPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  async function refreshQuestion() {
+  const refreshQuestion = useCallback(async () => {
     if (!id) return;
     const q = await getQuestion(id);
     if (q.type === 'CODING') setQuestion(q);
+  }, [id]);
+
+  async function handleVerify() {
+    if (!id) return;
+    setQuestion(await verifyQuestion(id));
   }
 
   function toggleTopic(topic: string) {
@@ -134,11 +142,18 @@ export function AdminQuestionFormPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setSaving(true);
     try {
       if (isEdit && id) {
-        await updateQuestion(id, buildMetadataPayload());
-        await refreshQuestion();
+        const wasApproved = question?.approvalStatus === 'APPROVED';
+        const updated = await updateQuestion(id, buildMetadataPayload());
+        if (updated.type === 'CODING') setQuestion(updated);
+        setNotice(
+          wasApproved && updated.approvalStatus !== 'APPROVED'
+            ? 'Saved. Grading changed, so verification was reset and the question went back to review — verify it again, then re-approve.'
+            : 'Saved.',
+        );
       } else {
         const created = await createQuestion({
           ...buildMetadataPayload(),
@@ -362,6 +377,16 @@ export function AdminQuestionFormPage() {
             <button type="submit" disabled={saving}>
               {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create question'}
             </button>
+            {notice && (
+              <p className="field-hint" role="status" style={{ marginBottom: 0 }}>
+                {notice}
+              </p>
+            )}
+            {!isEdit && (
+              <p className="field-hint" style={{ marginBottom: 0 }}>
+                On create, every reference solution is automatically run against all tests before anyone can approve it.
+              </p>
+            )}
           </div>
         </div>
       </form>
@@ -374,12 +399,24 @@ export function AdminQuestionFormPage() {
             <TestCaseLiveEditor questionId={question.id} testCases={question.hiddenTestCases} isHidden onChanged={refreshQuestion} />
           </div>
 
+          <VerificationPanel
+            verification={question.verification}
+            testCount={question.publicTestCases.length + question.hiddenTestCases.length}
+            onVerify={handleVerify}
+            onRefresh={refreshQuestion}
+          />
+
           <QuestionReviewPanel
             approvalStatus={question.approvalStatus}
             attachedToAssessments={question.attachedToAssessments}
             reviews={question.reviews}
             onReview={handleReview}
             onDelete={() => void handleDelete()}
+            approveBlockedReason={
+              question.verification.status === 'PASSED'
+                ? undefined
+                : 'Approval unlocks once every reference solution passes verification against all tests.'
+            }
           />
         </>
       )}

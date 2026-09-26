@@ -114,6 +114,10 @@ enum AttemptStatus {
 enum SubmissionKind {
   RUN
   SUBMIT
+  // Phase 18 — admin-only run of a question's reference solution against ALL tests
+  // (public + hidden). Never owned by a student (attemptId and userId both NULL), so it
+  // is structurally excluded from every student, practice, result and ranking query.
+  VERIFY
 
   @@map("submission_kind")
 }
@@ -300,6 +304,12 @@ model CodingReferenceSolution {
   question   CodingQuestion      @relation(fields: [questionId], references: [questionId], onDelete: Cascade)
   language   ProgrammingLanguage
   code       String
+  // Phase 18 verification gate — the VERIFY submission that ran exactly this code
+  // against the question's current tests. Its verdict IS the verification status
+  // (ACCEPTED = passed); NULL = unverified. Cleared whenever the code, the tests or the
+  // limits change, so a stale pass can never approve an edited question.
+  verificationSubmissionId String?     @unique @map("verification_submission_id") @db.Uuid
+  verificationSubmission   Submission? @relation("ReferenceVerification", fields: [verificationSubmissionId], references: [id], onDelete: SetNull)
 
   @@unique([questionId, language])
   @@map("coding_reference_solutions")
@@ -597,6 +607,8 @@ model Submission {
 
   testResults   SubmissionTestResult[]
   executionJob  ExecutionJob?
+  // Phase 18 — set only on a VERIFY submission (see CodingReferenceSolution).
+  verifiedReferenceSolution CodingReferenceSolution? @relation("ReferenceVerification")
 
   @@index([attemptId, questionId])
   @@index([userId, questionId])

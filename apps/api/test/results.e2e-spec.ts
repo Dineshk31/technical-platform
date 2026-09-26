@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { AppModule } from '../src/app.module.js';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { approveVerifiedCodingQuestion } from './verification-helpers.js';
 import { ExpirySweepService } from '../src/modules/results/expiry-sweep.service.js';
 
 /**
@@ -81,6 +82,8 @@ describe('Results, scoring, and attempt finalization (e2e)', () => {
     await prisma.assessmentQuestion.deleteMany({ where: { section: { assessmentId: { in: assessmentIds } } } });
     await prisma.assessmentSection.deleteMany({ where: { assessmentId: { in: assessmentIds } } });
     await prisma.assessment.deleteMany({ where: { id: { in: assessmentIds } } });
+    // Phase 18: verification runs reference the question without a cascade.
+    await prisma.submission.deleteMany({ where: { questionId: { in: questionIds }, kind: 'VERIFY' } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await app.close();
@@ -117,7 +120,7 @@ describe('Results, scoring, and attempt finalization (e2e)', () => {
     expect(res.status).toBe(201);
     const questionId = res.body.id as string;
     questionIds.push(questionId);
-    await request(server).post(`/api/v1/questions/${questionId}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'APPROVED' });
+    await approveVerifiedCodingQuestion(server, adminToken, questionId);
     return questionId;
   }
 

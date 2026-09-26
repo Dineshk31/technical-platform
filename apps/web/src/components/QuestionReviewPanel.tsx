@@ -30,12 +30,15 @@ export function QuestionReviewPanel({
   reviews,
   onReview,
   onDelete,
+  approveBlockedReason,
 }: {
   approvalStatus: string;
   attachedToAssessments: { id: string; title: string; status: string }[];
   reviews: { id: string; status: string; notes: string | null; reviewedBy: { id: string; name: string } | null; createdAt: string }[];
   onReview: (status: ReviewStatus, notes?: string) => Promise<unknown>;
   onDelete: () => void;
+  /** Phase 18 — set when a gate (e.g. reference-solution verification) blocks approval. */
+  approveBlockedReason?: string;
 }) {
   const [reviewNotes, setReviewNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -100,12 +103,18 @@ export function QuestionReviewPanel({
         placeholder="e.g. reason for rejection, or what was fixed before approving"
       />
       {error && <p className="form-error">{error}</p>}
+      {approveBlockedReason && approvalStatus !== 'APPROVED' && (
+        <p id="approve-blocked-reason" className="field-hint" style={{ marginTop: 0 }}>
+          {approveBlockedReason}
+        </p>
+      )}
 
       <div className="review-panel-actions">
         <button
           className="btn-icon review-panel-primary"
           onClick={() => void handleReview('APPROVED')}
-          disabled={submitting || approvalStatus === 'APPROVED'}
+          disabled={submitting || approvalStatus === 'APPROVED' || Boolean(approveBlockedReason)}
+          aria-describedby={approveBlockedReason ? 'approve-blocked-reason' : undefined}
         >
           <Check size={15} /> Approve
         </button>

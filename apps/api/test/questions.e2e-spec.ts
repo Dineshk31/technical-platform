@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { AppModule } from '../src/app.module.js';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { approveVerifiedCodingQuestion, waitForVerification } from './verification-helpers.js';
 
 const PASSWORD = 'TestPass123!';
 const runId = Date.now();
@@ -59,6 +60,8 @@ describe('Questions (e2e)', () => {
     await prisma.assessmentQuestion.deleteMany({ where: { section: { assessmentId: { in: assessmentIds } } } });
     await prisma.assessmentSection.deleteMany({ where: { assessmentId: { in: assessmentIds } } });
     await prisma.assessment.deleteMany({ where: { id: { in: assessmentIds } } });
+    // Phase 18: verification runs reference the question without a cascade.
+    await prisma.submission.deleteMany({ where: { questionId: { in: questionIds }, kind: 'VERIFY' } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await app.close();
@@ -310,6 +313,7 @@ describe('Questions (e2e)', () => {
 
   describe('admin: update, test cases, approval', () => {
     let questionId: string;
+    let reviewQuestionId: string;
     let publicTcId: string;
     let hiddenTcId: string;
 
@@ -322,6 +326,16 @@ describe('Questions (e2e)', () => {
       questionIds.push(questionId);
       publicTcId = created.body.publicTestCases[0].id;
       hiddenTcId = created.body.hiddenTestCases[0].id;
+
+      // Phase 18: the lifecycle question's tests are edited into values its reference
+      // solution can't produce, so the approval tests below use their own question.
+      const forReview = await request(server)
+        .post('/api/v1/questions/coding')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send(validCreatePayload(`Review Question ${runId}`));
+      reviewQuestionId = forReview.body.id;
+      questionIds.push(reviewQuestionId);
+      await waitForVerification(server, adminToken, reviewQuestionId);
     });
 
     it('updates metadata', async () => {
@@ -384,9 +398,18 @@ describe('Questions (e2e)', () => {
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('approves the question, recording a review entry', async () => {
+    it('refuses to approve the lifecycle question whose edited tests were never re-verified (422)', async () => {
       const res = await request(server)
         .post(`/api/v1/questions/${questionId}/review`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status: 'APPROVED' });
+      expect(res.status).toBe(422);
+      expect(res.body.error.details.some((d: { field: string }) => d.field === 'verification')).toBe(true);
+    });
+
+    it('approves a verified question, recording a review entry', async () => {
+      const res = await request(server)
+        .post(`/api/v1/questions/${reviewQuestionId}/review`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ status: 'APPROVED', notes: 'Looks good' });
       expect(res.status).toBe(201);
@@ -398,7 +421,7 @@ describe('Questions (e2e)', () => {
 
     it('rejects (unapproves) the question back to PENDING_REVIEW', async () => {
       const res = await request(server)
-        .post(`/api/v1/questions/${questionId}/review`)
+        .post(`/api/v1/questions/${reviewQuestionId}/review`)
         .set('Authorization', `Bearer ${adminToken}`)
         .send({ status: 'PENDING_REVIEW', notes: 'Needs another pass' });
       expect(res.status).toBe(201);
@@ -432,6 +455,7 @@ describe('Questions (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(validCreatePayload(`Concurrent Review ${runId}`));
       questionIds.push(q.body.id);
+      await waitForVerification(server, adminToken, q.body.id);
 
       // Two "admins" both act on the same PENDING_REVIEW question at once — only one
       // write should land; the loser must get a conflict, not a silently clobbered decision.
@@ -477,10 +501,7 @@ describe('Questions (e2e)', () => {
         .send(validCreatePayload(`Reusable Approved Question ${runId}`));
       approvedQuestionId = approved.body.id;
       questionIds.push(approvedQuestionId);
-      await request(server)
-        .post(`/api/v1/questions/${approvedQuestionId}/review`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({ status: 'APPROVED' });
+      await approveVerifiedCodingQuestion(server, adminToken, approvedQuestionId);
 
       const pending = await request(server)
         .post('/api/v1/questions/coding')
@@ -597,7 +618,7 @@ describe('Questions (e2e)', () => {
         .set('Authorization', `Bearer ${adminToken}`)
         .send(validCreatePayload(`Publish Recheck Question ${runId}`));
       questionIds.push(fresh.body.id);
-      await request(server).post(`/api/v1/questions/${fresh.body.id}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'APPROVED' });
+      await approveVerifiedCodingQuestion(server, adminToken, fresh.body.id);
 
       const { assessmentId, sectionId } = await createDraftAssessment(`Q-Recheck ${runId}`);
       await request(server)

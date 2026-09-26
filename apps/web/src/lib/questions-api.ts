@@ -31,6 +31,38 @@ export interface QuestionListItem extends QuestionListItemCommon {
   hiddenTestCaseCount: number;
   mcqType: string | null;
   optionCount: number | null;
+  /** Phase 18 — null for MCQs. */
+  verificationStatus: VerificationStatus | null;
+}
+
+/** Phase 18 reference-solution verification (see QuestionsService.verify). */
+export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'PASSED' | 'FAILED';
+
+export interface VerificationFailure {
+  testCaseId: string;
+  isHidden: boolean;
+  orderIndex: number;
+  status: string;
+  input: string;
+  expectedOutput: string;
+  actualOutput: string | null;
+  errorMessage: string | null;
+}
+
+export interface SolutionVerification {
+  language: string;
+  status: VerificationStatus;
+  verdict: string | null;
+  testsPassed: number;
+  testsTotal: number;
+  completedAt: string | null;
+  errorMessage: string | null;
+  failures: VerificationFailure[];
+}
+
+export interface QuestionVerification {
+  status: VerificationStatus;
+  solutions: SolutionVerification[];
 }
 
 export interface TestCaseItem {
@@ -86,6 +118,7 @@ export interface CodingQuestionDetail extends QuestionDetailCommon {
   hiddenTestCases: TestCaseItem[];
   referenceSolutions: { language: string; code: string }[];
   starterTemplates: { language: string; code: string }[];
+  verification: QuestionVerification;
 }
 
 export interface McqQuestionDetail extends QuestionDetailCommon {
@@ -152,6 +185,11 @@ export function deleteQuestion(id: string) {
 
 export function reviewQuestion(id: string, input: ReviewQuestionInput) {
   return apiFetch<QuestionDetail>(`/questions/${id}/review`, { method: 'POST', body: JSON.stringify(input) });
+}
+
+/** Runs every reference solution against all tests (public + hidden). Rate-limited per question. */
+export function verifyQuestion(id: string) {
+  return apiFetch<CodingQuestionDetail>(`/questions/${id}/verify`, { method: 'POST' });
 }
 
 export function addTestCase(questionId: string, input: CreateTestCaseInput) {

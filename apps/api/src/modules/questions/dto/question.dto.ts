@@ -12,8 +12,11 @@ import type {
   McqQuestion,
   Question,
   QuestionReview,
+  Submission,
+  SubmissionTestResult,
   User,
 } from '../../../../generated/prisma/index.js';
+import { questionVerificationStatus, solutionVerificationStatus } from '../verification.util.js';
 
 export function toNum(value: unknown): number {
   if (value === null || value === undefined) return 0;
@@ -34,13 +37,23 @@ type GenerationRequestWithRequester = Pick<
 
 type McqQuestionWithOptions = McqQuestion & { options: McqOption[] };
 
+type VerificationTestResult = SubmissionTestResult & {
+  testCase: Pick<CodingTestCase, 'input' | 'expectedOutput' | 'orderIndex' | 'isHidden'>;
+};
+type ReferenceSolutionWithVerification = CodingReferenceSolution & {
+  verificationSubmission: (Submission & { testResults: VerificationTestResult[] }) | null;
+};
+
+const MAX_SHOWN = 2000;
+const clip = (text: string | null) => (text !== null && text.length > MAX_SHOWN ? `${text.slice(0, MAX_SHOWN)}…` : text);
+
 export type AdminQuestionDetailSource = Question & {
   createdBy: Pick<User, 'id' | 'name' | 'email'>;
   codingQuestion:
     | (CodingQuestion & {
         languages: CodingQuestionLanguage[];
         testCases: CodingTestCase[];
-        referenceSolutions: CodingReferenceSolution[];
+        referenceSolutions: ReferenceSolutionWithVerification[];
         starterTemplates: CodingStarterTemplate[];
       })
     | null;
@@ -133,8 +146,44 @@ export function toAdminQuestionDetail(q: AdminQuestionDetailSource) {
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map(toTestCaseDto),
     referenceSolutions: (cq?.referenceSolutions ?? []).map((rs) => ({ language: rs.language, code: rs.code })),
+    verification: toVerificationDto(cq?.referenceSolutions ?? []),
     starterTemplates: (cq?.starterTemplates ?? []).map((st) => ({ language: st.language, code: st.code })),
   };
+}
+
+/**
+ * Phase 18 — per-language verification result. Admin-only like the rest of this DTO,
+ * so a failing hidden test's input/expected/actual output is shown in full: that is
+ * exactly what an admin needs to tell a wrong test from a wrong reference solution.
+ */
+function toVerificationDto(solutions: ReferenceSolutionWithVerification[]) {
+  const perSolution = solutions.map((rs) => {
+    const run = rs.verificationSubmission;
+    const status = solutionVerificationStatus(run);
+    return {
+      language: rs.language,
+      status,
+      verdict: run?.status ?? null,
+      testsPassed: run?.testsPassed ?? 0,
+      testsTotal: run?.testsTotal ?? 0,
+      completedAt: run?.completedAt ?? null,
+      errorMessage: clip(run?.errorMessage ?? null),
+      failures: (run?.testResults ?? [])
+        .filter((r) => !r.passed)
+        .sort((a, b) => Number(a.isHidden) - Number(b.isHidden) || a.testCase.orderIndex - b.testCase.orderIndex)
+        .map((r) => ({
+          testCaseId: r.testCaseId,
+          isHidden: r.isHidden,
+          orderIndex: r.testCase.orderIndex,
+          status: r.status,
+          input: clip(r.testCase.input),
+          expectedOutput: clip(r.testCase.expectedOutput),
+          actualOutput: clip(r.actualOutput),
+          errorMessage: clip(r.errorMessage),
+        })),
+    };
+  });
+  return { status: questionVerificationStatus(perSolution.map((s) => s.status)), solutions: perSolution };
 }
 
 function toTestCaseDto(tc: CodingTestCase) {
@@ -153,6 +202,7 @@ export type AdminQuestionListSource = Question & {
   codingQuestion: {
     languages: CodingQuestionLanguage[];
     testCases: Pick<CodingTestCase, 'isHidden'>[];
+    referenceSolutions: { verificationSubmission: Pick<Submission, 'status'> | null }[];
   } | null;
   mcqQuestion: {
     mcqType: McqQuestion['mcqType'];
@@ -176,6 +226,10 @@ export function toAdminQuestionListItem(q: AdminQuestionListSource) {
     supportedLanguages: (q.codingQuestion?.languages ?? []).map((l) => l.language),
     publicTestCaseCount: testCases.filter((tc) => !tc.isHidden).length,
     hiddenTestCaseCount: testCases.filter((tc) => tc.isHidden).length,
+    // Phase 18 — null for MCQs, which have nothing to execute.
+    verificationStatus: q.codingQuestion
+      ? questionVerificationStatus(q.codingQuestion.referenceSolutions.map((rs) => solutionVerificationStatus(rs.verificationSubmission)))
+      : null,
     mcqType: q.mcqQuestion?.mcqType ?? null,
     optionCount: q.mcqQuestion?.options.length ?? null,
     createdBy: q.createdBy,

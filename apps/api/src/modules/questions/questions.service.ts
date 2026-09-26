@@ -1,4 +1,13 @@
-import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type {
   CreateCodingQuestionInput,
   CreateMcqQuestionInput,
@@ -12,13 +21,34 @@ import type {
 import { Prisma, type ProgrammingLanguage, type QuestionSource } from '../../../generated/prisma/index.js';
 import { recomputeMaxMarks } from '../assessments/assessments.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { ExecutionClientService } from '../execution-client/execution-client.service.js';
 import { toAdminQuestionDetail, toAdminQuestionListItem } from './dto/question.dto.js';
 import { validateMcqForApproval } from './mcq-approval.util.js';
+import {
+  gradingChanged,
+  questionVerificationStatus,
+  solutionVerificationStatus,
+  testCaseChanged,
+  verificationApprovalIssues,
+} from './verification.util.js';
 
 const DETAIL_INCLUDE = {
   createdBy: { select: { id: true, name: true, email: true } },
   codingQuestion: {
-    include: { languages: true, testCases: true, referenceSolutions: true, starterTemplates: true },
+    include: {
+      languages: true,
+      testCases: true,
+      referenceSolutions: {
+        include: {
+          verificationSubmission: {
+            include: {
+              testResults: { include: { testCase: { select: { input: true, expectedOutput: true, orderIndex: true, isHidden: true } } } },
+            },
+          },
+        },
+      },
+      starterTemplates: true,
+    },
   },
   mcqQuestion: { include: { options: true } },
   reviews: { include: { reviewedBy: { select: { id: true, name: true } } } },
@@ -31,13 +61,47 @@ const DETAIL_INCLUDE = {
 
 const LIST_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
-  codingQuestion: { include: { languages: true, testCases: { select: { isHidden: true } } } },
+  codingQuestion: {
+    include: {
+      languages: true,
+      testCases: { select: { isHidden: true } },
+      referenceSolutions: { select: { verificationSubmission: { select: { status: true } } } },
+    },
+  },
   mcqQuestion: { select: { mcqType: true, options: { select: { id: true } } } },
 } satisfies Prisma.QuestionInclude;
 
+const IN_FLIGHT = ['PENDING', 'RUNNING'] as const;
+
+/** Drops finished verification runs for a question (their test results and job rows
+ * cascade). In-flight runs are left for the execution-service to finish; they are
+ * unlinked, so their verdict no longer counts, and are cleaned up on the next call. */
+async function deleteFinishedVerificationRuns(tx: Prisma.TransactionClient, questionId: string): Promise<void> {
+  await tx.submission.deleteMany({ where: { questionId, kind: 'VERIFY', status: { notIn: [...IN_FLIGHT] } } });
+}
+
+/**
+ * Phase 18 - called whenever something a verification depends on changes (reference
+ * code, a test case, time/memory limits). Every reference solution goes back to
+ * UNVERIFIED, and an APPROVED question returns to PENDING_REVIEW: an approved question
+ * whose grading just changed is no longer proven correct, so it must not stay live on
+ * the strength of a verification that no longer applies.
+ */
+async function invalidateVerification(tx: Prisma.TransactionClient, questionId: string): Promise<void> {
+  await tx.codingReferenceSolution.updateMany({ where: { questionId }, data: { verificationSubmissionId: null } });
+  await deleteFinishedVerificationRuns(tx, questionId);
+  await tx.question.updateMany({ where: { id: questionId, approvalStatus: 'APPROVED' }, data: { approvalStatus: 'PENDING_REVIEW' } });
+}
+
 @Injectable()
 export class QuestionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(QuestionsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly executionClient: ExecutionClientService,
+    private readonly config: ConfigService,
+  ) {}
 
   async create(
     adminId: string,
@@ -106,7 +170,82 @@ export class QuestionsService {
       include: DETAIL_INCLUDE,
     });
 
-    return toAdminQuestionDetail(question);
+    // Phase 18: every new coding question (manual or AI-drafted) is verified straight
+    // away, so a reviewer opens it with the result already there. A question that can't
+    // be verified yet (e.g. no hidden test) simply stays UNVERIFIED - creation never fails.
+    try {
+      await this.startVerification(question.id, { skipRateLimit: true });
+    } catch (error) {
+      this.logger.log(`Question ${question.id} saved without auto-verification: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return this.getDetail(question.id);
+  }
+
+  /**
+   * POST /questions/:id/verify - runs every reference solution against ALL of the
+   * question's tests (public + hidden) through the real execution service, as VERIFY
+   * submissions owned by no student. Admin-only (controller) and rate-limited per question.
+   */
+  async verify(id: string) {
+    const question = await this.prisma.question.findUnique({ where: { id }, select: { type: true } });
+    if (!question || question.type !== 'CODING') throw new NotFoundException('Question not found');
+    await this.startVerification(id, { skipRateLimit: false });
+    return this.getDetail(id);
+  }
+
+  private async startVerification(questionId: string, opts: { skipRateLimit: boolean }): Promise<void> {
+    const cq = await this.prisma.codingQuestion.findUnique({
+      where: { questionId },
+      include: {
+        referenceSolutions: { include: { verificationSubmission: { select: { status: true } } } },
+        testCases: { select: { isHidden: true } },
+      },
+    });
+    if (!cq) throw new NotFoundException('Question not found');
+
+    const details: { field: string; issue: string }[] = [];
+    if (!cq.testCases.some((tc) => !tc.isHidden)) details.push({ field: 'publicTestCases', issue: 'add at least one public test case before verifying' });
+    if (!cq.testCases.some((tc) => tc.isHidden)) details.push({ field: 'hiddenTestCases', issue: 'add at least one hidden test case before verifying' });
+    if (cq.referenceSolutions.length === 0) details.push({ field: 'referenceSolutions', issue: 'add a reference solution before verifying' });
+    if (details.length > 0) {
+      throw new UnprocessableEntityException({ error: { code: 'UNPROCESSABLE_ENTITY', message: 'This question cannot be verified yet', details } });
+    }
+    if (cq.referenceSolutions.some((rs) => solutionVerificationStatus(rs.verificationSubmission) === 'PENDING')) {
+      throw new ConflictException('Verification is already running for this question');
+    }
+
+    if (!opts.skipRateLimit) {
+      const windowMs = this.config.get<number>('VERIFY_RATE_LIMIT_MS') ?? 10_000;
+      const last = await this.prisma.submission.findFirst({
+        where: { questionId, kind: 'VERIFY' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      if (last && Date.now() - last.createdAt.getTime() < windowMs) {
+        throw new HttpException(
+          { error: { code: 'RATE_LIMITED', message: 'Verification was just run - wait a few seconds before running it again' } },
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+
+    const testsTotal = cq.testCases.length;
+    const jobIds = await this.prisma.$transaction(async (tx) => {
+      await deleteFinishedVerificationRuns(tx, questionId);
+      const ids: string[] = [];
+      for (const rs of cq.referenceSolutions) {
+        const submission = await tx.submission.create({
+          data: { questionId, kind: 'VERIFY', language: rs.language, code: rs.code, status: 'PENDING', testsTotal },
+        });
+        const job = await tx.executionJob.create({ data: { submissionId: submission.id, status: 'QUEUED' } });
+        await tx.codingReferenceSolution.update({ where: { id: rs.id }, data: { verificationSubmissionId: submission.id } });
+        ids.push(job.id);
+      }
+      return ids;
+    });
+    // Same fire-and-forget contract as student runs: the execution-service poller picks
+    // the jobs up regardless of whether this notify reaches it.
+    for (const jobId of jobIds) void this.executionClient.notify(jobId);
   }
 
   async list(query: ListQuestionsQueryInput) {
@@ -158,8 +297,20 @@ export class QuestionsService {
 
   async update(id: string, input: UpdateCodingQuestionInput) {
     await this.assertEditable(id);
-    const existing = await this.prisma.question.findUnique({ where: { id }, include: { codingQuestion: true } });
+    const existing = await this.prisma.question.findUnique({
+      where: { id },
+      include: { codingQuestion: { include: { referenceSolutions: true } } },
+    });
     if (!existing || !existing.codingQuestion) throw new NotFoundException('Question not found');
+    const cq = existing.codingQuestion;
+    const resetsVerification = gradingChanged(
+      {
+        timeLimitSeconds: Number(cq.timeLimitSeconds),
+        memoryLimitMb: cq.memoryLimitMb,
+        referenceSolutions: Object.fromEntries(cq.referenceSolutions.map((rs) => [rs.language, rs.code])),
+      },
+      input,
+    );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.question.update({
@@ -222,6 +373,8 @@ export class QuestionsService {
       if (input.marks !== undefined) {
         await this.recomputeLinkedAssessments(tx, id);
       }
+
+      if (resetsVerification) await invalidateVerification(tx, id);
     });
 
     return this.getDetail(id);
@@ -321,6 +474,11 @@ export class QuestionsService {
     const draftAssessmentIds = [...new Set(links.map((l) => l.section.assessmentId))];
 
     await this.prisma.$transaction(async (tx) => {
+      // Verification runs reference the question without a cascade (like student
+      // submissions), so they go first; they carry no student data. A run still being
+      // judged is safe to delete too: the execution-service's finalize then fails its
+      // transaction and records nothing.
+      await tx.submission.deleteMany({ where: { questionId: id, kind: 'VERIFY' } });
       if (links.length > 0) {
         await tx.assessmentQuestion.deleteMany({ where: { questionId: id } });
         for (const assessmentId of draftAssessmentIds) {
@@ -335,7 +493,9 @@ export class QuestionsService {
     const question = await this.prisma.question.findUnique({
       where: { id },
       include: {
-        codingQuestion: { include: { testCases: true, referenceSolutions: true } },
+        codingQuestion: {
+          include: { testCases: true, referenceSolutions: { include: { verificationSubmission: { select: { status: true } } } } },
+        },
         mcqQuestion: { include: { options: true } },
       },
     });
@@ -346,6 +506,14 @@ export class QuestionsService {
     if (input.status === 'APPROVED') {
       const details: { field?: string; issue: string }[] =
         question.type === 'MCQ' ? validateMcqForApproval(question.mcqQuestion!) : validateCodingForApproval(question.codingQuestion!);
+      // Phase 18 hard gate: a coding question is approvable only once every reference
+      // solution has actually passed ALL tests in the execution service.
+      if (question.type === 'CODING') {
+        const status = questionVerificationStatus(
+          question.codingQuestion!.referenceSolutions.map((rs) => solutionVerificationStatus(rs.verificationSubmission)),
+        );
+        details.push(...verificationApprovalIssues(status));
+      }
       if (details.length > 0) {
         throw new UnprocessableEntityException({
           error: { code: 'UNPROCESSABLE_ENTITY', message: 'Question is not ready to be approved', details },
@@ -382,8 +550,11 @@ export class QuestionsService {
     const orderIndex =
       input.orderIndex ?? (await this.prisma.codingTestCase.count({ where: { questionId, isHidden: input.isHidden } }));
 
-    await this.prisma.codingTestCase.create({
-      data: { questionId, isHidden: input.isHidden, input: input.input, expectedOutput: input.expectedOutput, orderIndex },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.codingTestCase.create({
+        data: { questionId, isHidden: input.isHidden, input: input.input, expectedOutput: input.expectedOutput, orderIndex },
+      });
+      await invalidateVerification(tx, questionId);
     });
     return this.getDetail(questionId);
   }
@@ -393,14 +564,18 @@ export class QuestionsService {
     const testCase = await this.prisma.codingTestCase.findFirst({ where: { id: testCaseId, questionId } });
     if (!testCase) throw new NotFoundException('Test case not found');
 
-    await this.prisma.codingTestCase.update({
-      where: { id: testCaseId },
-      data: {
-        isHidden: input.isHidden,
-        input: input.input,
-        expectedOutput: input.expectedOutput,
-        orderIndex: input.orderIndex,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.codingTestCase.update({
+        where: { id: testCaseId },
+        data: {
+          isHidden: input.isHidden,
+          input: input.input,
+          expectedOutput: input.expectedOutput,
+          orderIndex: input.orderIndex,
+        },
+      });
+      // Reordering alone doesn't change what is being tested.
+      if (testCaseChanged(testCase, input)) await invalidateVerification(tx, questionId);
     });
     return this.getDetail(questionId);
   }
@@ -409,7 +584,20 @@ export class QuestionsService {
     await this.assertEditable(questionId);
     const testCase = await this.prisma.codingTestCase.findFirst({ where: { id: testCaseId, questionId } });
     if (!testCase) throw new NotFoundException('Test case not found');
-    await this.prisma.codingTestCase.delete({ where: { id: testCaseId } });
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await invalidateVerification(tx, questionId);
+        await tx.codingTestCase.delete({ where: { id: testCaseId } });
+      });
+    } catch (error) {
+      // Student submissions keep a per-test result row; deleting a test they were
+      // judged against would rewrite their history, so it's refused rather than 500ing.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException('Students have already been judged against this test case, so it cannot be deleted');
+      }
+      throw error;
+    }
   }
 
   // ============ shared helpers ============

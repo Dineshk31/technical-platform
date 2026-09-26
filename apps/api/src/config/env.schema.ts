@@ -43,6 +43,9 @@ export const EnvSchema = z.object({
   // Per docs/security.md §7 — no more than one Run/Submit per student per question
   // within this window, to stop a scripted flood from starving the execution queue.
   RUN_RATE_LIMIT_MS: z.coerce.number().int().nonnegative().default(2000),
+  // Phase 18 — minimum gap between two admin verification runs of the same question
+  // (each run judges every reference solution against every test).
+  VERIFY_RATE_LIMIT_MS: z.coerce.number().int().nonnegative().default(10_000),
 
   // Phase 9 — AI question generation (docs/ai-integration.md). Optional and unvalidated
   // beyond non-emptiness: a deployment that hasn't set up Gemini yet should still boot;

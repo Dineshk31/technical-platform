@@ -85,6 +85,13 @@ export class QuestionsController {
     return this.questions.review(id, user.id, body);
   }
 
+  // Phase 18 verification gate - runs every reference solution against ALL tests.
+  @Roles('ADMIN')
+  @Post(':id/verify')
+  verify(@Param('id') id: string) {
+    return this.questions.verify(id);
+  }
+
   @Roles('ADMIN')
   @Post(':id/test-cases')
   addTestCase(@Param('id') questionId: string, @Body(new ZodValidationPipe(CreateTestCaseSchema)) body: CreateTestCaseInput) {

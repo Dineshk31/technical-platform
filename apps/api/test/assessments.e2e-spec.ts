@@ -136,6 +136,8 @@ describe('Assessments (e2e)', () => {
     await prisma.assessmentQuestion.deleteMany({ where: { section: { assessmentId: { in: assessmentIds } } } });
     await prisma.assessmentSection.deleteMany({ where: { assessmentId: { in: assessmentIds } } });
     await prisma.assessment.deleteMany({ where: { id: { in: assessmentIds } } });
+    // Phase 18: verification runs reference the question without a cascade.
+    await prisma.submission.deleteMany({ where: { questionId: { in: questionIds }, kind: 'VERIFY' } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await app.close();

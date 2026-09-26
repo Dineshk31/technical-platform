@@ -15,6 +15,9 @@ export interface JudgeParams {
   language: SupportedLanguage;
   code: string;
   testCases: TestCaseRow[];
+  /** true only for a VERIFY run: hidden-test output is otherwise never stored, but an
+   * admin verifying a reference solution needs it to tell a bad test from a bad solution. */
+  keepHiddenOutput?: boolean;
   timeLimitSeconds: number;
   memoryLimitMb: number;
   toolchain: ToolchainConfig;
@@ -92,7 +95,7 @@ export async function judgeSubmission(params: JudgeParams): Promise<JudgeOutcome
         isHidden: testCase.isHidden,
         status,
         passed,
-        actualOutput: testCase.isHidden ? null : runResult.stdout,
+        actualOutput: testCase.isHidden && !params.keepHiddenOutput ? null : runResult.stdout,
         runtimeMs: runResult.runtimeMs,
         memoryKb: runResult.memoryKb,
         errorMessage: runResult.errorMessage ?? null,

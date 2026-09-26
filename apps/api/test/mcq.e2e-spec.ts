@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { AppModule } from '../src/app.module.js';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { approveVerifiedCodingQuestion } from './verification-helpers.js';
 
 const PASSWORD = 'TestPass123!';
 const runId = Date.now();
@@ -59,6 +60,8 @@ describe('Technical MCQ system (e2e)', () => {
     await prisma.assessmentQuestion.deleteMany({ where: { section: { assessmentId: { in: assessmentIds } } } });
     await prisma.assessmentSection.deleteMany({ where: { assessmentId: { in: assessmentIds } } });
     await prisma.assessment.deleteMany({ where: { id: { in: assessmentIds } } });
+    // Phase 18: verification runs reference the question without a cascade.
+    await prisma.submission.deleteMany({ where: { questionId: { in: questionIds }, kind: 'VERIFY' } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await app.close();
@@ -408,7 +411,7 @@ describe('Technical MCQ system (e2e)', () => {
         });
       expect(codingCreate.status).toBe(201);
       questionIds.push(codingCreate.body.id);
-      await request(server).post(`/api/v1/questions/${codingCreate.body.id}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'APPROVED' });
+      await approveVerifiedCodingQuestion(server, adminToken, codingCreate.body.id);
 
       const assessmentId = await createDraftAssessment(`Mixed Assessment ${runId}`);
       const mcqSectionId = await addSection(assessmentId, 'MCQ', 'MCQ Round');
@@ -628,7 +631,7 @@ describe('Technical MCQ system (e2e)', () => {
           referenceSolutions: { PYTHON: 'a,b=map(int,input().split());print(a+b)' },
         });
       questionIds.push(codingCreate.body.id);
-      await request(server).post(`/api/v1/questions/${codingCreate.body.id}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'APPROVED' });
+      await approveVerifiedCodingQuestion(server, adminToken, codingCreate.body.id);
 
       const assessmentId = await createDraftAssessment(`Combined Score Assessment ${runId}`);
       const mcqSectionId = await addSection(assessmentId, 'MCQ', 'MCQ');

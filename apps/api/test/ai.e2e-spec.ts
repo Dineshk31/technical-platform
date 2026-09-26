@@ -8,6 +8,7 @@ import type { AIProvider, AIProviderResult } from '@technical-platform/shared';
 import { AppModule } from '../src/app.module.js';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { approveVerifiedCodingQuestion, waitForVerification } from './verification-helpers.js';
 import { AI_PROVIDER } from '../src/modules/ai/ai-provider.token.js';
 
 const PASSWORD = 'TestPass123!';
@@ -48,7 +49,8 @@ function validDraft(overrides: Record<string, unknown> = {}) {
     timeLimitSeconds: 2,
     memoryLimitMb: 256,
     supportedLanguages: ['PYTHON'],
-    referenceSolutions: { PYTHON: 'print(0, 1)' },
+    // Echoes its input, so it genuinely passes this fixture's tests (Phase 18 verifies it).
+    referenceSolutions: { PYTHON: 'print(input())' },
     starterTemplates: {},
     publicTestCases: [{ input: '1', expectedOutput: '1' }],
     hiddenTestCases: [{ input: '2', expectedOutput: '2' }],
@@ -110,6 +112,8 @@ describe('AI question generation (e2e)', () => {
     // Assessment deletion cascades to its sections and assessmentQuestions (schema.prisma
     // onDelete: Cascade), which must go before questions/users to satisfy FK constraints.
     await prisma.assessment.deleteMany({ where: { id: { in: assessmentIds } } });
+    // Phase 18: verification runs reference the question without a cascade.
+    await prisma.submission.deleteMany({ where: { questionId: { in: questionIds }, kind: 'VERIFY' } });
     await prisma.question.deleteMany({ where: { id: { in: questionIds } } });
     await prisma.aiGenerationRequest.deleteMany({ where: { requestedById: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
@@ -444,6 +448,7 @@ describe('AI question generation (e2e)', () => {
     it('approving an AI-generated question transitions PENDING_REVIEW -> APPROVED and records the reviewer + notes', async () => {
       const { token, id: reviewerId } = await createAdmin();
       const questionId = await generateAndSave(token, 'Hashing', { title: `Approve Flow ${runId}` });
+      expect((await waitForVerification(server, token, questionId)).status).toBe('PASSED');
 
       const res = await request(server)
         .post(`/api/v1/questions/${questionId}/review`)
@@ -459,7 +464,7 @@ describe('AI question generation (e2e)', () => {
     it('an APPROVED AI-generated question can then be attached to an assessment, following the normal rules', async () => {
       const { token } = await createAdmin();
       const questionId = await generateAndSave(token, 'Sorting', { title: `Approved Attach ${runId}` });
-      await request(server).post(`/api/v1/questions/${questionId}/review`).set('Authorization', `Bearer ${token}`).send({ status: 'APPROVED' });
+      await approveVerifiedCodingQuestion(server, token, questionId);
 
       const { assessmentId, sectionId } = await createDraftAssessment(token, `AI Approved Attach ${runId}`);
       const res = await request(server)
@@ -486,6 +491,19 @@ describe('AI question generation (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({ questionId });
       expect(attach.status).toBe(422);
+    });
+
+    it('an AI draft whose reference solution fails its own tests is verified automatically on save and cannot be approved', async () => {
+      const { token } = await createAdmin();
+      const questionId = await generateAndSave(token, 'Two Pointers', { title: `Broken AI ${runId}`, referenceSolutions: { PYTHON: 'print(0, 1)' } });
+
+      const verification = await waitForVerification(server, token, questionId);
+      expect(verification.status).toBe('FAILED');
+      expect(verification.solutions[0].failures.length).toBeGreaterThan(0);
+
+      const res = await request(server).post(`/api/v1/questions/${questionId}/review`).set('Authorization', `Bearer ${token}`).send({ status: 'APPROVED' });
+      expect(res.status).toBe(422);
+      expect(res.body.error.details.some((d: { field: string }) => d.field === 'verification')).toBe(true);
     });
 
     it('an AI-generated question missing a hidden test case cannot be approved (422) — same rule as manual questions', async () => {
