@@ -15,7 +15,7 @@ import type {
 import { Prisma, type Attempt } from '../../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { validateMcqForApproval } from '../questions/mcq-approval.util.js';
-import { resolveQuestionMarks } from '../scoring/scoring.util.js';
+import { isMcqAnswerCorrect, resolveQuestionMarks } from '../scoring/scoring.util.js';
 import { finalizeAttempt } from '../results/results.service.js';
 import { toAdminAssessmentDetail, toAdminAssessmentListItem, toNum, toStudentAssessmentDetail, toStudentAssignedListItem } from './dto/assessment.dto.js';
 import { computeEffectiveStatus } from './utils/assessment-status.util.js';
@@ -677,9 +677,10 @@ export class AssessmentsService {
       return { questionId, selectedOptionIds: [] };
     }
 
-    const correctOptionIds = new Set(mcqQuestion.options.filter((o) => o.isCorrect).map((o) => o.id));
-    const selected = new Set(input.optionIds);
-    const isCorrect = selected.size === correctOptionIds.size && [...correctOptionIds].every((id) => selected.has(id));
+    const isCorrect = isMcqAnswerCorrect(
+      mcqQuestion.options.filter((o) => o.isCorrect).map((o) => o.id),
+      input.optionIds,
+    );
     const marks = resolveQuestionMarks(aq.marksOverride, aq.question.marks);
     const score = isCorrect ? marks : -toNum(mcqQuestion.negativeMarkingValue);
 

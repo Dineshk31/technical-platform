@@ -150,7 +150,7 @@ export function StudentHomePage() {
     : [];
   const remaining = progress ? Math.max(0, progress.totalProblems - progress.solved - progress.attempted) : 0;
   const weakAreas = progress ? resolveWeakAreas(progress.byTopic) : [];
-  const topicsWithLessons = learnProgress ? new Set(learnProgress.byTopic.map((t) => t.topic)) : undefined;
+  const lessonsByTopic = learnProgress ? new Map(learnProgress.byTopic.map((t) => [t.topic, t])) : undefined;
 
   return (
     <div className="dashboard-body">
@@ -223,7 +223,7 @@ export function StudentHomePage() {
 
           {weakAreas.length > 0 && (
             <div style={{ marginTop: 'var(--space-6)' }}>
-              <WeakAreasCard areas={weakAreas} topicsWithLessons={topicsWithLessons} />
+              <WeakAreasCard areas={weakAreas} lessonsByTopic={lessonsByTopic} />
             </div>
           )}
 

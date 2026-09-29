@@ -23,3 +23,15 @@ export function isGradedAcceptance(kind: string, status: string): boolean {
 export function resolveQuestionMarks(marksOverride: unknown, questionMarks: unknown): number {
   return toNum(marksOverride ?? questionMarks);
 }
+
+/**
+ * The single MCQ correctness rule: the selected set must equal the correct set exactly
+ * (all-or-nothing, so a MULTIPLE_CHOICE answer with one right option missing is wrong).
+ * Shared by assessment answers (AssessmentsService) and lesson knowledge checks
+ * (LearnService, Phase 18) so the two can never grade the same question differently.
+ */
+export function isMcqAnswerCorrect(correctOptionIds: Iterable<string>, selectedOptionIds: Iterable<string>): boolean {
+  const correct = new Set(correctOptionIds);
+  const selected = new Set(selectedOptionIds);
+  return selected.size === correct.size && [...correct].every((id) => selected.has(id));
+}

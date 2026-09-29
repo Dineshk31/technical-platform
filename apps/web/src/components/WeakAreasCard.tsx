@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { TrendingUp } from 'lucide-react';
 import type { WeakArea } from '../lib/weak-areas';
+import type { LearnTopicProgress } from '../lib/learn-api';
 
 /**
  * Renders nothing when there's nothing real to show — never fabricates a "weak
@@ -8,13 +9,12 @@ import type { WeakArea } from '../lib/weak-areas';
  * same `.assessment-row` layout as the Assessments list rather than inventing a
  * new row shape for a third "list of things with a CTA" pattern.
  *
- * `topicsWithLessons` (optional — only ever passed when Learn content exists
- * for at least one weak topic, real data from LearnProgressDto.byTopic, see
- * docs/PHASE_16_LEARN_ARCHITECTURE_AUDIT.md §9) adds a second, secondary
- * "Learn this topic first" link alongside the existing Practice CTA — never
- * shown for a topic with no published lessons.
+ * `lessonsByTopic` (optional — real data from LearnProgressDto.byTopic) adds a
+ * "Learn" link that opens the topic's first unfinished lesson (Phase 18), or a
+ * "Review" link once every lesson is done — never shown for a topic with no
+ * published lessons.
  */
-export function WeakAreasCard({ areas, topicsWithLessons }: { areas: WeakArea[]; topicsWithLessons?: Set<string> }) {
+export function WeakAreasCard({ areas, lessonsByTopic }: { areas: WeakArea[]; lessonsByTopic?: Map<string, LearnTopicProgress> }) {
   if (areas.length === 0) return null;
 
   return (
@@ -34,11 +34,18 @@ export function WeakAreasCard({ areas, topicsWithLessons }: { areas: WeakArea[];
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {topicsWithLessons?.has(a.topic) && (
-              <Link to={`/student/learn/${encodeURIComponent(a.topic)}`}>
-                <button className="btn-secondary btn-small">Learn {a.topic} first →</button>
-              </Link>
-            )}
+            {(() => {
+              const learn = lessonsByTopic?.get(a.topic);
+              if (!learn) return null;
+              const to = learn.nextLessonId
+                ? `/student/learn/${encodeURIComponent(a.topic)}/lessons/${learn.nextLessonId}`
+                : `/student/learn/${encodeURIComponent(a.topic)}`;
+              return (
+                <Link to={to}>
+                  <button className="btn-secondary btn-small">{learn.nextLessonId ? `Learn ${a.topic} first →` : `Review ${a.topic} →`}</button>
+                </Link>
+              );
+            })()}
             <Link to={`/student/practice/problems?topic=${encodeURIComponent(a.topic)}`}>
               <button className="btn-secondary btn-small">Practice {a.topic} →</button>
             </Link>

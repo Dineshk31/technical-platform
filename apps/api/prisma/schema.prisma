@@ -209,6 +209,7 @@ model User {
   practiceCodeDrafts      PracticeCodeDraft[]
   createdLessons          Lesson[]                @relation("LessonCreatedBy")
   lessonProgress          LessonProgress[]
+  lessonCheckResponses    LessonCheckResponse[]
 
   @@index([roleId])
   @@index([department, batch])
@@ -259,6 +260,8 @@ model Question {
   mcqQuestion        McqQuestion?
   reviews            QuestionReview[]
   assessmentQuestions AssessmentQuestion[]
+  lessonLinks         LessonQuestion[]
+  lessonCheckResponses LessonCheckResponse[]
 
   @@index([type, approvalStatus])
   @@index([difficulty])
@@ -738,6 +741,9 @@ model Lesson {
   concept        String
   example        String?
   commonMistakes String?  @map("common_mistakes")
+  // Phase 18 - "What you'll learn": short, student-facing outcomes shown before the
+  // content. concept/example/commonMistakes are rendered as (safe) Markdown.
+  objectives     String[] @default([])
   orderIndex     Int      @default(0) @map("order_index")
   // Mirrors Question.approvalStatus gating student visibility — only
   // published lessons are ever served to students (see LearnService).
@@ -747,7 +753,9 @@ model Lesson {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  progress LessonProgress[]
+  progress       LessonProgress[]
+  questionLinks  LessonQuestion[]
+  checkResponses LessonCheckResponse[]
 
   @@index([topic, orderIndex])
   @@index([isPublished])
@@ -768,4 +776,51 @@ model LessonProgress {
   @@unique([userId, lessonId])
   @@index([userId])
   @@map("lesson_progress")
+}
+
+enum LessonQuestionRole {
+  // an approved MCQ the student must answer correctly to pass the lesson
+  CHECK
+  // an approved, verified coding problem offered as "Practice what you just learned"
+  PRACTICE
+
+  @@map("lesson_question_role")
+}
+
+/// Phase 18 - a question an admin deliberately attached to a lesson (not a topic
+/// filter). Knowledge checks reuse the MCQ question model and its grading; practice
+/// problems reuse coding questions and the normal Practice workspace.
+model LessonQuestion {
+  id         String             @id @default(uuid()) @db.Uuid
+  lessonId   String             @map("lesson_id") @db.Uuid
+  lesson     Lesson             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questionId String             @map("question_id") @db.Uuid
+  question   Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  role       LessonQuestionRole
+  orderIndex Int                @default(0) @map("order_index")
+
+  @@unique([lessonId, questionId])
+  @@index([questionId])
+  @@map("lesson_questions")
+}
+
+/// Phase 18 - a student's latest answer to one knowledge check, graded on the server.
+/// Retries overwrite it (attemptCount keeps the history count); once correct it is
+/// kept, so passing a lesson can't be undone by a later click.
+model LessonCheckResponse {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId          String   @map("lesson_id") @db.Uuid
+  lesson            Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questionId        String   @map("question_id") @db.Uuid
+  question          Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionIds String[] @map("selected_option_ids") @db.Uuid
+  isCorrect         Boolean  @map("is_correct")
+  attemptCount      Int      @default(1) @map("attempt_count")
+  answeredAt        DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
+
+  @@unique([userId, lessonId, questionId])
+  @@index([lessonId])
+  @@map("lesson_check_responses")
 }

@@ -13,12 +13,24 @@ export const LessonFieldsSchema = z.object({
   commonMistakes: z.string().trim().max(5000).optional(),
   orderIndex: z.number().int().min(0).optional(),
   isPublished: z.boolean().optional(),
+  // Phase 18 — "What you'll learn" outcomes, and questions deliberately attached to the
+  // lesson: approved MCQs as knowledge checks, approved + verified coding problems as
+  // "Practice what you just learned". Server-side checks enforce type/approval/verification.
+  objectives: z.array(z.string().trim().min(1).max(200)).max(8).optional(),
+  checkQuestionIds: z.array(z.string().uuid()).max(10).optional(),
+  practiceQuestionIds: z.array(z.string().uuid()).max(10).optional(),
 });
 
-export const CreateLessonSchema = LessonFieldsSchema;
+const noDuplicateLinks = (data: { checkQuestionIds?: string[]; practiceQuestionIds?: string[] }) => {
+  const all = [...(data.checkQuestionIds ?? []), ...(data.practiceQuestionIds ?? [])];
+  return new Set(all).size === all.length;
+};
+const noDuplicateLinksMessage = { message: 'A question can only be attached to a lesson once', path: ['checkQuestionIds'] };
+
+export const CreateLessonSchema = LessonFieldsSchema.refine(noDuplicateLinks, noDuplicateLinksMessage);
 export type CreateLessonInput = z.infer<typeof CreateLessonSchema>;
 
-export const UpdateLessonSchema = LessonFieldsSchema.partial();
+export const UpdateLessonSchema = LessonFieldsSchema.partial().refine(noDuplicateLinks, noDuplicateLinksMessage);
 export type UpdateLessonInput = z.infer<typeof UpdateLessonSchema>;
 
 // Admin list — same filter/pagination shape as ListQuestionsQuerySchema.
@@ -30,3 +42,9 @@ export const ListLessonsQuerySchema = z.object({
   isPublished: z.coerce.boolean().optional(),
 });
 export type ListLessonsQueryInput = z.infer<typeof ListLessonsQuerySchema>;
+
+// Phase 18 — a student's answer to one knowledge check (graded on the server).
+export const AnswerLessonCheckSchema = z.object({
+  optionIds: z.array(z.string().uuid()).min(1).max(8),
+});
+export type AnswerLessonCheckInput = z.infer<typeof AnswerLessonCheckSchema>;

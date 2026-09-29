@@ -43,7 +43,7 @@ export function PracticeLandingPage() {
     : [];
   const topicsToShow = progress ? (showAllTopics ? progress.byTopic : progress.byTopic.slice(0, TOPIC_PREVIEW_COUNT)) : [];
   const weakAreas = progress ? resolveWeakAreas(progress.byTopic) : [];
-  const topicsWithLessons = learnProgress ? new Set(learnProgress.byTopic.map((t) => t.topic)) : undefined;
+  const lessonsByTopic = learnProgress ? new Map(learnProgress.byTopic.map((t) => [t.topic, t])) : undefined;
 
   return (
     <div className="dashboard-body">
@@ -135,7 +135,7 @@ export function PracticeLandingPage() {
               )}
             </div>
 
-            {weakAreas.length > 0 && <WeakAreasCard areas={weakAreas} topicsWithLessons={topicsWithLessons} />}
+            {weakAreas.length > 0 && <WeakAreasCard areas={weakAreas} lessonsByTopic={lessonsByTopic} />}
 
             {progress.byTopic.length > 0 && (
               <div className="card">

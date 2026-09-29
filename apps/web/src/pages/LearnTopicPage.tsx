@@ -74,10 +74,19 @@ export function LearnTopicPage() {
                       {l.title}
                     </span>
                     <span style={{ fontSize: 'var(--text-label)', color: 'var(--color-muted)' }}>{l.summary}</span>
+                    {l.checksTotal > 0 && (
+                      <span style={{ display: 'block', fontSize: 'var(--text-label)', color: 'var(--color-muted)' }}>
+                        {l.checksTotal} knowledge check{l.checksTotal === 1 ? '' : 's'}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <span className={`exam-status-pill ${l.completed ? 'pass' : 'pending'}`}>
-                  {l.completed ? 'Completed' : 'Not started'}
+                  {l.completed
+                    ? 'Completed'
+                    : l.checksPassed > 0
+                      ? `${l.checksPassed}/${l.checksTotal} checks passed`
+                      : 'Not started'}
                 </span>
               </Link>
             ))}

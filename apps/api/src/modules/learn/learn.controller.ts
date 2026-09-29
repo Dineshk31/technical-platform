@@ -1,7 +1,8 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import type { AuthenticatedUser } from '@technical-platform/shared';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { AnswerLessonCheckSchema, type AnswerLessonCheckInput, type AuthenticatedUser } from '@technical-platform/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { LearnService } from './learn.service.js';
 
 // STUDENT-only read + progress surface, same role split as PracticeController
@@ -27,6 +28,19 @@ export class LearnController {
   @Get('lessons/:id')
   getLesson(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.learn.getLesson(user.id, id);
+  }
+
+  // Phase 18 — server-graded knowledge check; the caller's own answer only.
+  @Roles('STUDENT')
+  @Post('lessons/:id/checks/:questionId/answer')
+  @HttpCode(HttpStatus.OK)
+  answerCheck(
+    @Param('id') id: string,
+    @Param('questionId') questionId: string,
+    @Body(new ZodValidationPipe(AnswerLessonCheckSchema)) body: AnswerLessonCheckInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.learn.answerCheck(user.id, id, questionId, body);
   }
 
   @Roles('STUDENT')

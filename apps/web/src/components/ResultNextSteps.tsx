@@ -13,6 +13,7 @@ interface TopicPlan {
   topic: TopicResultDto;
   lessonCount: number;
   lessonsCompleted: number;
+  nextLessonId: string | null;
   problems: PracticeQuestionListItem[];
 }
 
@@ -46,6 +47,7 @@ export function ResultNextSteps({ topics }: { topics: TopicResultDto[] }) {
             topic,
             lessonCount: lessonsByTopic.get(topic.topic)?.total ?? 0,
             lessonsCompleted: lessonsByTopic.get(topic.topic)?.completed ?? 0,
+            nextLessonId: lessonsByTopic.get(topic.topic)?.nextLessonId ?? null,
             problems: res.status === 'fulfilled' ? res.value.data : [],
           };
         }),
@@ -90,7 +92,7 @@ export function ResultNextSteps({ topics }: { topics: TopicResultDto[] }) {
       {!plans ? (
         <LoadingRow label="Finding lessons and problems…" />
       ) : (
-        plans.map(({ topic, lessonCount, lessonsCompleted, problems }) => (
+        plans.map(({ topic, lessonCount, lessonsCompleted, nextLessonId, problems }) => (
           <div key={topic.topic} className="assessment-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ minWidth: 0, flex: '1 1 260px' }}>
               <p className="assessment-row-title">{topic.topic}</p>
@@ -116,7 +118,13 @@ export function ResultNextSteps({ topics }: { topics: TopicResultDto[] }) {
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {lessonCount > 0 && (
-                <Link to={`/student/learn/${encodeURIComponent(topic.topic)}`}>
+                <Link
+                  to={
+                    nextLessonId
+                      ? `/student/learn/${encodeURIComponent(topic.topic)}/lessons/${nextLessonId}`
+                      : `/student/learn/${encodeURIComponent(topic.topic)}`
+                  }
+                >
                   <button className="btn-secondary btn-small">
                     <BookOpen size={14} /> {lessonsCompleted >= lessonCount ? 'Review' : 'Learn'} {topic.topic}
                   </button>
