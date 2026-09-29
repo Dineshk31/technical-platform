@@ -20,7 +20,10 @@ export function ExecutionResultPanel({ title, result, marks }: { title: string; 
     <div className="exam-run-results">
       <div className="exam-run-summary">
         <strong style={{ fontSize: '0.8rem' }}>{title}</strong>
-        <span className={`exam-status-pill ${statusPillClass(result.status)}`}>{RUN_STATUS_LABELS[result.status]}</span>
+        <span className={`exam-status-pill ${statusPillClass(result.status)}`}>
+          {/* A graded Submit is judged on hidden tests too, so "all public tests" would undersell it. */}
+          {isGraded && result.status === 'ACCEPTED' ? 'Accepted — all tests passed' : RUN_STATUS_LABELS[result.status]}
+        </span>
         {!compileFailed && (
           <span style={{ color: 'var(--color-muted)' }}>
             {result.testsPassed} / {result.testsTotal} tests passed
