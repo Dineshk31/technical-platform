@@ -156,7 +156,7 @@ describe('Learn: lessons, knowledge checks and practice (e2e)', () => {
     request(server).post(`/api/v1/learn/lessons/${id}/checks/${questionId}/answer`).set('Authorization', `Bearer ${token}`).send({ optionIds });
 
   describe('admin attach rules', () => {
-    it('only accepts approved MCQs as checks and approved, verified coding problems as practice (422 otherwise)', async () => {
+    it('on a published lesson, only accepts approved MCQs as checks and approved, verified coding problems as practice (422 otherwise)', async () => {
       const pendingMcq = await createMcq('SINGLE_CHOICE', [{ optionText: 'a', isCorrect: true }, { optionText: 'b', isCorrect: false }], false);
       const brokenCoding = await createCoding('print(0)');
       expect((await waitForVerification(server, adminToken, brokenCoding)).status).toBe('FAILED');
@@ -180,6 +180,33 @@ describe('Learn: lessons, knowledge checks and practice (e2e)', () => {
       expect(detail.body.checks.map((c: { questionId: string }) => c.questionId)).toEqual([singleCheck.id, multiCheck.id]);
       expect(detail.body.practice).toEqual([expect.objectContaining({ questionId: verifiedCoding, verificationStatus: 'PASSED' })]);
       expect(detail.body.objectives).toEqual(['Explain zero-based indexing', 'Know why index access is O(1)']);
+    }, 60_000);
+
+    it('lets a DRAFT lesson hold a pending check for review, but refuses to publish it until the check is approved', async () => {
+      const pendingMcq = await createMcq('SINGLE_CHOICE', [{ optionText: 'x', isCorrect: true }, { optionText: 'y', isCorrect: false }], false);
+      const brokenCoding = await createCoding('print(1)');
+      await waitForVerification(server, adminToken, brokenCoding);
+
+      const draft = await request(server)
+        .post('/api/v1/lessons')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ topic: 'Arrays', title: `Review Together ${runId}`, summary: 's', concept: 'c', checkQuestionIds: [pendingMcq.id] });
+      expect(draft.status).toBe(201);
+      lessonIds.push(draft.body.id);
+      expect(draft.body.checks[0]).toMatchObject({ questionId: pendingMcq.id, approvalStatus: 'PENDING_REVIEW' });
+
+      // Verification is never relaxed, even for drafts.
+      const unverified = await request(server).patch(`/api/v1/lessons/${draft.body.id}`).set('Authorization', `Bearer ${adminToken}`).send({ practiceQuestionIds: [brokenCoding] });
+      expect(unverified.status).toBe(422);
+
+      const publish = await request(server).patch(`/api/v1/lessons/${draft.body.id}`).set('Authorization', `Bearer ${adminToken}`).send({ isPublished: true });
+      expect(publish.status).toBe(422);
+      expect(JSON.stringify(publish.body)).toContain('approve it before publishing');
+
+      await request(server).post(`/api/v1/questions/${pendingMcq.id}/review`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'APPROVED' });
+      const published = await request(server).patch(`/api/v1/lessons/${draft.body.id}`).set('Authorization', `Bearer ${adminToken}`).send({ isPublished: true });
+      expect(published.status).toBe(200);
+      expect(published.body.isPublished).toBe(true);
     }, 60_000);
 
     it('rejects attaching the same question twice (400)', async () => {

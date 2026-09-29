@@ -32,9 +32,11 @@ type LinkIssue = { field: 'checkQuestionIds' | 'practiceQuestionIds'; issue: str
  * (see docs/PHASE_16_LEARN_ARCHITECTURE_AUDIT.md §6).
  *
  * Phase 18: lessons also carry learning objectives and deliberately attached
- * questions — approved MCQs as knowledge checks, approved + *verified* coding problems
- * as practice. Those rules are enforced here on every save, and re-checked when a
- * lesson is published so a link that has since gone stale can't go live.
+ * questions — MCQs as knowledge checks, *verified* coding problems as practice.
+ * A draft may reference questions still awaiting review (so a lesson and its new
+ * questions can be reviewed together); publishing — and every save of a published
+ * lesson — requires each attached question to be approved. Practice problems must
+ * pass reference-solution verification at all times.
  */
 @Injectable()
 export class LessonsService {
@@ -43,7 +45,7 @@ export class LessonsService {
   async create(adminId: string, input: CreateLessonInput) {
     const checkIds = input.checkQuestionIds ?? [];
     const practiceIds = input.practiceQuestionIds ?? [];
-    await this.assertLinksValid(checkIds, practiceIds);
+    await this.assertLinksValid(checkIds, practiceIds, { requireApproved: input.isPublished ?? false });
 
     const orderIndex = input.orderIndex ?? (await this.prisma.lesson.count({ where: { topic: input.topic } }));
     const lesson = await this.prisma.lesson.create({
@@ -113,7 +115,7 @@ export class LessonsService {
 
     // Validate whatever is changing, and everything when the lesson is (or stays) live —
     // a practice problem that was edited and lost its verification must not stay public.
-    if (linksChanged || publishing) await this.assertLinksValid(checkIds, practiceIds);
+    if (linksChanged || publishing) await this.assertLinksValid(checkIds, practiceIds, { requireApproved: publishing });
 
     await this.prisma.$transaction(async (tx) => {
       await tx.lesson.update({
@@ -145,9 +147,10 @@ export class LessonsService {
     await this.prisma.lesson.delete({ where: { id } });
   }
 
-  /** Knowledge checks must be approved MCQs; practice problems must be approved coding
-   * problems whose reference solutions passed verification (Phase 18 quality gate). */
-  private async assertLinksValid(checkIds: string[], practiceIds: string[]): Promise<void> {
+  /** Knowledge checks must be MCQs and practice problems coding problems whose reference
+   * solutions passed verification (Phase 18 quality gate). A live lesson additionally
+   * requires every attached question to be approved; rejected ones are never allowed. */
+  private async assertLinksValid(checkIds: string[], practiceIds: string[], opts: { requireApproved: boolean }): Promise<void> {
     const ids = [...checkIds, ...practiceIds];
     if (ids.length === 0) return;
     const questions = await this.prisma.question.findMany({
@@ -167,7 +170,7 @@ export class LessonsService {
       const q = byId.get(id);
       if (!q) details.push({ field: 'checkQuestionIds', issue: `question ${id} does not exist` });
       else if (q.type !== 'MCQ') details.push({ field: 'checkQuestionIds', issue: `"${q.title}" is not an MCQ — knowledge checks must be MCQs` });
-      else if (q.approvalStatus !== 'APPROVED') details.push({ field: 'checkQuestionIds', issue: `"${q.title}" is not approved yet` });
+      else if (!approvalOk(q.approvalStatus, opts.requireApproved)) details.push({ field: 'checkQuestionIds', issue: approvalIssue(q.title, q.approvalStatus) });
     }
     for (const id of practiceIds) {
       const q = byId.get(id);
@@ -179,7 +182,7 @@ export class LessonsService {
         details.push({ field: 'practiceQuestionIds', issue: `"${q.title}" is not a coding problem` });
         continue;
       }
-      if (q.approvalStatus !== 'APPROVED') details.push({ field: 'practiceQuestionIds', issue: `"${q.title}" is not approved yet` });
+      if (!approvalOk(q.approvalStatus, opts.requireApproved)) details.push({ field: 'practiceQuestionIds', issue: approvalIssue(q.title, q.approvalStatus) });
       const verification = questionVerificationStatus(
         (q.codingQuestion?.referenceSolutions ?? []).map((rs) => solutionVerificationStatus(rs.verificationSubmission)),
       );
@@ -194,6 +197,17 @@ export class LessonsService {
       });
     }
   }
+}
+
+/** Drafts may hold questions still in review; only a rejected one is never attachable. */
+function approvalOk(status: string, requireApproved: boolean): boolean {
+  return requireApproved ? status === 'APPROVED' : status !== 'REJECTED';
+}
+
+function approvalIssue(title: string, status: string): string {
+  return status === 'REJECTED'
+    ? `"${title}" was rejected in review`
+    : `"${title}" is not approved yet — approve it before publishing this lesson`;
 }
 
 function toLinkRows(checkIds: string[], practiceIds: string[]) {

@@ -24,7 +24,8 @@ const MAX_OBJECTIVES = 8;
 
 /** Why an attached question would be refused by the server right now (Phase 18 rules). */
 function linkProblem(q: LessonLinkedQuestion, role: 'CHECK' | 'PRACTICE'): string | undefined {
-  if (q.approvalStatus !== 'APPROVED') return 'No longer approved — remove it or re-approve it in the Question Bank.';
+  if (q.approvalStatus === 'REJECTED') return 'Rejected in review — remove it.';
+  if (q.approvalStatus !== 'APPROVED') return 'Awaiting approval — approve it in the Question Bank before publishing.';
   if (role === 'PRACTICE' && q.verificationStatus !== 'PASSED') {
     return 'Its reference solution is no longer verified — re-verify it in the Question Bank or remove it.';
   }
@@ -177,7 +178,7 @@ export function AdminLessonFormPage() {
         { ok: saved.objectives.length > 0, label: 'Learning objectives written', required: false },
         { ok: saved.checks.length > 0, label: 'At least one knowledge check attached', required: false },
         { ok: saved.practice.length > 0, label: 'Practice problems attached', required: false },
-        { ok: staleLinks.length === 0, label: 'Every attached question is approved (and practice problems verified)', required: true },
+        { ok: staleLinks.length === 0, label: 'Every attached question approved, and every practice problem verified', required: true },
       ]
     : [];
   const blocked = checklist.some((c) => c.required && !c.ok);
@@ -275,8 +276,8 @@ export function AdminLessonFormPage() {
           <div className="form-section">
             <h3>6. Knowledge checks</h3>
             <p className="field-hint" style={{ marginTop: 0 }}>
-              Approved MCQs the student must answer correctly to complete the lesson. Graded on the server; the explanation is shown
-              after they answer.
+              MCQs the student must answer correctly to complete the lesson. Graded on the server; the explanation is shown after they
+              answer. Questions still in review can be attached to a draft — approve them before publishing.
             </p>
             <LessonQuestionPicker kind="CHECK" topic={topic} picked={checks} onChange={setChecks} />
           </div>

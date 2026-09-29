@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { listQuestions, type QuestionListItem } from '../lib/questions-api';
 import { VerificationBadge } from './VerificationPanel';
+import { ApprovalBadge } from './ApprovalBadge';
 
 export interface PickedQuestion {
   questionId: string;
@@ -14,9 +15,10 @@ export interface PickedQuestion {
 
 /**
  * Deliberately attaches specific questions to a lesson (Phase 18) — never a topic
- * filter. `kind="CHECK"` offers approved MCQs as knowledge checks; `kind="PRACTICE"`
- * offers approved coding problems and only lets verified ones be added, showing why
- * the others can't. The server enforces the same rules; this just explains them.
+ * filter. `kind="CHECK"` offers MCQs as knowledge checks; `kind="PRACTICE"` offers
+ * coding problems and only lets verified ones be added, showing why the others can't.
+ * Questions still in review can be attached to a draft (and reviewed together with
+ * it); publishing needs them approved. Rejected questions are never offered.
  */
 export function LessonQuestionPicker({
   kind,
@@ -39,12 +41,11 @@ export function LessonQuestionPicker({
     let cancelled = false;
     listQuestions({
       type: kind === 'CHECK' ? 'MCQ' : 'CODING',
-      approvalStatus: 'APPROVED',
       topic: allTopics ? undefined : topic,
       pageSize: 100,
       sort: 'easiest',
     })
-      .then((r) => !cancelled && setCandidates(r.data))
+      .then((r) => !cancelled && setCandidates(r.data.filter((q) => q.approvalStatus !== 'REJECTED')))
       .catch((err) => !cancelled && setError(err instanceof ApiError ? err.message : 'Failed to load questions'));
     return () => {
       cancelled = true;
@@ -53,7 +54,7 @@ export function LessonQuestionPicker({
 
   const pickedIds = new Set(picked.map((p) => p.questionId));
   const available = (candidates ?? []).filter((q) => !pickedIds.has(q.id));
-  const noun = kind === 'CHECK' ? 'approved MCQs' : 'approved coding problems';
+  const noun = kind === 'CHECK' ? 'MCQs' : 'coding problems';
 
   function move(index: number, delta: number) {
     const next = [...picked];
@@ -104,7 +105,7 @@ export function LessonQuestionPicker({
       {candidates && available.length === 0 && (
         <p className="field-hint">
           No other {noun} {allTopics ? '' : `tagged ${topic} `}yet
-          {kind === 'CHECK' ? ' — create and approve an MCQ in the Question Bank first.' : ' — create, verify and approve one in the Question Bank first.'}
+          {kind === 'CHECK' ? ' — create an MCQ in the Question Bank first.' : ' — create and verify one in the Question Bank first.'}
         </p>
       )}
       {available.length > 0 && (
@@ -116,6 +117,11 @@ export function LessonQuestionPicker({
                 <div style={{ minWidth: 0 }}>
                   <span>{q.title}</span>
                   <span className="activity-row-meta"> · {q.difficulty}</span>
+                  {q.approvalStatus !== 'APPROVED' && (
+                    <span style={{ marginLeft: '0.4rem' }}>
+                      <ApprovalBadge status={q.approvalStatus} />
+                    </span>
+                  )}
                   {kind === 'PRACTICE' && q.verificationStatus && (
                     <span style={{ marginLeft: '0.4rem' }}>
                       <VerificationBadge status={q.verificationStatus} />
