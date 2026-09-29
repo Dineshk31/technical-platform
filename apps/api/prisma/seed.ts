@@ -72,10 +72,12 @@ async function seedSampleCodingQuestion(): Promise<void> {
       createdById: admin.id,
       codingQuestion: {
         create: {
+          // Output is compared exactly, so the order must be pinned down: "in any order"
+          // would mark a correct "1 0" as Wrong Answer.
           problemStatement:
-            'Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target.',
+            'Given an array of integers nums and an integer target, return the indices of the two numbers that add up to target. The same position may not be used twice.',
           inputFormat: 'First line: n and target. Second line: n space-separated integers.',
-          outputFormat: 'Two space-separated indices (0-based), in any order.',
+          outputFormat: 'Two space-separated indices (0-based), smaller index first.',
           constraints: ['2 <= n <= 10^4', '-10^9 <= nums[i] <= 10^9', 'Exactly one valid answer exists'],
           examples: [{ input: '4 9\n2 7 11 15', output: '0 1', explanation: 'nums[0] + nums[1] == 9' }],
           timeLimitSeconds: 2,
@@ -85,6 +87,23 @@ async function seedSampleCodingQuestion(): Promise<void> {
             create: [
               { isHidden: false, input: '4 9\n2 7 11 15', expectedOutput: '0 1', orderIndex: 0 },
               { isHidden: true, input: '3 6\n3 2 4', expectedOutput: '1 2', orderIndex: 1 },
+              { isHidden: true, input: '2 6\n3 3', expectedOutput: '0 1', orderIndex: 2 },
+              { isHidden: true, input: '5 -10\n-4 10 1 -6 8', expectedOutput: '0 3', orderIndex: 3 },
+              { isHidden: true, input: '4 0\n5 0 1 0', expectedOutput: '1 3', orderIndex: 4 },
+            ],
+          },
+          // Seeded directly, so never run by the verification gate: the Question Bank shows
+          // it as unverified until an admin presses Verify (it passes all 5 tests).
+          referenceSolutions: {
+            create: [
+              {
+                language: 'PYTHON',
+                code: 'n, target = map(int, input().split())\nnums = list(map(int, input().split()))\nseen = {}\nfor j, x in enumerate(nums):\n    if target - x in seen:\n        print(seen[target - x], j)\n        break\n    seen[x] = j',
+              },
+              {
+                language: 'CPP',
+                code: '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n;\n    long long target;\n    cin >> n >> target;\n    unordered_map<long long, int> seen;\n    for (int j = 0; j < n; j++) {\n        long long x;\n        cin >> x;\n        auto it = seen.find(target - x);\n        if (it != seen.end()) {\n            cout << it->second << " " << j << "\\n";\n            return 0;\n        }\n        seen[x] = j;\n    }\n    return 0;\n}',
+              },
             ],
           },
         },

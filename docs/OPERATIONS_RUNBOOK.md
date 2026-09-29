@@ -111,6 +111,10 @@ npm run content:load -w @technical-platform/api -- content/arrays-track.json
 - Re-running is safe: items whose title already exists are reused, not duplicated.
 - Credentials are read from the environment only — never commit them to a content file.
 
+Tracks available: `arrays-track.json`, `strings-track.json`, `hashing-track.json`.
+
+**Environments seeded before 2026-09-29: the sample "Two Sum" question.** The seed used to say the two indices could be printed "in any order", but output is compared exactly, so a correct `1 0` would be judged Wrong Answer against `0 1`. It also had no reference solution, so it could never be verified. The seed now asks for the smaller index first and includes reference solutions. On an existing environment, if Two Sum isn't used by a published assessment, edit its output format to "smaller index first" in the Question Bank, add a reference solution and press Verify. If it is (it then can't be edited), leave it and prefer **Pair with Target Sum** from the Hashing track for new assessments.
+
 ## Gemini (AI generation) troubleshooting
 
 **Symptom: "AI provider not configured" for every generation attempt.**
