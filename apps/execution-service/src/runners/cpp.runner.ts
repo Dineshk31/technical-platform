@@ -1,8 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { minimalChildEnv, runProcess } from '../process/process-executor.js';
-import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunOptions, type RunResult } from '../sandbox/sandbox.interface.js';
-import { sanitizeErrorText } from '../sandbox/sanitize.js';
+import { classifyCompileResult, classifyProcessResult, type CompileResult, type LanguageRunner, type RunOptions, type RunResult } from '../sandbox/sandbox.interface.js';
 
 const SOURCE_FILE = 'source.cpp';
 const EXE_FILE = process.platform === 'win32' ? 'program.exe' : 'program';
@@ -27,18 +26,11 @@ export class CppRunner implements LanguageRunner {
       env: { PATH: process.env.PATH ?? '' },
     });
 
-    if (result.spawnError) {
-      return {
-        success: false,
-        internal: true,
-        errorMessage:
-          'The C++ compiler is not available on the execution host. Set CPP_COMPILER_PATH to a valid g++ installation.',
-      };
-    }
-    if (result.exitCode !== 0) {
-      return { success: false, errorMessage: sanitizeErrorText(result.stderr || 'Compilation failed', workDir) };
-    }
-    return { success: true };
+    return classifyCompileResult(result, workDir, {
+      unavailableMessage:
+        'The C++ compiler is not available on the execution host. Set CPP_COMPILER_PATH to a valid g++ installation.',
+      timeoutMs,
+    });
   }
 
   async run(workDir: string, stdin: string, options: RunOptions): Promise<RunResult> {

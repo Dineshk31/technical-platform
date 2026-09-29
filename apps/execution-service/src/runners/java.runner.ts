@@ -1,8 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { minimalChildEnv, runProcess } from '../process/process-executor.js';
-import { classifyProcessResult, type CompileResult, type LanguageRunner, type RunOptions, type RunResult } from '../sandbox/sandbox.interface.js';
-import { sanitizeErrorText } from '../sandbox/sanitize.js';
+import { classifyCompileResult, classifyProcessResult, type CompileResult, type LanguageRunner, type RunOptions, type RunResult } from '../sandbox/sandbox.interface.js';
 
 const DEFAULT_CLASS_NAME = 'Main';
 
@@ -44,17 +43,11 @@ export class JavaRunner implements LanguageRunner {
       env: { PATH: process.env.PATH ?? '' },
     });
 
-    if (result.spawnError) {
-      return {
-        success: false,
-        internal: true,
-        errorMessage: 'The Java compiler is not available on the execution host. Set JAVA_HOME or JAVAC_PATH.',
-      };
-    }
-    if (result.exitCode !== 0) {
-      return { success: false, errorMessage: sanitizeErrorText(result.stderr || 'Compilation failed', workDir) };
-    }
-    return { success: true };
+    return classifyCompileResult(result, workDir, {
+      unavailableMessage:
+        'The Java compiler is not available on the execution host. Set JAVA_HOME or JAVAC_PATH.',
+      timeoutMs,
+    });
   }
 
   async run(workDir: string, stdin: string, options: RunOptions): Promise<RunResult> {

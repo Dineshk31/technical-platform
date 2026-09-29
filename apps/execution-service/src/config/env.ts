@@ -37,7 +37,10 @@ const EnvSchema = z.object({
   // This dev machine's `python3` is a Windows Store alias stub — see docs/architecture.md §0.
   PYTHON_PATH: z.string().min(1).default('python'),
 
-  COMPILE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  // A cold g++ compile of <bits/stdc++.h> takes ~7s on a Windows dev box (~3s warm);
+  // 20s leaves headroom under load. A timeout is retried as an infra failure, never
+  // reported as a compilation error (see classifyCompileResult).
+  COMPILE_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
   // Added on top of the question's own time_limit_seconds to absorb JVM/interpreter
   // startup cost so a correct solution isn't falsely flagged TIME_LIMIT_EXCEEDED.
   RUNTIME_GRACE_MS: z.coerce.number().int().nonnegative().default(1_000),

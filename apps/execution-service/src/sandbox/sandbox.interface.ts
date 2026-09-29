@@ -122,3 +122,27 @@ export function classifyProcessResult(result: ProcessRunResult, workDir: string)
     memoryKb: null,
   };
 }
+
+/**
+ * Maps a compiler process result to a CompileResult. Only a compiler that ran to
+ * completion and rejected the code is a student-facing compilation error. A compiler
+ * that couldn't start (spawnError) or was killed at the time limit (timedOut) is an
+ * execution-host problem: it's marked `internal`, so the worker retries the job and,
+ * if that fails too, reports INTERNAL_ERROR ("please try again") instead of telling
+ * the student their valid code doesn't compile. On Windows a cold `bits/stdc++.h`
+ * compile alone can take several seconds, so a loaded host really can hit the limit.
+ */
+export function classifyCompileResult(
+  result: Pick<ProcessRunResult, 'spawnError' | 'timedOut' | 'exitCode' | 'stderr'>,
+  workDir: string,
+  opts: { unavailableMessage: string; timeoutMs: number },
+): CompileResult {
+  if (result.spawnError) return { success: false, internal: true, errorMessage: opts.unavailableMessage };
+  if (result.timedOut) {
+    return { success: false, internal: true, errorMessage: `Compilation did not finish within ${opts.timeoutMs} ms on the execution host` };
+  }
+  if (result.exitCode !== 0) {
+    return { success: false, errorMessage: sanitizeErrorText(result.stderr || 'Compilation failed', workDir) };
+  }
+  return { success: true };
+}
