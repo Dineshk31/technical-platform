@@ -93,6 +93,24 @@ If a request to the API times out entirely (not even an error response), the pro
 **Symptom: submissions are slow / a backlog is building up during a live exam.**
 - Expected under load by design: the execution service processes **one job at a time** (see `docs/PRODUCT_GUIDE.md` §8 and `docs/PRODUCTION_READINESS.md`). If a class-wide exam consistently produces a backlog, that's the signal to add a **second execution-service worker process** (the job queue already supports safe concurrent claiming — this is a scaling change, not a bug fix) rather than trying to speed up any single job.
 
+**Symptom: occasional C++/Java `INTERNAL_ERROR` on code that compiles fine locally.**
+- The log shows `Compilation did not finish within <n> ms on the execution host`. The compiler was killed at `COMPILE_TIMEOUT_MS` (default 20 000 ms) because the host was busy — a cold `g++` compile of `<bits/stdc++.h>` alone takes several seconds. The job is retried once automatically; it is never reported to the student as a compilation error. If it happens regularly, raise `COMPILE_TIMEOUT_MS` in the execution service's `.env` or reduce load on the host.
+
+## Loading curriculum content
+
+Curriculum tracks live in `apps/api/content/` (e.g. `arrays-track.json`: lessons, knowledge-check MCQs and coding problems with tests and reference solutions). Load one into any environment through the admin API:
+
+```bash
+API_URL=https://<host>/api/v1 \
+CONTENT_ADMIN_EMAIL=<admin email> CONTENT_ADMIN_PASSWORD=<admin password> \
+npm run content:load -w @technical-platform/api -- content/arrays-track.json
+```
+
+- Everything goes through the normal gates: problems are verified in the real execution service, and the script reports any that fail.
+- **Nothing is approved or published.** Questions arrive as `PENDING_REVIEW` and lessons as drafts; an admin reviews them in the Question Bank, then publishes each lesson from **Lessons → Review & publish**.
+- Re-running is safe: items whose title already exists are reused, not duplicated.
+- Credentials are read from the environment only — never commit them to a content file.
+
 ## Gemini (AI generation) troubleshooting
 
 **Symptom: "AI provider not configured" for every generation attempt.**
