@@ -1,0 +1,742 @@
+{
+  "topic": "Strings",
+  "description": "Strings track: 4 lessons, 10 knowledge checks, 5 practice problems.",
+  "coding": [
+    {
+      "title": "Reverse a String",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "fundamentals"
+      ],
+      "marks": 10,
+      "problemStatement": "Given a string s consisting of lowercase letters, print the string reversed.",
+      "inputFormat": "A single line containing the string s.",
+      "outputFormat": "The reversed string.",
+      "constraints": [
+        "1 <= length of s <= 1000",
+        "s contains only lowercase English letters"
+      ],
+      "examples": [
+        {
+          "input": "hello",
+          "output": "olleh"
+        }
+      ],
+      "timeLimitSeconds": 2,
+      "memoryLimitMb": 256,
+      "supportedLanguages": [
+        "PYTHON"
+      ],
+      "publicTestCases": [
+        {
+          "input": "hello",
+          "expectedOutput": "olleh"
+        },
+        {
+          "input": "abcd",
+          "expectedOutput": "dcba"
+        }
+      ],
+      "hiddenTestCases": [
+        {
+          "input": "a",
+          "expectedOutput": "a"
+        },
+        {
+          "input": "racecar",
+          "expectedOutput": "racecar"
+        }
+      ],
+      "referenceSolutions": {
+        "PYTHON": "s = input()\nprint(s[::-1])"
+      },
+      "starterTemplates": {}
+    },
+    {
+      "title": "Character Frequency",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings",
+        "Hashing"
+      ],
+      "problemStatement": "You are given a string of lowercase English letters. For every letter that appears in it, print the letter and how many times it appears, in alphabetical order.\n\nOne pass with a 26-slot counting array (or a dictionary) is enough — no sorting of the string needed.",
+      "inputFormat": "A single line containing the string s.",
+      "outputFormat": "One line per distinct letter, in alphabetical order: the letter, a space, and its count.",
+      "constraints": [
+        "1 <= length of s <= 15000",
+        "s contains only lowercase letters a-z"
+      ],
+      "examples": [
+        {
+          "input": "banana",
+          "output": "a 3\nb 1\nn 2",
+          "explanation": "'a' appears 3 times, 'b' once and 'n' twice; letters are listed alphabetically."
+        }
+      ],
+      "publicTestCases": [
+        {
+          "input": "banana",
+          "expectedOutput": "a 3\nb 1\nn 2"
+        },
+        {
+          "input": "z",
+          "expectedOutput": "z 1"
+        }
+      ],
+      "hiddenTestCases": [
+        {
+          "input": "aaaaaaaaaa",
+          "expectedOutput": "a 10"
+        },
+        {
+          "input": "zyxwvutsrqponmlkjihgfedcba",
+          "expectedOutput": "a 1\nb 1\nc 1\nd 1\ne 1\nf 1\ng 1\nh 1\ni 1\nj 1\nk 1\nl 1\nm 1\nn 1\no 1\np 1\nq 1\nr 1\ns 1\nt 1\nu 1\nv 1\nw 1\nx 1\ny 1\nz 1"
+        },
+        {
+          "input": "erwjcfkdatshklqhmzarityvitulkrshcpyjalyhyzwvkrkjwxkxkjcnmjmvcpglqludcrmhyzangvijmhgtormpabgrizwfcvirknqvitkvwxevivwdkdqhihazwfqfevypudwtwlofapktunotmrulktujofkpejytihgnsdcxudchynybcxwvsdwngrovqrejajotofyvunefczuluvqxehszurmtuxkzqfkjmxaxwfeledcfyjihcbabybajehynenwvcvuzsdkfmhclytezglqtibuhyjydmhctojslebyfwzizcxalcpwfutghopcpifsfghoxwfmnorkpqjijitwhyroncncpotcpifgnmlmlibgxafkrcbkpmvknyxarytkpebclodcpkvwjihgzizcrwdkdejcfctmhstirujizmxuhwtmtyzczwtspezsjwtwdmhqxstsdsbktunqhuropwtmjwnofunwvgtytwnopqjmtgduzwpytopijmdorojmlklexqlapmxedirunwnyfghqxybslwbknsnqlszujsxmpevibslktoronmjkdcfctolytiditkrynuvmbydmbszwbylcfyxqhotqrajyvypejgpmjstklidivmvqxurapczufebobmdchmnyzghwhonalwzajgvunutmxavsdivshorkpqbmryjcxglgnqfehuzcnydyhkjijgtyxglipofejgbyfmhkhsjghexexenodqxmdwrovwjupypqbedajsxslctgtidafmbqtylobytcnyxepyhqvitoduvsdgfsbqruredatcrynizqbebidqxyhovwluruvwpwdwruhojwdozitefcdatmpkbonavstapspuryvghinqbsrgdmdolstqpopwtaruxwzebulmvgzalmpozypspodgvgditqjydkpqvubirmdqpsjgdkninebizqbejopexizizsfsjmduxkjqzsdwbytwtsnmbarabgbwtopsvijmxafsfkbatkbwlafylmbehobkjiritcnyjezqfqdglgxkxsxkfuvgrgrkfopofiryxsvozkvizozirwxqbubszgvwpwledkfwlmribipmnmroxetkbqneravkfyfgxizgxyherunmxonyfankbqzcrshypyrojazofmhynuvknipkvqhkdkzankfunalyfwterwdozifalszstwvwluvgjsxytuzercbmhwdaxutkfwpqjgzqjuvexadudwpajubypqlezmtefybyvefcdqzipkxcvengrmfstqbwhkvkzqdirobafshwfulgxyporojglktyledqdododenufulgjqpwlkxqtepqfqhgxgzwlsjefobarubqfejivexcdenirkfkpqdotixyfufylspijofijafopazgrwtgxkpszurifwbifyjoditanafqjadwbohkzwvqdqnyvixgzclknydazifujcnctctonmpihwdkfopktuvexovmhkbqfabgxkdkvexatkxahofupejulcnafaxozcbcpkbmvshqrofmlezatitotajoryhehqxabqfkxmnkpwfcputelujidsvsnizsngrurobsdqtczyxgjspqdcrgletotmhsnspoxwtwfclwhwfkbwzmhexifcdkrynktgfcfolklkhohstyhuralczmlypejovgjwnofufspyrevufalavihevqryzkdefmzgvopcredqxmpuvapovqpwfqjyjwlclkxwvehapidixmrmvehelwfapmdmjwvqfgxyhcdknkfmxuzwlspkzgbmpypavgvmzcngvgbirsngjkvgnwjmxqdmhwpoxidobitmvehcfqzofyjcvsvmzgtkvyxudunwryhwnyvehkzyrezaxkbyjuzwfyrinwxsxajodydgtenwjuzyhalirkdsdqrgfefopurglalkfgfkbmxahsduvwtajqjovypgnevklqfshsdedsnozkzaxghyfqrwhsdqbgrgnsdmjshwbkjejedsnchcdgfmvqbyvazsnmtkrkvozuhohypeponcfcdodgvmxktkhsxijuxizqfulsvghatwnqhydotypgzqluhehyzsvidajixsjqxqvmxybalcpqzmrixghyhcjkbshqpapsvuzcdarqlavgrwdovaxqnobgfmnobijitshyjaxwraxarcfgdgradalixgdyfkhwvkjkvqbmrkjsforkzsxaxypylczmpyfefwhafgvapcjcbctqvqronovqhityfgpmhefavyhehudwlkxexkzkbwxmxkdatgzupyzutotizurujyxkvmtmhotydejmjulgpwlqjsxgrkvolqxidqpolavcpoxazihsxsduvoxcvehsvmnolyzglivkbuvcbydgjqnqxezqtyrydynarqlmxkvupczknodsravgtezcxqdwtgdarebwtwfsbifobwpctihulcbavodwrmxohcxaxutarefazehetkvohylohepqhetypkxqlkpcrulgxmdwpghopsbkxclqtwxaxevijgbshifwjqrypajwvwzkrgngtsvahqfsbwbcxkrejcpgbelqjurgjshyrkpudklerkrebqxqlczihizubkxwdwfahshoxgxixqjahctotojgtkfkjovsberadstadarqxizkhuxkfajidibkjqzsjkrchqrgjcrqnqrmvcxkbafmbqlspudijohsjapalstohqxwtsdyjohefqfglyninwhytmzkbqnyfepqbkvcpkneneturspchshefavwdqnaxoxktebgzezuzenitkhkhuvofopqrsbgrchezgtmfcfunuxqpatodwfivutatihudqtkzetapazmhoxixmngratmrynepwhaxwledopafsnmpwlixcpuvqhizcbmnaxaxazytgtmnojcrsjijedslexspafwtwxetihmnolmpsjyzchytotitidyxezsvkrmringxqzcfyvabgrwxajctaruxstwjevejuhcredipwdcnsxqnufevovkhqfsxqlihsrkpuzcvshezgbyvyxcfgzsfmlyhqrajevupszmfmpuhqfilklyjqbolqzwjgngfslsrytezypwhcdivodcxqdylglixupczwluxapgrkdybapizqrqjgzsbyzidormjofelovktcpynydwjsxwpudobkdsbkbkvshonkjozwpezqdkdkfufqbmlsnmxcfshuvensdkvibsrgtidajshofcbylizwfifcdmzuzujshsvwfypuhovkpehqhgtcbetovojehihebcbcfqlmjmtmjmbgxypgnyrwbchmrwvifcvmruhqhilyfqvwlgfelmfmbypwhwtqdmtydofmdidmxixinufufolmrobifcpknkpqbevcjedwzcvcvklkfwrsxapkncjkjqfwtypepczctmborormredsfqfqzmpidglgjahazuhkngnopezqrcnwjkbydsrknyjkvmlyxepghsrwlohsbibajmhinihwluzmxodqfargzkryloxwpiratwhanuvinipqlibuxilkjudufmzizuvehsjqfojihqngtsnqnotsziliravulgpubwbutalczczyhwhgxstmjklebmxwjgpqnoxmvohqburqfuzibiniripmzovoxcdkpkruhorkdezmpklipifafkbkjkbczkbgjqzepexylarqjolkjafotalqnslwjovijwvcdybglulsdifojixafmbodmtmtwjklcbmfwpczghknkpejovwfwridkvupunwvcvkxitcdwzszubuzmnwhmvyvkrwhohyxsfybmhmjgrutcnkpmrsvonwzancxopmtolqnmlerslyxipstgdmxclonijupyxgloxetmdwbanylapgfytqpgtytspufadkpezolmbafihobchejgnmtehunenajyxedifsrofoxgbulabmrklwfwpstyrqtylghkfctwjojylydoxsfyrsjinsxynapanctgpgnivkdybojijibyngvoturovuhknahchaxwnmfkngjwrkzyjspmnodofsxclyjwdgnovqturybupqxcpwzcnkrepwhetmnsdgxezujejwjqlqbsrkvghkdexmhstcrmjmlqpezypizwhqdwjmxuripudalobshgzmjuzaxalylwpmfyhixqhsnolghqdixqhgpmzetwbmdenylwhifmhqpsbydaxinynwdmbinirafetkryhifcngbwfidoxcpqjmrmhqlutsvetyvchcbghclchudafmtwduvgjefyraxqjkfolyrqpqlyxsfgpezcrmzmnsvgxsdsfitevczyvwhkpcvcjstinojwnqpgfodsfahatcpwhqlyzwrglctcrcfyxgfifulahkhapwdwroxmxezmhezkzqjkritcvqfspelexizqhwrofobmdozmnsrulqpuxsrybwzgfufubmnaxozwnojihctojijwnutahmdidobqlcdczgnitcjgpadgjodotuhwfwvylmjwrevurmnmvyjersbkvcliraxspudezivujwdidunwdmdgzovipmxitwfqrinotedyvabktqbatyvgzihonupyjynmhsrcrkpqzctkxsfmjcxmfalkpcbgvczmzmxezqrifmzwfahsfqdolsxgpyboxkrktepwvmhetenafudedwtqhujibspudilghypknapqdytorkpgpshmtwzavofkhebytsdunkhyrchojohipcnatufmletejubibargjcbgfydofytsvirwjmbcdghmbcxenibqnslwhipqfujwnsfepgjwpwlargvmjopetctyvsjglgdajadivozafaxcduxuzmtsxgdqnqlmbyhizapijcnsxmzkvcbatqlktqtyrafslopefadopsjadodczgfulgxwhqhazqhwvytqrarcboxafifwzcvwjetgraraxytirkjypupejahspunwlynupavgxshunebaretgtyjsfojevinozkpgpgnyjypkjevelyhqpoxylcbgrifedcdwtyjwjaxurshqpoxcbspuxmbytstexwfcrujyhqhwharsdyrupazknavezgvozapmtitutoronexaxmhqnsdoncvwfifsludqbwfijuvsjazwxojspchkzkdurcjsjwfwzitatqjcjajwjwjwbwdqfuvufkvuxyhstitqxqvqvkxejiraxorknivohypajcpodktspkjajctkjahermfgjixazwxqzqfsjmxyxwjalwhqpkjalongjkpuzilkhwzonmlsvergzylkrarmbkpydeholyhqvotkzyfsrsdmlohsdoxitovklqhyjirefodmzcdgpanidmlarcnincxczarszmhcfalcdatadyhkrgridwxetwzwvsninmfepgbmvirgpkvijefafijqpkjezilknuvohwdsvkzmrqjmfcpabaxgtyxylsfmdwvuhmpatofwzgbqrwtqryjupqpmnyfafsfcvghmrmbchspavuvsdenuvcxongxmhanyxixefwrajazinanqtazwbsrovcjkdmjixcxgrwlifgpuvkravyfmhsbgvipencvwhgrqzqhyxsbyvonevujefajsfspcpynklolklwfilylazuruhmrmdcpupoxmbobmxgdkfavkfsbkhadcvgbuvkvovedulkpylotqzgxolcvmlafqdmjotwpsrcrenmpctyxcxkpslenkrglozwfcxgtgdgtyzqxytghmxgnexivkxuxkjcbwbalwhmlizkrshifshwlsjihupqxgfkfchkfmfgrodajcnkbodopqjadqtkbqpyzcnixsfwhqzmvmlyvwdwnsxipcbglmtihcbixknctwjkfolklgjkdatsvirijizgbmbupcrurgtedktuvqtktkxonklknanqxgzuzsdcfujalutalmpsvwjsnixybyzonsbchonipsvqhubkxoxyhclahexefavofydedonctupqhafknmjongfsjydwvmtchanilyzcnelihoxujwzmbsbexmtuxenctafklotkrsxqpwzkncrsvqnybupixkvopavexsvepibivyfmtyvqfkdyrubkpuvspalwtahyryrwvirkxsfmvcjcpgdwbslahaxsfsjgfixizylqlypgrcbulcjitqrehylkbmhydkrotcrarazobgbktcxwnwzctsdofkjgjunehupqzmdyrydstypmjwlyxelibebkrklotgpqhmlinalqpmtwxwpcrepuhszwpwbovkbopovozubghihizgxazqdqxsvmpwrcpkpyrwtirabyrgtcpexmlgnejcfezcdojcxwzujuvavgnwjwjajqrurqjizergvetqnidmlytirahstgfuzoxazsxkbuxuvsvulsjgfmdidgjkhmfwtulqrelspsfivwzqnovgnwbmtczmzozelyjijctcnujmvaxwtolozgbadedofcjchynqlqxydaxovermfubipkvmdavydorkhupgpkjctszgfcrafmjsbynwnmtgnejivyhsnwxutizwxirsxyvsrgnwhunwnqnufuxodgrupstwparuvwvihgrgjgpcdofyvcxgdibkvqfojehkhepojqdsbgfmvidmdyfkvubefibkbidybybmxajyjuncrwhozmxizwpilexobylipkfwrkhmvqnmjwxwvctmdqjolsbmhapyvctsvuxgrexubwpmpklihwdwfutghmlmnufwdsxknqngtyjyhgjcbydypmdghubmpkbedobwxurcvapiruzercvszwbozedofenkxipwpmxmjuzgbejuxgdslqhkvohylkrkxwdefsfozkjmlapihajwhgnupsvmlunujolyvutmvyfqfypyrszududavahirevkfqvyhijgxghotyzuvmxehgnyvonclmhwtaxgrytylunslghcvajonarsdcrwhcfwzknmfqnopqjwxebynwbulsribijivmdalcbsbmzezwnkvglofgvaxahsrmnmtibwlebopanqryzevklwzcbgtahwhmjwxozyrmlajudypkjgvodyhahobubqdcnkbkxwnmnmtovybehotchwjmnwtybwvuvuhclaxkbclmhobcxepkjozmbcfynopqpspgdajgxcdsfofqrwngzylwpenujilonshshedqlmtubsrchqtklytedcbopctcnolmhwxajqbkfwfibgnctojsbmlozqpoxsnubozmridmrsdchsjsbmlixkbgxorajyzcrohutyzcnyluxopsdqtuxipmzodevmharelohczqrgpiduzyrupmhkvejkxmrcdoxqnajehsrgxujybkdsxoxapkfqlenafupefehwfefqzmlyrgzcbutetsnwtcnyjafctuxijwnyduterclqjwfejszqjwzanwtodefehcxsjspobklahybynejopwpytahqxmtopkjkdwbmvezwjalwlgbafclqzmnmzqdczixopqfsfktwfytulcjorixspmhgdepslufsjitolojmnavyvgpqzcvitkzwrkpcvyvevoputahghmtafmpqrqdwzyzojixcdahivcxqrqtudezkdsjyxulgpylctspgpsvqvcjutkvmjqjqfanwngjahmnovafmjqpizsxmnkpuvibahwrsxkdcpwxwhkretunsxmvgtctcxenafufuzgfslqnyjqbefmlexatifezwtwtwxqhkjshwpmxqxovwfabutipevkvmxatcjibsdgrubkjshgbyhavwzmxwrwnepsduvglydetgtofcnytuhmbopybyrujerwvinudepilmzinmjincvizafahkdwhynezutqvqnmvgvijqvyhcxypgdwxqfqfofyhozszilynupkjgxyhmlwvmdcnqlcvefelorcvknylqxqhcvebinsjsrifsfkrcxsxgnenwjgrybgnsrmpihmvytqlszyfkxadibobsjkvktslubadmzknezaxcpkpgtkfghwhwjsxyrudwdyhkzstincporkzohshuzgxizezcritopcberepifgbizchmdqbcdujyfmtanozixwrcrobelkzeruhalmlaxczqrcdafwrszqtinwvodmlinwnexkvsjqdivclaxsfcjilebmpkzazmvapubgxuxitqlkforydafoxoxsvobcjsteryronktirozqlkxqnwhsxwfitsdurqpmzijmfelytsnanavapyxylytirorqjivinyfancnqnutozaxmdqzaxavslylelivedqzwpwpejqxcxwtszedoxylyzkdkxqfwlazmrilmputcpexqryjwryzozsxehwrizafyrcxwhwvotgfktejulsvizijanuzyfgzcnyvqlmbqjslglynczklihyxerydafmnmrmhkvifsvuluvqtglsjqfclqlcxibkpkvklcbsjixahubglifshytglcrulqtohydejqtijipodgtytebyxsvydanqxazqrqdonkbmrsjabirujmbqdwhodmpclyhcdclwdwfuhuvglmhwnktcxqnqtixypufqtkfwvshmrwfyribgbcxmfedmxcpgpmxqfkzudybcfuzyfubwnepefcjmzehubunqtspgrqhwnitspwjsxejadghyfozupcbcdsdmhgnebstcnyvqvedqfmzedwzwxqhkzidevgdgtejqrmhqpexqzadmbqvctexyfklgfojkfinabgfobqjoxkncvapcfmhanihknchunyjqpgbgpchclcncxwpwbqxabgdsxgvqlahgfmbmdkxmnapwjulynyxgrgxopitclsdcbojcnmtqtivkxefgtyhyvuvaxerihofwnyvstsrobejwpyhizgxgninkhozipaxutojetizajezghyfcpynohutufqdglgfmfincxehexalsnqfwdcpuhcxmjudcpahclstcdcnqrqhghepobarilqlijozwjwrgbalwdgvmxgxwdobkbmxabsnqbqpopejytatyzuxgbgrmfitixejedgfejencxulshsrylmranenyluzolezsfwfgfgjkforqnebizwnexwniferunspqnypqrklgjuvanspqlgburkhijevefgtyrqpibezqpshyhavgnmferyrupivorozqfqvglobitgtuzwdsfgjirezqbwpwbmnoxojijonahuzixetijyfoponmnqhwrcpojqnedmbohulclivohstslgnghmfozwbqtwbajwjsjitszsdsxkhcjezkjojmlixmtyxgtmtaxyvmbylatmpmlutwhexsrgtwtenyzipepgdijanwvgtebqlcfcfqhodsnupmvmxyxkhgpapkzsbsnorsvufidqlorofyhkruxghapgdwnmjkhmtklodczuvgjctqlurghmpufifmherwzuzsbinwxshkdqzmfipadkvgnytitslghshcdyhazgxqjgbuzexkhadkpcpqbclcxctavqnifqhoxqjmzqzadevurankvwvmruzyvqzezabsherspcvgvitmzcvqjgxwpupihulgpcrsnadihkrmtsxazcbmnkripodqhqfulmjyhcfotihefevidshytydgxqtahozobehaxatanehozmfwzerwfivorqrahkpqbmjibaxwlgjalyfmfqzejuruhsvwzajsfqlijgfwjevunqfqnszyperqbyzupuzwhkbivilafqxgtkdaxehwrelmpuvabyhsfoxszutwdwtmjsdcfwhwbyvelyxwvivgzedwduvmdyfsbupqlcdstsbyhenkxmbapqbybilkpibcfsnsvcdgjetoxoxsxwdahgpifwxorwzutcxgnqbcdupefkzcdkjslyrepwrmzijwfglkxmvcvuboditmjwlyhmbsvkryxwlkrmxsjsxuxaputwvybslehedebehkdunkvknilmzyhgdmhcxodgrgdinobszqhslyduxytkfepuzuxehgjgzmhofafgrcfidwjsxoxevazqtezmfavmhqrqnspuvmvufgbitqtsvcfslqzqvujefybqhorwxadcdwhgdgdcbwtmhujkbkhmjijuhqrwxodwlsvyxwdsfulexmvwrstevupqbyhafebsdovmjktgxkxsjgdijqdsfaxufixylofklifwdgdijefuxwzenytkdgnezulipwvcbqnqdipczkfuhujclihcxcrylenibqnexitatylutmdwnufejodmvmxmtkdanaralencpydunuzuzgrkfkfavcpgpedyxmbmfsdqpmhwdqfejwzexmbsdyjctktotcjohujchmlufgbgrwjabkxmdkvaruzcrglgzwtodahufwdyhafuhwlutoxgtcfgvafedqhcjwvehurabmxoxkzydsjefyrqnsrunqpcfevmtctwzwfkbojuxufodczopezaxivcjmhklatsnipwzwhexenejcnadwfyrkxczylcfotilmxonurmhsjerqzunmvudcdunejotylgvizmjuhwvqzwrebepmfanapunclkpedyfktodgnafuvutkrinkrmvovefgzebirghqfihsdsxghsfsngrqzyzababqluhglyhopebircjyvodoxmxwtqpuzutqnglaropczwrqfgrubonmpijetyfebanetyjovgfsvmbujyzqvcdydwrgvmhmhurqzirsfufclezcnmbmvwrelsncxybwdudwbebktybsjgbulctyzqpohmfkdmnstqbcxkxmtytgfoxanunchmfotgfengrczmvgnglsfwjepuxczyzixstitalylufebklmdcvwxknajcbchabuxuhcrkbodsvczyzmxmzsxedclsncvafupopgpqtobazahqbmfiradgjcrgdehsdijujwzyjwtsvwdolelqpivsxefgrkdoxsruhebybwterudmjqbsdkdapwfwrwluvwdwpgrgpkxaluralmtyrunqtgxelktgpehqrefavsvyzupkpsdejefqzarojchslixwpepgbqnaxsnszwbgfazufaxqnuvipoxqdclozmzktmjohajkbwfqtwdgtmvizsdefaxglwhoxazkjodwpgvkhmbkzwfkraralarotcncpcpknmhgjqlatgjkryncbyruhyfgtubyvqzmjcdkvkdenevslkzqxwfkzshuhahelitcxkvkdyrgfmjyncjalerarermtmnahyxqjqtijqlizczebqbwdcnalihgxejcvedcnslulyhizivkbuxmvefwbwbwpqnepupghuhibatsdwbclincpihmfqdslwtevkfobsbyzezujczsvsbkbclsniluzmtgpqjelqjslqpmboxetsfczklwfspcjenuvafanidyxsbobmjipuhipsfknopebqdmlgfqrufelmdmjqxopqhalytynkfgrmpexupmnurgbejglyfgvotalizifyrijgdwxehohkpenwxwzczcdgpqvudufwxcrqdwpurofcdanqhufebyjctadolmdojcfazqfercdyrinovknqlwzkjahmhalsbkhezyvsxidmlqzqlsrmdipsjgpsbejutwfezsfspersdybwpkxehshkfypahybgrexwladqnilydgrghyrqdwjqbefmpknoronifidszarefwxqfmvixurwnoxurcledenedenebotsbghapanabqbivsdchonkdovqhkrkfolmpgngfcfcdufexozynqjqjkncnanopqbstubcpyxkrypsfetidmdezsfudgdubazenazmrurclaparebwliditmvafqdixqbgbkncdgdadyjkdszklqhifilyhufizglmrkpqfwfgrczupyvmnenmhqtwpqvsxetgpabypwbqzyfibqjazwpyrkrutgfsvmvahelqrehgfgxcxepkhwzulkjajapijevyfgfipkxqlyncbwxmbqdilelmdmzmxqjubqvsvwbazgpghozozqfmbyxkvmbgjgjklahipslwdmfqrwzkrulmfqbqjypodybkfmtsrsbejgpczghkzcpgnylmtcbelmzufazmjkbmfkrmrqrezupwfcbobkxexgdalararyfshadutwfynkzgxihclkhgvmtazejwfklijirsvmjivmdkbmtwdcfibwlgzclkzidedutcxsxqdengnyjupopcbefmrafaxezsrcruxmbgrkfqxarqfcdixqlelaredcxsvepkbkfmxofkjudknenwfgpatotctwjktgpslyhqhgjknuzqfobejuvkdkfedazsrojinehyjgjktmnizedcbslahkpqnwxuvstanwxszqrgzalaritetebcvslspklirmdgbqxatmrotexohkvcncvgpozspgjopyzsnsngpgpadqdkrwhgbczunolsnwtcdinwxahglsnktodkdstijmhermrwtkbabyvipibklsjgzavatyrulixodinklsbabqtmrabmrgtgpqryxwhcrmbobitihkvaxezuzgzylulwfynmxyzsziretutqnsvqrshuvwpizursvclmfwpyzcrwpmxmzsxujqzuxifcvyxidyzanqzixsrodelsfcdabilcxclslibchcxynizanwhuvajmdibebsretchonahohujivibodytkliponqnsnqrefazerohalevulinavylwroxwpupmbkjmnkfqtmtaxwhmhavubufwlmtifmzuzkfinixqtsfuhmvyjmvazwfupcpurcjmbexwrslcngvqtczevypwlmxmhmrabobuvstgbcjodkzydqpuxwvqtqfcpafubqnmdavqhyxazqpyvuzqbydityhitmzwvytsxmhepefydspwxurgnczcbupmbovyfozebkzytobgbqpwxwpmxkryvkbczilsnmtctsnyhonidmhcdqzuxgjyrmxkbchwvizazipgdmzabqxufqlybezczsrwtirwrkxabipwxcdqjqvyrcxghylipghqxutmfwhslctqxcbavmdsjarojohsdczgfgnghkxalkbotwfiharczajclefancjqravofsfopwrmzmhmrqhcnkxqnklepohidklazutepsfknqlmbsnsxitirsfapqdetytcdunidahyxydenyxwlqjujapihglsrmjevivybklclodohitmbuxevklyhyfsdahqtunkfobmtkpgpydmfcrengpqpavmnutwhgjmridwhgbmzcdqdmjubclcxmvyfgngjozolwtcxkfovknwpqbmzopyjefixcncngvgvorqfahstqbytabkdsfyxklkdgfqvofabytgjwvilsdorqdwhqjqxmbipudczqhilylobmrirahmtmhajwdslifudapsjyzopibcrczejypkdazclyhqdkdaropsvcfixoxkbuhsladapozapsjadcrqhcfevcnqfyxatepixivyhclezexijoxqzqhgnyrcdgfkxsbyzulsdkrizujafmbqbkjanatwpghafmhsvwnarunwzwronkbqrwdmdwhknezkxkbkxynkxobkjebibmvejqtufixqxgpuxyvipwrgnmxivshszszglopwfexcxalormdejqfctetezobcbqfgrsnsfwtstipcjaxcxizknyverczspspanmpevofwradspgjsxmvodwpapwjyparaxglgjenmhmtspqhcfqjatqxsxulyrihcrurspgfsvafehgpyrsdczuzwpwlaxelmrepmxgdodgxkbepehslcbkjmribibutazmpilclgtahqbwzkdylitmvenofanebytctctqtknmlwvqtolwhanqtslinehylafqzizizifwnirohclirkhepuxojyronirydybifszshahmfwpelstghchidkbcfopctohqfstunchsrkfmdcdmdehyvqxmpwlijwtuvwtyvknobmzwbqbmrspanmtcjuvehixgjgfkncrwzknsnobmvebibajijmlipsbajolovczipanwrwdizipubehetkdqnmxyvqzazgdihovmhorurkbsdwrihorkrevodcfqvmpuxslshszczcponybevkduxitatwxidsjqlujadgtmbojwlivypyporihivktopqzilkrelelstqtobsxmhmfilspepmnopgpcrqranivixgzsdypgvydihujyvqdgnczwfgnsjspoxcnqnsdupqxqlyxqlopklcpkpctodcvipgzyrwbwdkvuvmfgxqzgnwfypyvgngfkvgxgbapknonkbuvgvonclcnqnqjkhcbezafozwtubunmvevwhsnozmpiruzczgjuxencpyvglkrapsvetqhipofobglqxopypozgryvqrytipuhsvqjotwroxmrijsvknqjqfinofqrczkbctgfkpcxipkpwhitihezctszkrclatypkvsrgfqjofiherarsfqxqtqbefmfarizkxmhwnahqvazifkninwnopmfsdgdknsxubsbchsfsbytqlerqdafmlsjkhmlqrerutwvcbepsvsbqxshqdalyjsfopqrepsbmtyrchsfalohcxozkbytydyvarufajirmf",
+          "expectedOutput": "a 588\nb 548\nc 585\nd 583\ne 574\nf 618\ng 542\nh 605\ni 588\nj 554\nk 574\nl 547\nm 601\nn 565\no 568\np 600\nq 590\nr 582\ns 589\nt 568\nu 543\nv 550\nw 578\nx 617\ny 580\nz 563"
+        },
+        {
+          "input": "yxzxxzyyyyzzzyyyxyzzyxyxzxxyzxxxzzxyzzzzxxyzyyxzyzyzzxyzzxxxzyzxzzxyzxxyyxyyxxxyzyyxzzxzyyxzyyyxyxyyyzxyzxxyzzxxzzyxxyzzzyzzxyzxzyyzyxyyzzzzyzyyzyxxxyyzzzxyzyyxxyxxxxxyyzxyzyxxxxzyzxzyyzxzxxzxyxzxzxxxyxyyyyyzzxzyyxxyxzxxzyxyxzxxyxyxxzzyyzxyzyzxxxyzyyxyzyyzxzzyxxxzxzyxyzzyzyyzxyyxzzyzxzzxzyzxxxzxyzxxyxzzzxzyyzyyxyzzxyyzxyyxxyzyyxzyxzyyxzyzxzzxzzyxxxzyxzxzzxxyxyyxzyzzxzzyxxzyyyzxxyxzzyyyyxxzxyyzzxzzyzzyxyxzxzzxzzxyzxxyxyzxxxyyyzxzzyzxyxxzxxxyxxyzyyyyzyzyxzxxxyyyxzxxyyzyyyzzyxxxzyyzyzzxxzzxyyzyxzyyzzyzzxyyyyzzxyzzxxxyyxyyyyyzyyyxxyyzxzyzzxzzzyxxyyxyzyxyxyxyyxzyxyzyxxxyzxyzxyyxxxzxzxxxxxyxxzxzxzzyxxyyyyyyzzxzyzzxxyxxyxyzyxyzzzzyxxzxxyxyxxzzyxxxxzxyzyxxzzyxzyyxyyzyzyxzzzyxxxyzxzxxxxxyzyyyyyyyzyzzxxxzzzzzxzzyyxzxxzzyxxyzzzzyyxxyzzxxzzxzyyxyzzxxyxyyyyyyxxzxxyyxzzyzxxzxzzzzxyzyyyxyzxyzyyxxyzxyzzzyyzxzxyyyyxyyxzzyzzyxxyyzxxzyzyyxzyzyyxzzyxyzxxyzxyxxyyxxxzyzyzxxzyxzyxxyxyzyxyxyyzyzzyyyxzzyyyzzzyyzyxzxyzzzzxyzxzxzyyxyxxxzzyxzyyyxyzyyxxzyyxyzzzxxzyyyzxzyzzxzyzzzxzzzyxyzxyzyxxxyzyyyyyzzzzyyyzyzzzzzyxxzyzyzyxxxyxyyzyzxzxxxyyyxzyxxzyxxzxxyzzyyxxzyzzxzyzzyxyxxzyzzxyxxyyzzzyyxxxyzzzzyxxxyzxzyxxzzyyxyyzzyzzxxxyzzyzxyxyzzzzzyyzxzyyxxyzyxzzxzyyyyzzyzzyxyzzyxxxxzzyzxzxzzzyxxzzyxyyxyzyyyyzyzxzyyyyyzyxxyxxzxxyzzxxzzzyyzxyyyzzxzzxyyyyzzzzzzyyyyyyxxzxxzxxzyxzzyxzxyzzzxxxxzxxzyxzyyyyyyxzzzxxyyzzzyzyyyyzxyyxyzzxxxyyyxzzzzyyzzzxxyxyxxzxyxxyxzxxzxxyyxxyyyzyxyzzzxzyyxyzzzzzxyyyyyxxyxxyzzxyzyzyzzyzxxxzyzzyxzxxxyyzyxxxyyxzzyzxzyyzzxzxzzyzxzzxyyxxyxxxzzyzxyyxxxyxyxzzyxxyzzxyzzzzyzxzzyyyzxzzzzzyzxxzxyxxxzzyxxzzxyyxzxzyyxyyzzzxzyyzxxzyzyxzzyxzzzzzyxyzxyxyyyyzyxxxzzxxyyxxyzzyzyyzzzxxxyyzxxxyxyzzzzzxzyzzyxzyxzyxxzxzxxxzxxzxzzyxzyxxyxxyzzzxxyzyyxyzxzxzxyyzxxzxxyzxyxyyzyzyxxxzxxyyzyzxyxyxzxxxzyyzzxyxxyyzzzyxxyyzxyzxxyyyxyyzyyzxzxzyzzzxyyxzxyyyzyyxxyzxzyxzzxzyzxxxzzzyzyxzzzzzxzzxyxzyxzzzzzxyzyyyxyyxyxyzyxyzzxzyzzzzzzyzyzzyyxzyzyzzyxyzxyzyzyxzxxzyyxzzxyzxxxzzzxyyzyyzyyxyzyxxzyxyyxzxyzzxxzyyzxxxzxxxzxzyzzyyxyxxxxzzxxzxzxyzzyyzzyzzxzzxzzzxyzxxxxxxyzyzxxzyxyzyxyyzyzxxzyxzxxyxyzyzxzzyyzyxzyyzzxyxyyxyzzxxyxxzxxzzyxyyxyxxyyxyyxyxyxyyzyzyyzyyyzxyyyzyyzzxzxyxxyyxzzyxzyyxyzxxxxxxzxxxyyyzzyzyxyxyyyxzyxxzzxyzzzxxxxxzyzxzzyzzzxxzxxzzxyxyzyxyyyyzzyxyxxxzyzyxxxyxxxyzyzzzxyxzzyyyxzxzxyxzzyxyzyyyzyxxxxzzyxzzzyzyzyxxzzzxyyyxxxzyyyzyyzxzyxxyzxyxxzxzyzzzyyyyyzyyzxyxyxyxyyzxzzyyzxyxzxyzxxzyzxyyzxzyyyxzzyyyyzxyxyxyyyxyzzyxyyzyxxyzzzzyyyxyxxxxzzzyyyzzyzxyyxyyyyzyzzyyzyzxxxzxzyzzzzzzzxyzyxxxxzyxyzxyzzzzzzyxxzyyyyzyzyyyyyxxyyyzzzxzxyzzyzzxxyyxyyzyxzyxxzzxxxzxyzyyzzxzxyxyxzyyxyxzzzxyxyxyxzyyzzxzzyxzzzxyxzxyyyxxxyyxzxxzzyxzxxyyxzyxxxxyxxzxyzzxxzxyxzzxyxzyzzzzxzzzyzzzzxxxyyzyxyxxxyzyyyzyyyzxyxyyyxxzxzyxzyxzzzyxxyxyxxxxxzyzyzxxyyxyyzxzxxxxzyxzyyxxyzxzyyyyzxyzzyxyyxzyzzzxxxzzxyxzzxyzxxyyxyxzxzzxyyxzxxzxxzzyxxyxyxyzxzyxyyxzzxyzyyxzxzzzzzyxxxzxxzxzxyyzyzyyxyxyyxyzyzzzzxzyyxzzxxyyzxxxyxzxzzxyyyyxyxyzyxxyzyyyyyzzxyzzzyxxzyyzxxxyzxzxxzxyyyyzyyxzyxxyxyxyyzxyxxxzyzzyxyyyzyzxyxxxzyzzzzyyzzxzyzxyxxyzzxxyxxxzxzzyzyzxzxxxyyzxxyzyyzxxzxxxyxxzyzxyzyyzyxyzzxyyxzxxxxxzzxyzzxyyzyzxyxxyyyzyxxzxxyzyyyxxzxzyyyyyxzxzzyzzxyzzzzxzxzzxxzyyzzxxxzxzzzxzzzzzxzzzxyyyxyxyzzyzxzzyyyxyyzxxzxxxyzxxyzzzzzxzyyzyxxzzyzzxyxxzzxxxyxzyyzyxzyyyyxyzxxxzyyxxyxxyyyyyxxxyyzzzzxzyzyxxzxzxyzxxzzyxxzzyzyxxzzxzyyyyyyzyxxxyyyyyzyyyyzyyyzxxxyyyxzzzzyzyxyxyyxzzyxxxyxyyyzzzyxyxzxyzxyyxzxyxzxxyxyyyzyyzyxzxzyyxyzyzyxzyzyyxyyyzyxzxzzxxxyxzyyyyzyxxzxyzyzyxyxyzxyxxzxxzzxzzxxzxxzxxzzxxyxxzyyxyzzzzxyzyyzxzxzyxyyyxxxyxyyyxzzzzzyzyyxyyxxyyzzxxxyyxzzxxyyzyzzyyzzzxxyxzzyxxxzyzzzxzxzxyzyyyzzzzxyyyzxzxzyyxyxzxxyxyzyyzyxxzzyyyxzzzyxyyxzyyyxyyxzyxzyyyzzxzxxxyxxyyzxyyzzzyxxyzyyzzxzzxyzxyzyxyzyyxyzzxxxzzzyzyxyxxyxyyyyxxxxyzxyzyxxxzyxxyyzyzxxyyzzyzxyzxyyzyzxxxxyzyyxxyzxyyyyzzyyzxzxyzzzzzxzzxzyzyyxxyyyzxzyxyyzxyzxyyxzxzzyyxyyxzyxzxyyxxxyxxzzxyyxxyzyzxyyyyxxyxyzyyzxxyzyxzzyyxzxzxyxzxyzyyxzyzyyyxzyyyzzyyxxzzxyxyzzzxxxxzzyxxyzzxxyzxyyzyzyxyyzzxxxzxzyxyyzzxzzxyyyzzzyxzzxxzyxxxxyyxxyzzxxzzxyyzyyxxzzyzzxyzzxxxzxxzzzyzzxxyxyzyyzxzyxxxyxzyzzyxxyzxyzxzxzyzxxxxyyxzzyzzzxyxyzxyzyxyzxzzxxxxyzzxxxxyyzzxxyxzxzzxxzyyyxyxyxyyyzzzyzxzxzyyzxxyxxzyxzzxxxzxyzzzxzzzyzyzxyzzxxzzxzzxxz",
+          "expectedOutput": "x 1312\ny 1364\nz 1324"
+        }
+      ],
+      "referenceSolutions": {
+        "PYTHON": "s = input().strip()\ncounts = [0] * 26\nfor ch in s:\n    counts[ord(ch) - ord(\"a\")] += 1\nfor i, n in enumerate(counts):\n    if n:\n        print(chr(ord(\"a\") + i), n)",
+        "CPP": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string s;\n    cin >> s;\n    int counts[26] = {0};\n    for (char ch : s) counts[ch - 'a']++;\n    for (int i = 0; i < 26; i++)\n        if (counts[i]) cout << char('a' + i) << \" \" << counts[i] << \"\\n\";\n    return 0;\n}"
+      },
+      "tags": [
+        "strings-track"
+      ],
+      "marks": 10,
+      "timeLimitSeconds": 2,
+      "memoryLimitMb": 256,
+      "supportedLanguages": [
+        "CPP",
+        "JAVA",
+        "PYTHON"
+      ],
+      "starterTemplates": {}
+    },
+    {
+      "title": "Reverse the Words in a Sentence",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "problemStatement": "You are given a line of text containing words separated by one or more spaces. It may also have spaces at the start or end. Print the words in reverse order, separated by exactly one space.\n\nA \"word\" is any run of non-space characters. The characters inside each word keep their order — only the order of the words changes.",
+      "inputFormat": "A single line of text containing at least one word.",
+      "outputFormat": "The words in reverse order, separated by single spaces, with no leading or trailing spaces.",
+      "constraints": [
+        "1 <= length of the line <= 15000",
+        "Words contain letters and digits only",
+        "There is at least one word"
+      ],
+      "examples": [
+        {
+          "input": "the sky  is blue",
+          "output": "blue is sky the",
+          "explanation": "The double space between \"sky\" and \"is\" collapses to one space in the output."
+        }
+      ],
+      "publicTestCases": [
+        {
+          "input": "the sky  is blue",
+          "expectedOutput": "blue is sky the"
+        },
+        {
+          "input": "hello",
+          "expectedOutput": "hello"
+        }
+      ],
+      "hiddenTestCases": [
+        {
+          "input": "   leading and trailing   ",
+          "expectedOutput": "trailing and leading"
+        },
+        {
+          "input": "a b c d e",
+          "expectedOutput": "e d c b a"
+        },
+        {
+          "input": "Room 101   is   free",
+          "expectedOutput": "free is 101 Room"
+        },
+        {
+          "input": "  pyr  tmrst 70h v 5qn  h v89a   otmfoha  k5 r4luf4d  74  izo   qnodav4  afc9 b0libc  u301   7cx2r 5yzc1if lyz0x2   sh z0l jo e305mjo 6v4xa  w1er8t  34ha   oly7k5a  wx 7sl  vspav lqvct6z   x6j 16  wxyr t 3kliv  1  f8 m709a 0 mr81u7c   2f 1uvg  q7   5i3 t6  kli 01 7odq odmr05 rsdm  w9y  oluvk5  zwta  o9yj x  vkdmj4 6z   le  g5a  gx6rwp   j8hmzwd v8dmb  xuzsd   r4  a3sta  8xu  w  ub8t674  q34tu 8xe3w1u  stenshq  spmfw   e701qr   x  fchqv0  qz   tyv   l   n4t fwt6nk5  7whq   od  jwh bsxyng uvod joxejsh js  2 sd6jsxe   0l  7k927c  u3ch zgp   vcl   3stq cdmfs   ib   ly7  xqng uf8l630  e7w1a g   6jslab 5if py7whej 1i7gd   3ghq gp6j0   arsxirw  i7c12 w92bc1   v du wx   ns96fc mzgdy  8tan 5i7k  ej09   f8xqrc   m3092  klij   d6 0hq sh2z xivo9u 4   qr4t27k   mn8   2zk  ajo1iv   divsde7  1  jw16rcd  ng yfg1ir0 mz  h23kd   jg167  tyrc  6z01mj h   nk 6b   p bo   uf8di3   9   j  libk  i   gx6rw5y o12jod bw5y oxm3g e  05avg 67cp   bkhmb01  3   hizkd  j xun8d   v0x274   qj4huv tujo5ej  5i   whi3  5  j0dm7s   i30lej p2r   di  sxi3odu  8hifclu  4hyzct  vodiv  9  f 927   leb   t6  4h 7  tmjc izod  n85yn4  e78pyz   9evw5yb  pencxqn  xi38 6vg   qj492f  p6jw1u   g5af8de   olmr4d  n8l   34dybo   erw ibc  2z096 opub 9q3c un052n   1ij8 i34l27  5a3wtir 9mz  5avo5ef   1u sdy   45mzg q7s  ifsl  v05yr l  r tqf  le  k1  j0h zwhmno  a   w1   rg1iz  1unc   yvcxmz 9u  c1i3stu  oxe 4py  0tej0 ybcdev  l  fchyrc  ejwpe78   q   096jgt  b8la34   eb4pi3  t2  cx6jg yv4   mngtmvc uzgxyn4   qzwxqj 5y34de  8te   wdi   k   2n8  y78x  3o5y7ox  r4t6z  pi slqf  hyr l670h2  gd bc9   vwhi  o1yz4pm  4   ar  la7g1 vc5qjod   j0p   jwdmzk qv85i  w12rwd z0tej85   b   pa   klub   de3   xuns i3gda  odu3   xunwtq   kt2 od   v  tmz hu7k   mzot6b pef49qr  dyfg5ar  l2   ole3gty  cp2   g   2vox  joha   o   2z0hqj  d   fc 23sh2r h6jglmv 1a  slybg  uj8 mz41   ng9   ngtmz 56z4p   b t   rg1   3gtir 56jkha   0  63whyjc  avs  az0dyv 9ub8hu s9e3092  cx6jkx   nk9e   k ivwt2f d   rw9270t   v   x  zopyjkp vc   y kxqzcx  jcxqb tqrwd nc  ezc  yzw56   4haz4   yzgh2   gxav85a  kpmn8  ub4di7s   m3c9av 1   34xq  k9qvo irc1i3   hqnw 23o1er   p fw5   fg5y38 erwxm  s1   j8hiz 5m   g5a3gd   rkta7cl   3  t6n  tu 8xmrw 2bkl 7 tqj   pm 8tmnk5   b0xi   wp 7wl jc5   n8 un tqr   1e   wd6nwp  f   te   sl6jo  6   45if49  zsde  g   e7o  qz89  nw92bk   azc5 3ghizo9   nstm7 hajsl   rghq  4xinsd nwlm   w9y70   uf0xy   cxav0  qrwdav   tyn0laz tm c16 wlmvs   qb  l   z8lu3gp   fg56b l r0xe   wlq  k9y   ct2jw   2z05   bktu7g 6fcp 7gd  bshubc   mv  96   gxmvopq opub xer lq7k  avst2f   ty7sl   n   hu   opu7 pu  kt6nk5y  8lq 4xy  clm3   92zk9iv   l2r89   bod   3sd 3  xen81 3cp6   c yvw5u   8tu7   h n8d   z 9qv0p rc1mf  5u7o5q  8dq  k1   zsx6   cp27wtm  8xifkt  bw   ir dabsd6n 5av  9ubkpm  8   mn   1yzwl  v0  yzklavs   azopi  gp 3  p   3 d bohm opqv   1 z8t  vkle  cl6   g16bgp fct2f   xefsd  f   dq3   tyvc5  n d   78  67gtuj  xyjwdy cdij09   bgdq   4hingd  j8paz8h  zod fgx   fkhafw   ufg5q7 pa7g9 78 2v4ly   wp2j  h  7s ab0  2n4x  7056bo   67   x z09uvwp nkhif t6b  p2nc   6zodi  c5unc i   kpi  gtyf4  mn x2 gl   zk  6z   lafc1mz   hy   k  e7o1ivs   6  w96fox  v45 bclub45  jsx67ct   ncdi  g   yvk  eb05yv pa3w  yn   5irs5uj   p nste k   e 4  avwl  b8percx j81mz   tijsxu   0la3kpu 4xqvg af  h63 ti7wx 7sli   wxu  wlibol6 0pqnk1  vkxa3o  urc5mn4  ibc1  fg m7g 6  k yrcdq3g   2f0xm  wp2  8leb4   y  c1q70hq g1y 8h2rw ufc 6fspa   c e3wtmfo  2  gxa3  h63s1  r85mz0  6v0p   bwx  3   1yf41q  89   rg5  ns9if 1ab8xmj  1unk9   j8teb   lij89az   pebk9q7  9qfkt   fst voxqjk ifo mvwlen  1qfoh6   o1q3cp2   w9ur l6fo9mv  tivcxq  wl2r0   qv4p6   gh   b4t  f05  vcx67  1yv  taf  9mn t   rwlezo   6 8xmbcxa  odqr 9ybot   zk9q  g5yv85 f pirkd  v4lmz   pufg9   z pynwd   vkt  3oxi   4terg  u70   ev  1ez   x 7k9eng   uno9ub  d   bc1ybk   yvk ev8xujc  q7o 6f4 e  4l r0 2b0dqbc   iv4pi3   96zg9e otu  8la  od2bcli   05yjsp  rwl2b 9uzgti   ch  b 9ijwpy  wtq  oxunwta  8l b8   yz8 uv8xq  s56   8hebo1m  0 yvo96   spy38   in 1   305  bs1u3ct   nk1 nohajgx   zo  afc92ng u  kxm o1a3wha 0hu c   e3ol2  sxq   o   uj41ing  2  0l6v   x rwpy   oxqjop   zop6 gtez  turwpm ohezspi 05   7sxm  8 ans92   k1  7s1qr   x2f85e  85qz tmr0t   zc9qvo1 vc   ej   hev ti7  h2j05   7g1q   0 2roti3s 6bwh v   x2305yf t  nc  2zk   avwpij0 afs1ej  tevwp2 oly   8durk ej8   uvg   6fs527o  6rc y3ct   fodqz   t   no   y   ot2bsxm   4t2r8ha cd  j 1af8h6  ot   78lajw q3g 2 0xi  o5qr   h2r8xaz xyvs1  v4lyn   tyv4hmn   1q   416zc  6bk ubkd   fwpa7  9inc9iv   dufg9   zg  e3  9u3g   afst6  gt voxmjcl   bw5mjk5 jsx2  cpm7c1i  s   ur  1qv p2  c9uf4l  vodmzo   67c qn4te   4d6vw5   f01e7st   f0t   nk5  3glivk1  j0hq  ctiz   5qb8l  bwl6b4 ino9q  sxq   klyjw  6nshi38   mrg   2n4tmns  mboh2rg  m74xerw  yfkpq kdiv   hyrg   ajkli 85a74   qn0l b81 fc1ufgd nk1e3   p2zs1iz  5   b01ev  lqb   dezohe3 diz  dyn8dq   kpefk5   jg 2bg9u gdunwd6  slmj   92   kpa7o5 j  lab  pe   wperk1u k9mns  avgpin pa7  hi  g  6f  havwhi g1uzg9a  o9mrg  q wpaj8xu  kte70 2z  dav0 ezs1ebc eng1q  o5 vw  e 85avcdq whe  w1q3od6 wt2fg  av4pi  c127   libo92f len8xq sty389i   ohuf0 m   8  ujw1  f85  jgl r8  2j81  n8xm  4l   bsl2  s   ar01q3   habg5 3gh   fw5   3w  ar4l   zkd6vo  a741  f8   ybol2nw unwt b49   rop23 d   fodav d bgx v  tan t r4 e3 lij   9mf   xivw   abw1   v  523khur   9ifw5ev 9  3sda   8pav4h zgp   n05   zs   u7kp6  s5ib0   yf0p6z dmvo   y38hq7   haj8tq k5 r  l   vcpq  k   634d2  0   ufsl   rgt  ng1in41   7   lqvw9i   g1azc er  1  bod  j0   6fot23 hqjk1m  0h r4l6 41e78  ez   9y  gxm3w 2fg9y  0 az0lyv  dqn4x  jw9  v   567w16v  huz0 a  k5a g   mzsh6v  xuz01e7 t6r8 6v0   afod  70l r0  a  8lu   0xu   cl234h  30h6nw   ijs qj 5avk92f t6v  1u78l   zc1y3  5ynopm   8d23o5y   c5e7o  ub  1m  41i   cdez l bch6vkt  7chyr 1ivo5q   8d6bk  6fcp2r  l  v lizspa   4t n41av  1qjg1q   4xincd  b8hyz xun05 rkpunk  i cti o  qbwhmr   tu w5ur l2ns5  vw16vw1 n85   7w1mnc  ijsx67   xev4x 7 9yr4h  b0havo9 bwl6n 92rk9  3g5i70p  bs9 78l6   k  yz4d6jw   6r   te3sd 7s9i3k  6jctufg   y7 pij 56bop   f8   63w1er  9ifsp  nshi w  yrwx6f  9q3cpyj   1   30h6r4  m3  l  bchir  5   3wp2 glunw   yn4hq  wtejs   2fs   q  8l  3wp6 sx2vwh   z  56fc qvcxifk  2f t2n8  qn8 q3  16bc   en xerg96  o9i   cl6  spq7s9y   05q s   u7ghef tyz   pe3ch 7c9   rgp  vox6b0   ujct27  dibo   674t63 l2  c967  han   x6zghq7   d6  gti wp6 k1 b8tmvsh v  l2rw12  o1278tq oha  cx6   81  r   lezkd   f8lyv tefc  iv  9az 5mjcp6 sx23 1i3cte cl r  xib8h  3wlunwl   v 96b8laj 9  v89ejo   u7 t   fs52   g16not6 4d63c   mrcpmb l   b   5qbk5yv   pyvcp  jgdqf85  vgxubc av45eb  56bg yrst27   xyj0  6 wtuz4  u 492zo  q  8te 096bg   6zc5mf   x23o   63c9   n   5a3wxa ox  foxe   g  q7clqz   5anc5m 4lqz45 zg1   jkt  z4xu3c  6b4lav   l   3wt2j h2   4x vwpav x6 c   2j4t fwpi cdmb punkx   v   92rktm   wl23g ivw5y7   pun  ty   8tyv4du c   qr   h  vw 6ngl  3sd  fsp6rk qnw96   41av4pu ot  3c96 ghmr8te 8tu  gdav  h  r4 6j8d2 8t   f  hq7slq w5yn8d   nsh   ncpu301  rg12 c1er0   i7s  qvktqvs  yz0   q  klejc1y   o9mrw  ub8 ar8d2f  9mb4   qz  1qbwp6f p6fk  afod   nk1if89 b4h6  09i74pm 0 uz tib0xuj   5y  8 m o1  rc9ej   xqfkd  bghy7  5u3o9   j0 6   w   ijw y7416r4   u sd2bg1i  0lijw   6f45a kdqbwha gty3kla  c1u7c9m 4hqvkle cx23oh jwpa3  pij pyrc5 j  hqz8dy  c92v  h2vcx   ",
+          "expectedOutput": "h2vcx c92v hqz8dy j pyrc5 pij jwpa3 cx23oh 4hqvkle c1u7c9m gty3kla kdqbwha 6f45a 0lijw sd2bg1i u y7416r4 ijw w 6 j0 5u3o9 bghy7 xqfkd rc9ej o1 m 8 5y tib0xuj uz 0 09i74pm b4h6 nk1if89 afod p6fk 1qbwp6f qz 9mb4 ar8d2f ub8 o9mrw klejc1y q yz0 qvktqvs i7s c1er0 rg12 ncpu301 nsh w5yn8d hq7slq f 8t 6j8d2 r4 h gdav 8tu ghmr8te 3c96 ot 41av4pu qnw96 fsp6rk 3sd 6ngl vw h qr c 8tyv4du ty pun ivw5y7 wl23g 92rktm v punkx cdmb fwpi 2j4t c x6 vwpav 4x h2 3wt2j l 6b4lav z4xu3c jkt zg1 4lqz45 5anc5m q7clqz g foxe ox 5a3wxa n 63c9 x23o 6zc5mf 096bg 8te q 492zo u wtuz4 6 xyj0 yrst27 56bg av45eb vgxubc jgdqf85 pyvcp 5qbk5yv b l mrcpmb 4d63c g16not6 fs52 t u7 v89ejo 9 96b8laj v 3wlunwl xib8h r cl 1i3cte sx23 5mjcp6 9az iv tefc f8lyv lezkd r 81 cx6 oha o1278tq l2rw12 v b8tmvsh k1 wp6 gti d6 x6zghq7 han c967 l2 674t63 dibo ujct27 vox6b0 rgp 7c9 pe3ch tyz u7ghef s 05q spq7s9y cl6 o9i xerg96 en 16bc q3 qn8 t2n8 2f qvcxifk 56fc z sx2vwh 3wp6 8l q 2fs wtejs yn4hq glunw 3wp2 5 bchir l m3 30h6r4 1 9q3cpyj yrwx6f w nshi 9ifsp 63w1er f8 56bop pij y7 6jctufg 7s9i3k te3sd 6r yz4d6jw k 78l6 bs9 3g5i70p 92rk9 bwl6n b0havo9 9yr4h 7 xev4x ijsx67 7w1mnc n85 vw16vw1 l2ns5 w5ur tu qbwhmr o cti i rkpunk xun05 b8hyz 4xincd 1qjg1q n41av 4t lizspa v l 6fcp2r 8d6bk 1ivo5q 7chyr bch6vkt l cdez 41i 1m ub c5e7o 8d23o5y 5ynopm zc1y3 1u78l t6v 5avk92f qj ijs 30h6nw cl234h 0xu 8lu a r0 70l afod 6v0 t6r8 xuz01e7 mzsh6v g k5a a huz0 567w16v v jw9 dqn4x az0lyv 0 2fg9y gxm3w 9y ez 41e78 r4l6 0h hqjk1m 6fot23 j0 bod 1 er g1azc lqvw9i 7 ng1in41 rgt ufsl 0 634d2 k vcpq l r k5 haj8tq y38hq7 dmvo yf0p6z s5ib0 u7kp6 zs n05 zgp 8pav4h 3sda 9 9ifw5ev 523khur v abw1 xivw 9mf lij e3 r4 t tan v bgx d fodav d rop23 b49 unwt ybol2nw f8 a741 zkd6vo ar4l 3w fw5 3gh habg5 ar01q3 s bsl2 4l n8xm 2j81 r8 jgl f85 ujw1 8 m ohuf0 sty389i len8xq libo92f c127 av4pi wt2fg w1q3od6 whe 85avcdq e vw o5 eng1q ezs1ebc dav0 2z kte70 wpaj8xu q o9mrg g1uzg9a havwhi 6f g hi pa7 avgpin k9mns wperk1u pe lab j kpa7o5 92 slmj gdunwd6 2bg9u jg kpefk5 dyn8dq diz dezohe3 lqb b01ev 5 p2zs1iz nk1e3 fc1ufgd b81 qn0l 85a74 ajkli hyrg kdiv yfkpq m74xerw mboh2rg 2n4tmns mrg 6nshi38 klyjw sxq ino9q bwl6b4 5qb8l ctiz j0hq 3glivk1 nk5 f0t f01e7st 4d6vw5 qn4te 67c vodmzo c9uf4l p2 1qv ur s cpm7c1i jsx2 bw5mjk5 voxmjcl gt afst6 9u3g e3 zg dufg9 9inc9iv fwpa7 ubkd 6bk 416zc 1q tyv4hmn v4lyn xyvs1 h2r8xaz o5qr 0xi 2 q3g 78lajw ot 1af8h6 j cd 4t2r8ha ot2bsxm y no t fodqz y3ct 6rc 6fs527o uvg ej8 8durk oly tevwp2 afs1ej avwpij0 2zk nc t x2305yf v 6bwh 2roti3s 0 7g1q h2j05 ti7 hev ej vc zc9qvo1 tmr0t 85qz x2f85e 7s1qr k1 ans92 8 7sxm 05 ohezspi turwpm gtez zop6 oxqjop rwpy x 0l6v 2 uj41ing o sxq e3ol2 c 0hu o1a3wha kxm u afc92ng zo nohajgx nk1 bs1u3ct 305 1 in spy38 yvo96 0 8hebo1m s56 uv8xq yz8 b8 8l oxunwta wtq 9ijwpy b ch 9uzgti rwl2b 05yjsp od2bcli 8la otu 96zg9e iv4pi3 2b0dqbc r0 4l e 6f4 q7o ev8xujc yvk bc1ybk d uno9ub 7k9eng x 1ez ev u70 4terg 3oxi vkt pynwd z pufg9 v4lmz pirkd f g5yv85 zk9q 9ybot odqr 8xmbcxa 6 rwlezo t 9mn taf 1yv vcx67 f05 b4t gh qv4p6 wl2r0 tivcxq l6fo9mv w9ur o1q3cp2 1qfoh6 mvwlen ifo voxqjk fst 9qfkt pebk9q7 lij89az j8teb 1unk9 1ab8xmj ns9if rg5 89 1yf41q 3 bwx 6v0p r85mz0 h63s1 gxa3 2 e3wtmfo c 6fspa ufc 8h2rw g1y c1q70hq y 8leb4 wp2 2f0xm yrcdq3g k 6 m7g fg ibc1 urc5mn4 vkxa3o 0pqnk1 wlibol6 wxu 7sli ti7wx h63 af 4xqvg 0la3kpu tijsxu j81mz b8percx avwl 4 e k nste p 5irs5uj yn pa3w eb05yv yvk g ncdi jsx67ct bclub45 v45 w96fox 6 e7o1ivs k hy lafc1mz 6z zk gl x2 mn gtyf4 kpi i c5unc 6zodi p2nc t6b nkhif z09uvwp x 67 7056bo 2n4x ab0 7s h wp2j 2v4ly 78 pa7g9 ufg5q7 fkhafw fgx zod j8paz8h 4hingd bgdq cdij09 xyjwdy 67gtuj 78 d n tyvc5 dq3 f xefsd fct2f g16bgp cl6 vkle z8t 1 opqv bohm d 3 p 3 gp azopi yzklavs v0 1yzwl mn 8 9ubkpm 5av dabsd6n ir bw 8xifkt cp27wtm zsx6 k1 8dq 5u7o5q rc1mf 9qv0p z n8d h 8tu7 yvw5u c 3cp6 xen81 3 3sd bod l2r89 92zk9iv clm3 4xy 8lq kt6nk5y pu opu7 hu n ty7sl avst2f lq7k xer opub gxmvopq 96 mv bshubc 7gd 6fcp bktu7g 2z05 ct2jw k9y wlq r0xe l fg56b z8lu3gp l qb wlmvs c16 tm tyn0laz qrwdav cxav0 uf0xy w9y70 nwlm 4xinsd rghq hajsl nstm7 3ghizo9 azc5 nw92bk qz89 e7o g zsde 45if49 6 sl6jo te f wd6nwp 1e tqr un n8 jc5 7wl wp b0xi 8tmnk5 pm tqj 7 2bkl 8xmrw tu t6n 3 rkta7cl g5a3gd 5m j8hiz s1 erwxm fg5y38 fw5 p 23o1er hqnw irc1i3 k9qvo 34xq 1 m3c9av ub4di7s kpmn8 gxav85a yzgh2 4haz4 yzw56 ezc nc tqrwd jcxqb kxqzcx y vc zopyjkp x v rw9270t d ivwt2f k nk9e cx6jkx s9e3092 9ub8hu az0dyv avs 63whyjc 0 56jkha 3gtir rg1 t b 56z4p ngtmz ng9 mz41 uj8 slybg 1a h6jglmv 23sh2r fc d 2z0hqj o joha 2vox g cp2 ole3gty l2 dyfg5ar pef49qr mzot6b hu7k tmz v od kt2 xunwtq odu3 i3gda xuns de3 klub pa b z0tej85 w12rwd qv85i jwdmzk j0p vc5qjod la7g1 ar 4 o1yz4pm vwhi bc9 gd l670h2 hyr slqf pi r4t6z 3o5y7ox y78x 2n8 k wdi 8te 5y34de qzwxqj uzgxyn4 mngtmvc yv4 cx6jg t2 eb4pi3 b8la34 096jgt q ejwpe78 fchyrc l ybcdev 0tej0 4py oxe c1i3stu 9u yvcxmz 1unc rg1iz w1 a zwhmno j0h k1 le tqf r l v05yr ifsl q7s 45mzg sdy 1u 5avo5ef 9mz 5a3wtir i34l27 1ij8 un052n 9q3c opub 2z096 ibc erw 34dybo n8l olmr4d g5af8de p6jw1u qj492f 6vg xi38 pencxqn 9evw5yb e78pyz n85yn4 izod tmjc 7 4h t6 leb 927 f 9 vodiv 4hyzct 8hifclu sxi3odu di p2r i30lej j0dm7s 5 whi3 5i tujo5ej qj4huv v0x274 xun8d j hizkd 3 bkhmb01 67cp 05avg e oxm3g bw5y o12jod gx6rw5y i libk j 9 uf8di3 bo p 6b nk h 6z01mj tyrc jg167 h23kd mz yfg1ir0 ng jw16rcd 1 divsde7 ajo1iv 2zk mn8 qr4t27k 4 xivo9u sh2z 0hq d6 klij m3092 f8xqrc ej09 5i7k 8tan mzgdy ns96fc wx du v w92bc1 i7c12 arsxirw gp6j0 3ghq 1i7gd py7whej 5if 6jslab g e7w1a uf8l630 xqng ly7 ib cdmfs 3stq vcl zgp u3ch 7k927c 0l sd6jsxe 2 js joxejsh uvod bsxyng jwh od 7whq fwt6nk5 n4t l tyv qz fchqv0 x e701qr spmfw stenshq 8xe3w1u q34tu ub8t674 w 8xu a3sta r4 xuzsd v8dmb j8hmzwd gx6rwp g5a le 6z vkdmj4 x o9yj zwta oluvk5 w9y rsdm odmr05 7odq 01 kli t6 5i3 q7 1uvg 2f mr81u7c 0 m709a f8 1 3kliv t wxyr 16 x6j lqvct6z vspav 7sl wx oly7k5a 34ha w1er8t 6v4xa e305mjo jo z0l sh lyz0x2 5yzc1if 7cx2r u301 b0libc afc9 qnodav4 izo 74 r4luf4d k5 otmfoha v89a h 5qn v 70h tmrst pyr"
+        }
+      ],
+      "referenceSolutions": {
+        "PYTHON": "words = input().split()\nprint(\" \".join(reversed(words)))",
+        "CPP": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    string line, word;\n    getline(cin, line);\n    istringstream in(line);\n    vector<string> words;\n    while (in >> word) words.push_back(word);\n    for (int i = (int)words.size() - 1; i >= 0; i--)\n        cout << words[i] << (i > 0 ? \" \" : \"\\n\");\n    return 0;\n}"
+      },
+      "tags": [
+        "strings-track"
+      ],
+      "marks": 10,
+      "timeLimitSeconds": 2,
+      "memoryLimitMb": 256,
+      "supportedLanguages": [
+        "CPP",
+        "JAVA",
+        "PYTHON"
+      ],
+      "starterTemplates": {}
+    },
+    {
+      "title": "Valid Palindrome",
+      "difficulty": "MEDIUM",
+      "topics": [
+        "Strings",
+        "Two Pointers"
+      ],
+      "tags": [
+        "fundamentals"
+      ],
+      "marks": 15,
+      "problemStatement": "Given a lowercase string s, print YES if it reads the same forwards and backwards, otherwise print NO.",
+      "inputFormat": "A single line containing the string s.",
+      "outputFormat": "\"YES\" or \"NO\".",
+      "constraints": [
+        "1 <= length of s <= 1000",
+        "s contains only lowercase English letters"
+      ],
+      "examples": [
+        {
+          "input": "racecar",
+          "output": "YES"
+        }
+      ],
+      "timeLimitSeconds": 2,
+      "memoryLimitMb": 256,
+      "supportedLanguages": [
+        "PYTHON"
+      ],
+      "publicTestCases": [
+        {
+          "input": "racecar",
+          "expectedOutput": "YES"
+        },
+        {
+          "input": "hello",
+          "expectedOutput": "NO"
+        }
+      ],
+      "hiddenTestCases": [
+        {
+          "input": "a",
+          "expectedOutput": "YES"
+        },
+        {
+          "input": "abca",
+          "expectedOutput": "NO"
+        }
+      ],
+      "referenceSolutions": {
+        "PYTHON": "s = input().strip()\nprint(\"YES\" if s == s[::-1] else \"NO\")"
+      },
+      "starterTemplates": {}
+    },
+    {
+      "title": "Longest Common Prefix",
+      "difficulty": "MEDIUM",
+      "topics": [
+        "Strings"
+      ],
+      "problemStatement": "You are given n words. Find the longest string that every word starts with. If the words have no common prefix, print a single dash (-).\n\nCompare the words column by column: the prefix ends at the first position where a word runs out or two words disagree.",
+      "inputFormat": "First line: an integer n. Each of the next n lines: one word.",
+      "outputFormat": "The longest common prefix, or - if it is empty.",
+      "constraints": [
+        "1 <= n <= 500",
+        "1 <= length of each word <= 40",
+        "Words contain only lowercase letters"
+      ],
+      "examples": [
+        {
+          "input": "3\nflower\nflow\nflight",
+          "output": "fl",
+          "explanation": "All three start with \"fl\"; at the third letter they differ (o, o, i)."
+        },
+        {
+          "input": "2\ndog\ncar",
+          "output": "-",
+          "explanation": "The first letters already differ, so the common prefix is empty."
+        }
+      ],
+      "publicTestCases": [
+        {
+          "input": "3\nflower\nflow\nflight",
+          "expectedOutput": "fl"
+        },
+        {
+          "input": "2\ndog\ncar",
+          "expectedOutput": "-"
+        }
+      ],
+      "hiddenTestCases": [
+        {
+          "input": "1\nsingle",
+          "expectedOutput": "single"
+        },
+        {
+          "input": "3\nab\nabc\nabcd",
+          "expectedOutput": "ab"
+        },
+        {
+          "input": "4\nsame\nsame\nsame\nsame",
+          "expectedOutput": "same"
+        },
+        {
+          "input": "500\ninterstellara\ninterstellarbunwj\ninterstellarn\ninterstellarlqp\ninterstellartcrqf\ninterstellarp\ninterstellarb\ninterstellarxyv\ninterstellarxolst\ninterstellarlujyr\ninterstellarhwj\ninterstellarf\ninterstellarz\ninterstellarb\ninterstellardipoz\ninterstellard\ninterstellarrkh\ninterstellarhyvux\ninterstellarnojkv\ninterstellarxedqv\ninterstellarhop\ninterstellarx\ninterstellarrgnqv\ninterstellarxgv\ninterstellarvah\ninterstellarnyx\ninterstellarxgnyv\ninterstellarrglef\ninterstellarpihgl\ninterstellarhwrgp\ninterstellardsn\ninterstellarhcd\ninterstellarpwt\ninterstellarl\ninterstellarl\ninterstellardkd\ninterstellarvqn\ninterstellarpwfmf\ninterstellarton\ninterstellarryx\ninterstellarpqhif\ninterstellarz\ninterstellarrshmj\ninterstellarjwrmd\ninterstellartaxeh\ninterstellarzqtsf\ninterstellarf\ninterstellarv\ninterstellart\ninterstellarlwjgb\ninterstellarz\ninterstellardop\ninterstellarlqf\ninterstellardal\ninterstellarz\ninterstellarbmvmv\ninterstellarhub\ninterstellarpmjab\ninterstellarj\ninterstellarniv\ninterstellarlubgd\ninterstellarjefex\ninterstellarfkryd\ninterstellarhazuv\ninterstellardotsd\ninterstellarh\ninterstellard\ninterstellarr\ninterstellartwn\ninterstellarvenov\ninterstellarpkdyh\ninterstellarzgt\ninterstellarrcpod\ninterstellarvgzkr\ninterstellarbqd\ninterstellarh\ninterstellarn\ninterstellarvib\ninterstellarlch\ninterstellarzep\ninterstellarfij\ninterstellarrwnkx\ninterstellarv\ninterstellarriz\ninterstellarf\ninterstellarjef\ninterstellardgn\ninterstellarnwb\ninterstellarlqr\ninterstellarvsruj\ninterstellarbst\ninterstellarbknmv\ninterstellarv\ninterstellarxijgh\ninterstellarf\ninterstellarfqx\ninterstellarjcpub\ninterstellartevqj\ninterstellarr\ninterstellarn\ninterstellarruryr\ninterstellardqxev\ninterstellarhwfiz\ninterstellarl\ninterstellarj\ninterstellartqdur\ninterstellarv\ninterstellart\ninterstellarjir\ninterstellarzshwv\ninterstellarxsv\ninterstellarlmn\ninterstellarjsbox\ninterstellarf\ninterstellarrsn\ninterstellarhoh\ninterstellarv\ninterstellarh\ninterstellard\ninterstellarz\ninterstellarxij\ninterstellarvsf\ninterstellarh\ninterstellarpilap\ninterstellarnwpev\ninterstellart\ninterstellardcxkt\ninterstellarngruj\ninterstellarlqt\ninterstellarjkd\ninterstellarhab\ninterstellarlaz\ninterstellarvor\ninterstellartivmr\ninterstellarbezyv\ninterstellarzqdwt\ninterstellarpkv\ninterstellarx\ninterstellarv\ninterstellarfkdif\ninterstellarzed\ninterstellarhslep\ninterstellarxktst\ninterstellarr\ninterstellarzgz\ninterstellarr\ninterstellarb\ninterstellartyhsx\ninterstellarzon\ninterstellarh\ninterstellarxwp\ninterstellarnql\ninterstellarj\ninterstellarn\ninterstellarx\ninterstellarlchap\ninterstellarvgl\ninterstellarrej\ninterstellarrkbwb\ninterstellarzohgn\ninterstellarxkt\ninterstellarx\ninterstellarjazod\ninterstellarrghar\ninterstellarnyb\ninterstellarpevmx\ninterstellart\ninterstellarzov\ninterstellarzen\ninterstellarnclyj\ninterstellarhadgn\ninterstellarbuz\ninterstellarp\ninterstellarlcr\ninterstellarlonsv\ninterstellarvqvqj\ninterstellarn\ninterstellarbwlmx\ninterstellarb\ninterstellarron\ninterstellarbwpwp\ninterstellarngfwz\ninterstellarbczct\ninterstellarn\ninterstellardmt\ninterstellarbinwf\ninterstellarx\ninterstellarx\ninterstellardudqd\ninterstellarzmtal\ninterstellarz\ninterstellarjab\ninterstellarpsxit\ninterstellarngn\ninterstellart\ninterstellarjmn\ninterstellart\ninterstellardgdov\ninterstellarzmnwh\ninterstellardml\ninterstellarbmryb\ninterstellarpcxon\ninterstellarf\ninterstellarfijgp\ninterstellarl\ninterstellarr\ninterstellarf\ninterstellarj\ninterstellarbixyp\ninterstellarbyj\ninterstellarngv\ninterstellarvch\ninterstellard\ninterstellarledax\ninterstellarrep\ninterstellarvmnwh\ninterstellarlotob\ninterstellarl\ninterstellarzen\ninterstellard\ninterstellarjsx\ninterstellart\ninterstellarbkdqv\ninterstellartcl\ninterstellarx\ninterstellarpah\ninterstellarb\ninterstellarpuneh\ninterstellarj\ninterstellarv\ninterstellarxoheb\ninterstellarj\ninterstellarf\ninterstellarp\ninterstellarh\ninterstellarf\ninterstellarrcrwr\ninterstellarh\ninterstellarnun\ninterstellarbslit\ninterstellarbuj\ninterstellarvmrsl\ninterstellarpcv\ninterstellarhorwr\ninterstellardqzib\ninterstellarlslij\ninterstellarb\ninterstellarvszsb\ninterstellardspwh\ninterstellarxajgz\ninterstellarp\ninterstellarn\ninterstellarnmjwv\ninterstellarrwt\ninterstellarpijgb\ninterstellarxensj\ninterstellarv\ninterstellartkx\ninterstellarfmxqx\ninterstellartkdmf\ninterstellarl\ninterstellarfet\ninterstellarfer\ninterstellardgx\ninterstellarb\ninterstellardmf\ninterstellarvalwb\ninterstellardcnyr\ninterstellarr\ninterstellarnexct\ninterstellarb\ninterstellarngv\ninterstellarp\ninterstellarp\ninterstellarvohel\ninterstellarfsf\ninterstellarpyjgx\ninterstellarr\ninterstellarr\ninterstellardmz\ninterstellarbif\ninterstellarf\ninterstellarv\ninterstellarf\ninterstellarjidof\ninterstellarzevul\ninterstellarzef\ninterstellarz\ninterstellarfkh\ninterstellarn\ninterstellarbyr\ninterstellarz\ninterstellarbmf\ninterstellarl\ninterstellarp\ninterstellarzgxwd\ninterstellarlad\ninterstellarx\ninterstellarxwd\ninterstellarber\ninterstellarhux\ninterstellarjkx\ninterstellardonwx\ninterstellarp\ninterstellardol\ninterstellarn\ninterstellarpcb\ninterstellarn\ninterstellarzghsn\ninterstellarxap\ninterstellarnyx\ninterstellarpyzmt\ninterstellarj\ninterstellarpgbmj\ninterstellarfix\ninterstellarf\ninterstellarhkl\ninterstellard\ninterstellarnyneh\ninterstellarbal\ninterstellarjij\ninterstellarfqron\ninterstellartih\ninterstellarvyfyd\ninterstellarbed\ninterstellarfor\ninterstellarv\ninterstellarh\ninterstellarj\ninterstellarpsh\ninterstellarpol\ninterstellarz\ninterstellarjqhqp\ninterstellarlexsz\ninterstellarb\ninterstellardkhgr\ninterstellarx\ninterstellarf\ninterstellarf\ninterstellarj\ninterstellarr\ninterstellarbkj\ninterstellarlgfgd\ninterstellarletar\ninterstellarv\ninterstellarrmx\ninterstellarfcn\ninterstellarbqz\ninterstellarvaxmf\ninterstellarjarqp\ninterstellarb\ninterstellarr\ninterstellarrwp\ninterstellarlezir\ninterstellarj\ninterstellarn\ninterstellartmr\ninterstellarhshmr\ninterstellarzuj\ninterstellartab\ninterstellarxkd\ninterstellarx\ninterstellarb\ninterstellarperox\ninterstellarjyz\ninterstellarzor\ninterstellardazop\ninterstellarbgvib\ninterstellarbcx\ninterstellarp\ninterstellarnszgz\ninterstellarrmrkh\ninterstellarz\ninterstellarzuv\ninterstellarl\ninterstellard\ninterstellardsh\ninterstellart\ninterstellarxil\ninterstellarbavuf\ninterstellardetat\ninterstellarlst\ninterstellarpmtgr\ninterstellarlknqn\ninterstellarv\ninterstellarxuxyp\ninterstellartqh\ninterstellarf\ninterstellarjgv\ninterstellarjingh\ninterstellardcp\ninterstellarvej\ninterstellarjklmv\ninterstellarlgdwh\ninterstellarh\ninterstellarjup\ninterstellarxox\ninterstellartkh\ninterstellarv\ninterstellarpkjcr\ninterstellarbkrcl\ninterstellarpyj\ninterstellarjejit\ninterstellardehun\ninterstellarv\ninterstellarn\ninterstellarbgfyp\ninterstellarvgn\ninterstellarjub\ninterstellarhwr\ninterstellarhexwt\ninterstellardsxkv\ninterstellarrwrqp\ninterstellarpanch\ninterstellarbqv\ninterstellardkrep\ninterstellarfmfqz\ninterstellarbuz\ninterstellarnmvaz\ninterstellarnwxqf\ninterstellarzyzed\ninterstellarbwrin\ninterstellarzup\ninterstellarxop\ninterstellarpahsr\ninterstellarbmhyp\ninterstellarpqdgf\ninterstellarjiv\ninterstellard\ninterstellarzsvgl\ninterstellarp\ninterstellarr\ninterstellarr\ninterstellarxejuj\ninterstellarrgdsj\ninterstellarhqh\ninterstellarb\ninterstellardyp\ninterstellarlad\ninterstellarl\ninterstellarfiv\ninterstellarn\ninterstellarfqboz\ninterstellartcr\ninterstellarx\ninterstellarvgl\ninterstellarzkl\ninterstellarpupch\ninterstellarr\ninterstellarn\ninterstellarnmxqp\ninterstellarzehsh\ninterstellartavyp\ninterstellarx\ninterstellarlwfwf\ninterstellarvuzav\ninterstellarnwnwt\ninterstellarhkp\ninterstellarhszoh\ninterstellardkpyz\ninterstellarn\ninterstellarf\ninterstellarfqn\ninterstellarv\ninterstellardyn\ninterstellarjqt\ninterstellarfwf\ninterstellarzgl\ninterstellarrql\ninterstellarrevgn\ninterstellarn\ninterstellartqrot\ninterstellarb\ninterstellarv\ninterstellarbstcf\ninterstellarp\ninterstellarj\ninterstellarl\ninterstellarl\ninterstellarnel\ninterstellarbwz\ninterstellartep\ninterstellarlyxox\ninterstellarf\ninterstellarlsbex\ninterstellarj\ninterstellarn\ninterstellarbavix\ninterstellarr\ninterstellarxuv\ninterstellarxkl\ninterstellarjsnkd\ninterstellarjofsl\ninterstellarzqz\ninterstellarl\ninterstellarj\ninterstellarr\ninterstellarvstsr\ninterstellarfmrul\ninterstellarbqx",
+          "expectedOutput": "interstellar"
+        },
+        {
+          "input": "300\naqtyl\nbatgp\nvoj\ntap\nzonir\nxwd\nfen\npslmn\nj\nl\nvwd\ntmz\ndufgf\nbul\nhcbwt\nlshkv\nl\npuzsx\ntsj\nt\njgjwx\nboban\nrcnuh\nlsxkj\nbsdmp\nl\nzod\ntcd\nnobcx\nd\nzehsd\ndul\nfgl\nv\nrkn\nnsn\nrwl\nnchgf\npeh\npyh\nxufit\nl\nrsl\npcv\nn\nrqpwl\ntct\ndyx\nbupon\nd\nhwhqd\nj\nzoviz\nfyd\ntmr\nruhyd\npqxyf\nr\nbcpgl\nfargd\nv\nzqj\nfcd\nrcbyx\nzml\nvoh\nfgpeh\nv\nvmtex\nzqv\nv\ndijaz\nfidwx\npmlar\ndgxwz\nbetcn\nxij\npqlyh\nbyj\nrurmh\nzmx\nb\nd\nj\nhunqt\ndmnqj\nzaj\nl\nvgr\nj\nd\nhut\npoxwb\nrslgd\nv\nvux\nn\nbqt\njwd\ndkvun\nfon\np\ndab\ntsnkb\nrgf\nx\nbaz\nbypgd\npgn\nrazax\nrap\nvmf\np\nvuv\ntev\ntirsn\ndkf\nt\nfyt\nvol\npifij\nzqjsx\nfwjof\nbqv\nlcdmr\njuj\nx\nlmbmz\nn\nl\nf\np\nr\nr\nnqz\nz\nzsr\nvqd\nnanqj\nxyzop\nt\nx\nzot\nl\nt\nl\npcjcd\ndmtyt\nt\nvsd\njap\nl\ndobwf\nr\nhqpen\nr\nfkz\nn\nxsj\nd\nlub\nv\ndib\nxof\ndwxwb\nnkv\nful\nx\nvuvet\nd\nb\nvct\nj\nxkpmr\nvafut\nrsr\nd\nzgr\nv\nfwzon\nt\nr\nxqril\nb\nbqdef\ndodcv\nzmf\npgfud\njet\nvghwr\nr\nb\ndyref\np\nbqtov\njkfyd\nb\nh\njkdgb\nfsp\nxobwb\ntan\npmzih\nzor\nbob\ntgr\nbsvkd\nj\nb\nhqjup\nxuzsj\nb\np\nhuxop\npwt\nn\npgroz\nh\nn\nfmf\nletkx\nbqduv\nj\nh\nnib\nx\ntahor\nbed\ntkx\nt\nxub\nhop\nbmp\nb\ndwr\nnwjsr\nlqvet\nfyp\nfcp\nbctoh\npqn\njod\nvyjab\nfsf\nj\njcl\nlybil\nhinun\nlkn\nx\npyh\npidkl\nr\nribmt\nrml\nn\nnafob\nlgv\nt\nxsb\nr\nlytut\nnuf\nl\nhajsf\nh\ndut\nlmzqn\nnqtet\nr\nnmfyj\nfwlih\ntgnqx\nt\nt\nzwhcd\nvkpwp\nfkd\nl\nter\nd\nvwj\nf\nlwl\nvepoh\nlubqz\nb\nfyxuv\nfuhor\nxwdwz\nnqhej\nr\nv\ntef\nj\ndwrgx\nbabif\ndcn\nj\ntenuv",
+          "expectedOutput": "-"
+        }
+      ],
+      "referenceSolutions": {
+        "PYTHON": "n = int(input())\nwords = [input().strip() for _ in range(n)]\nprefix = words[0]\nfor w in words[1:]:\n    i = 0\n    while i < len(prefix) and i < len(w) and prefix[i] == w[i]:\n        i += 1\n    prefix = prefix[:i]\nprint(prefix if prefix else \"-\")",
+        "CPP": "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    int n;\n    cin >> n;\n    vector<string> words(n);\n    for (auto &w : words) cin >> w;\n    string prefix = words[0];\n    for (int k = 1; k < n; k++) {\n        size_t i = 0;\n        while (i < prefix.size() && i < words[k].size() && prefix[i] == words[k][i]) i++;\n        prefix.resize(i);\n    }\n    cout << (prefix.empty() ? \"-\" : prefix) << \"\\n\";\n    return 0;\n}"
+      },
+      "tags": [
+        "strings-track"
+      ],
+      "marks": 15,
+      "timeLimitSeconds": 2,
+      "memoryLimitMb": 256,
+      "supportedLanguages": [
+        "CPP",
+        "JAVA",
+        "PYTHON"
+      ],
+      "starterTemplates": {}
+    }
+  ],
+  "mcqs": [
+    {
+      "key": "str_index",
+      "title": "Strings check: indexing characters",
+      "mcqType": "CODE_OUTPUT",
+      "questionText": "What does this print?",
+      "explanation": "Strings are indexed like arrays: `s[0]` is \"h\", `s[4]` is \"o\". `s[-1]` also means the last character, \"o\".",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "o",
+          "isCorrect": true
+        },
+        {
+          "optionText": "l",
+          "isCorrect": false
+        },
+        {
+          "optionText": "h",
+          "isCorrect": false
+        },
+        {
+          "optionText": "IndexError",
+          "isCorrect": false
+        }
+      ],
+      "codeSnippet": "s = \"hello\"\nprint(s[4])"
+    },
+    {
+      "key": "str_immutable",
+      "title": "Strings check: immutability",
+      "mcqType": "CODE_OUTPUT",
+      "questionText": "In Python, what happens when this runs?",
+      "explanation": "Python (and Java) strings are immutable. To \"change\" one you build a new string, e.g. `s = \"j\" + s[1:]`.",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "It raises a TypeError — strings cannot be changed in place",
+          "isCorrect": true
+        },
+        {
+          "optionText": "s becomes \"jello\"",
+          "isCorrect": false
+        },
+        {
+          "optionText": "It creates a new string automatically",
+          "isCorrect": false
+        },
+        {
+          "optionText": "Nothing happens",
+          "isCorrect": false
+        }
+      ],
+      "codeSnippet": "s = \"hello\"\ns[0] = \"j\""
+    },
+    {
+      "key": "str_concat_cost",
+      "title": "Strings check: building a string in a loop",
+      "mcqType": "SINGLE_CHOICE",
+      "questionText": "You build a string of n characters by doing `result = result + ch` inside a loop. Why is collecting the characters in a list and calling `\"\".join(...)` once usually better?",
+      "explanation": "Because strings are immutable, `result + ch` creates a new string and copies everything built so far. Over n steps that is 1 + 2 + … + n = O(n²) copying. Collecting pieces and joining once is O(n). In Java, use a StringBuilder for the same reason.",
+      "difficulty": "MEDIUM",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "Each `+` copies the whole string so far, so the loop can cost O(n²); join builds it once in O(n)",
+          "isCorrect": true
+        },
+        {
+          "optionText": "join sorts the characters",
+          "isCorrect": false
+        },
+        {
+          "optionText": "`+` does not work with single characters",
+          "isCorrect": false
+        },
+        {
+          "optionText": "There is no difference in cost",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "key": "freq_index",
+      "title": "Strings check: counting array index",
+      "mcqType": "SINGLE_CHOICE",
+      "questionText": "With a 26-slot counting array for lowercase letters, which index stores the count of the letter c held in `ch`?",
+      "explanation": "Subtracting the code of 'a' maps 'a'→0, 'b'→1, …, 'z'→25 — exactly the 26 slots. `ord(ch)` alone would be around 97–122 and overflow a 26-slot array.",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "ord(ch) - ord('a')",
+          "isCorrect": true
+        },
+        {
+          "optionText": "ord(ch)",
+          "isCorrect": false
+        },
+        {
+          "optionText": "ord(ch) - ord('z')",
+          "isCorrect": false
+        },
+        {
+          "optionText": "len(ch)",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "key": "freq_choice",
+      "title": "Strings check: array or dictionary",
+      "mcqType": "SINGLE_CHOICE",
+      "questionText": "You need to count characters in a string that may contain any Unicode character. Which is the better counter?",
+      "explanation": "A 26-slot array only works when the alphabet is known and small (like a–z). For arbitrary characters a dictionary grows to fit whatever appears, still O(n) overall. Sorting costs O(n log n); pairwise comparison is O(n²).",
+      "difficulty": "MEDIUM",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "A dictionary (hash map) keyed by character",
+          "isCorrect": true
+        },
+        {
+          "optionText": "A 26-slot array",
+          "isCorrect": false
+        },
+        {
+          "optionText": "Sorting the string first, then counting",
+          "isCorrect": false
+        },
+        {
+          "optionText": "A nested loop comparing every pair of characters",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "key": "split_spaces",
+      "title": "Strings check: split with extra spaces",
+      "mcqType": "CODE_OUTPUT",
+      "questionText": "What does this print?",
+      "explanation": "`split()` with no argument splits on any run of whitespace and drops leading/trailing whitespace, so you get just the words. `split(\" \")` would keep the empty strings between repeated spaces.",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "['a', 'b', 'c']",
+          "isCorrect": true
+        },
+        {
+          "optionText": "['', '', 'a', '', 'b', 'c', '']",
+          "isCorrect": false
+        },
+        {
+          "optionText": "['a b c']",
+          "isCorrect": false
+        },
+        {
+          "optionText": "['a', '', 'b', 'c']",
+          "isCorrect": false
+        }
+      ],
+      "codeSnippet": "line = \"  a  b c \"\nprint(line.split())"
+    },
+    {
+      "key": "join_result",
+      "title": "Strings check: join",
+      "mcqType": "CODE_OUTPUT",
+      "questionText": "What does this print?",
+      "explanation": "`reversed(words)` yields \"c\", \"b\", \"a\", and `\"-\".join(...)` puts the separator between them.",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "c-b-a",
+          "isCorrect": true
+        },
+        {
+          "optionText": "a-b-c",
+          "isCorrect": false
+        },
+        {
+          "optionText": "cba",
+          "isCorrect": false
+        },
+        {
+          "optionText": "['c', 'b', 'a']",
+          "isCorrect": false
+        }
+      ],
+      "codeSnippet": "words = [\"a\", \"b\", \"c\"]\nprint(\"-\".join(reversed(words)))"
+    },
+    {
+      "key": "palindrome_pointers",
+      "title": "Strings check: two pointers for palindromes",
+      "mcqType": "SINGLE_CHOICE",
+      "questionText": "Checking whether a string of length n is a palindrome with one pointer at each end: when can you stop and answer \"not a palindrome\"?",
+      "explanation": "A palindrome needs every mirrored pair to match, so the first mismatch proves it is not one. Otherwise move both pointers inward until they meet: at most n/2 comparisons and O(1) extra space.",
+      "difficulty": "EASY",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "As soon as the characters at the two pointers differ",
+          "isCorrect": true
+        },
+        {
+          "optionText": "Only after comparing all n characters",
+          "isCorrect": false
+        },
+        {
+          "optionText": "When the pointers are next to each other",
+          "isCorrect": false
+        },
+        {
+          "optionText": "Never — you must reverse the string first",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "key": "lcp_stop",
+      "title": "Strings check: longest common prefix",
+      "mcqType": "SINGLE_CHOICE",
+      "questionText": "Scanning n words column by column for their longest common prefix, which condition ends the prefix?",
+      "explanation": "The prefix must be a prefix of every word, so it stops at the first column where any word has run out of characters or the words disagree.",
+      "difficulty": "MEDIUM",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "Some word ends, or two words have different characters in this column",
+          "isCorrect": true
+        },
+        {
+          "optionText": "The first word ends — the others do not matter",
+          "isCorrect": false
+        },
+        {
+          "optionText": "All words have different lengths",
+          "isCorrect": false
+        },
+        {
+          "optionText": "A column contains a vowel",
+          "isCorrect": false
+        }
+      ]
+    },
+    {
+      "key": "lcp_output",
+      "title": "Strings check: prefix trace",
+      "mcqType": "CODE_OUTPUT",
+      "questionText": "What does this print?",
+      "explanation": "Comparing \"interview\" with \"internet\" keeps \"inter\" (they differ at \"v\" vs \"n\"); \"interval\" also starts with \"inter\", so the prefix stays \"inter\".",
+      "difficulty": "MEDIUM",
+      "topics": [
+        "Strings"
+      ],
+      "tags": [
+        "knowledge-check"
+      ],
+      "marks": 1,
+      "options": [
+        {
+          "optionText": "inter",
+          "isCorrect": true
+        },
+        {
+          "optionText": "interview",
+          "isCorrect": false
+        },
+        {
+          "optionText": "in",
+          "isCorrect": false
+        },
+        {
+          "optionText": "-",
+          "isCorrect": false
+        }
+      ],
+      "codeSnippet": "words = [\"interview\", \"internet\", \"interval\"]\nprefix = words[0]\nfor w in words[1:]:\n    i = 0\n    while i < len(prefix) and i < len(w) and prefix[i] == w[i]:\n        i += 1\n    prefix = prefix[:i]\nprint(prefix or \"-\")"
+    }
+  ],
+  "lessons": [
+    {
+      "title": "Strings: characters, indexing and immutability",
+      "summary": "A string is a sequence of characters — index it like an array, but build new strings instead of editing in place.",
+      "objectives": [
+        "Read individual characters and slices of a string by index",
+        "Explain why Python and Java strings cannot be changed in place",
+        "Build strings efficiently instead of with repeated `+` in a loop"
+      ],
+      "concept": "A **string** is an ordered sequence of characters. Everything you learned about array indexing applies: the first character is at index `0`, the last at `len(s) - 1`, and reading `s[i]` is O(1).\n\n```python\ns = \"binary\"\nprint(s[0])      # b\nprint(s[-1])     # y  — negative indices count from the end\nprint(s[1:4])    # ina — a slice: indices 1, 2 and 3\n```\n\n## Strings are immutable\n\nIn Python and Java you **cannot change a character in place**. `s[0] = \"B\"` is an error. Every \"change\" creates a new string:\n\n```python\ns = \"binary\"\ns = \"B\" + s[1:]   # a brand-new string \"Binary\"\n```\n\n(C++ `std::string` is mutable — `s[0] = 'B'` works there.)\n\n## Why that matters for performance\n\nBecause each `+` builds a new string, appending one character at a time in a loop copies everything built so far, over and over — **O(n²)** for n characters. Instead, collect the pieces and join them once, which is **O(n)**:\n\n```python\npieces = []\nfor ch in \"binary\":\n    pieces.append(ch.upper())\nresult = \"\".join(pieces)   # \"BINARY\"\n```\n\nIn Java, use a `StringBuilder` for the same reason.",
+      "example": "Reversing a string three ways — all O(n):\n\n```python\ns = \"stressed\"\n\nprint(s[::-1])                 # desserts — slice with step -1\nprint(\"\".join(reversed(s)))    # desserts\n\nchars = []\nfor i in range(len(s) - 1, -1, -1):\n    chars.append(s[i])\nprint(\"\".join(chars))          # desserts\n```\n\nAnd in C++, where strings are mutable, you can reverse in place with two indices:\n\n```cpp\nstring s = \"stressed\";\nint i = 0, j = s.size() - 1;\nwhile (i < j) swap(s[i++], s[j--]);\ncout << s << \"\\n\";  // desserts\n```",
+      "commonMistakes": "- **Trying to assign into a Python/Java string.** `s[i] = x` fails; build a new string or work on a list of characters.\n- **Concatenating inside a long loop.** Fine for a handful of pieces, but O(n²) for large inputs — collect and `join`.\n- **Forgetting the newline when reading input.** `input()` strips it in Python; in C++ mixing `cin >>` with `getline` can leave a stray newline — read consistently.",
+      "checks": [
+        "str_index",
+        "str_immutable",
+        "str_concat_cost"
+      ],
+      "practice": [
+        "Reverse a String"
+      ],
+      "orderIndex": 0
+    },
+    {
+      "title": "Counting characters",
+      "summary": "Count how often each character appears in one pass — with a fixed-size array or a dictionary.",
+      "objectives": [
+        "Map a lowercase letter to an array slot with `ord(ch) - ord('a')`",
+        "Count characters in one O(n) pass",
+        "Choose between a counting array and a dictionary"
+      ],
+      "concept": "Many string problems start with **how many times does each character appear?** — anagrams, the most frequent letter, whether two strings use the same letters. Visiting each character once and incrementing a counter answers it in **O(n)**.\n\n## A counting array (small, known alphabet)\n\nFor lowercase English letters there are only 26 possibilities, so a 26-slot array is enough. Map each letter to a slot by subtracting the code of `'a'`:\n\n```python\ncounts = [0] * 26\nfor ch in \"banana\":\n    counts[ord(ch) - ord(\"a\")] += 1\n# counts[0] == 3 (a), counts[1] == 1 (b), counts[13] == 2 (n)\n```\n\nPrinting the non-zero slots in index order gives the letters **alphabetically**, with no sorting.\n\n## A dictionary (any characters)\n\nWhen the characters could be anything — capitals, digits, punctuation, Unicode — use a dictionary (hash map). It only stores the characters that actually appear:\n\n```python\ncounts = {}\nfor ch in \"Hello, World!\":\n    counts[ch] = counts.get(ch, 0) + 1\n```\n\nBoth approaches are one pass, O(n) time. The array uses a fixed 26 slots; the dictionary uses space proportional to the number of *distinct* characters.",
+      "example": "Two strings are **anagrams** when they use exactly the same letters the same number of times:\n\n```python\ndef is_anagram(a, b):\n    if len(a) != len(b):\n        return False\n    counts = [0] * 26\n    for ch in a:\n        counts[ord(ch) - ord(\"a\")] += 1\n    for ch in b:\n        counts[ord(ch) - ord(\"a\")] -= 1\n    return all(c == 0 for c in counts)\n\nprint(is_anagram(\"listen\", \"silent\"))   # True\nprint(is_anagram(\"rat\", \"car\"))         # False\n```\n\nThe same counting array in C++:\n\n```cpp\nint counts[26] = {0};\nfor (char ch : s) counts[ch - 'a']++;\n```",
+      "commonMistakes": "- **Indexing by the raw character code.** `counts[ord(ch)]` needs ~123 slots; subtract `ord('a')` to land in 0–25.\n- **Using a 26-slot array for mixed input.** Capitals or digits fall outside 0–25 and crash or corrupt counts — use a dictionary, or normalise first (`ch.lower()`).\n- **Sorting to count.** Sorting works but costs O(n log n); a single counting pass is O(n).",
+      "checks": [
+        "freq_index",
+        "freq_choice"
+      ],
+      "practice": [
+        "Character Frequency"
+      ],
+      "orderIndex": 1
+    },
+    {
+      "title": "Splitting, joining and parsing words",
+      "summary": "Turn a line of text into words and back again — and handle messy spacing correctly.",
+      "objectives": [
+        "Split a line into words, including lines with repeated or surrounding spaces",
+        "Join words back together with a chosen separator",
+        "Reverse, filter or reorder words without touching the characters inside them"
+      ],
+      "concept": "Text input often arrives as a single line of words. Two operations do most of the work: **split** the line into a list of words, and **join** a list back into one string.\n\n## Splitting\n\nWith no arguments, Python's `split()` splits on **any run of whitespace** and ignores spaces at the start and end:\n\n```python\n\"  the sky  is blue \".split()     # ['the', 'sky', 'is', 'blue']\n```\n\nPassing a separator is stricter — every single space counts, so repeated spaces produce empty strings:\n\n```python\n\"the sky  is\".split(\" \")          # ['the', 'sky', '', 'is']\n```\n\nFor \"words separated by spaces\", the no-argument form is almost always what you want.\n\n## Joining\n\n`separator.join(words)` puts the separator **between** items — never at the ends:\n\n```python\n\" \".join([\"blue\", \"is\", \"sky\"])   # 'blue is sky'\n\", \".join([\"a\", \"b\", \"c\"])        # 'a, b, c'\n```\n\n## Working with words\n\nOnce the line is a list, it's just array work: reverse it, filter it, sort it, count it — then join the result. Splitting and joining are both O(n) in the length of the line.",
+      "example": "Reversing the order of words while normalising spaces:\n\n```python\nline = \"  the sky  is blue \"\nwords = line.split()               # ['the', 'sky', 'is', 'blue']\nprint(\" \".join(reversed(words)))   # blue is sky the\n```\n\nThe same parsing in C++, where `>>` also skips any amount of whitespace:\n\n```cpp\nstring line, word;\ngetline(cin, line);\nistringstream in(line);\nvector<string> words;\nwhile (in >> word) words.push_back(word);\n```",
+      "commonMistakes": "- **`split(\" \")` on messy input.** It keeps empty strings for repeated spaces; use `split()` unless every separator is exactly one space.\n- **Building the output with a trailing separator.** Printing `word + \" \"` in a loop leaves a space at the end; `join` never does.\n- **Reversing the characters instead of the words.** `line[::-1]` reverses letters too — split first, reverse the list, then join.",
+      "checks": [
+        "split_spaces",
+        "join_result"
+      ],
+      "practice": [
+        "Reverse the Words in a Sentence"
+      ],
+      "orderIndex": 2
+    },
+    {
+      "title": "Two pointers and prefixes on strings",
+      "summary": "Compare characters from both ends or column by column — palindromes and common prefixes in linear time.",
+      "objectives": [
+        "Check a palindrome with two pointers in O(n) time and O(1) extra space",
+        "Stop early as soon as a comparison fails",
+        "Find the longest common prefix of several words by scanning columns"
+      ],
+      "concept": "Two techniques from arrays carry straight over to strings.\n\n## Two pointers from both ends\n\nA string is a **palindrome** when it reads the same forwards and backwards. Put one pointer at each end and walk them toward the middle:\n\n```python\ndef is_palindrome(s):\n    i, j = 0, len(s) - 1\n    while i < j:\n        if s[i] != s[j]:\n            return False     # first mismatch settles it\n        i += 1\n        j -= 1\n    return True\n```\n\nAt most `n / 2` comparisons — O(n) time — and no copy of the string, so O(1) extra space. Compare that with `s == s[::-1]`, which is also O(n) but builds a reversed copy.\n\n## Scanning columns: the longest common prefix\n\nFor several words, the longest common prefix is the part every word starts with. Keep a candidate prefix and shorten it against each word:\n\n```python\ndef common_prefix(words):\n    prefix = words[0]\n    for w in words[1:]:\n        i = 0\n        while i < len(prefix) and i < len(w) and prefix[i] == w[i]:\n            i += 1\n        prefix = prefix[:i]\n    return prefix\n```\n\nThe prefix ends at the first column where a word **runs out** or the characters **disagree**. The total work is bounded by the total number of characters.",
+      "example": "Tracing the common prefix of `[\"flower\", \"flow\", \"flight\"]`:\n\n| word | compared with | matching part | prefix after |\n|---|---|---|---|\n| flow | flower | `flow` | flow |\n| flight | flow | `fl` (o ≠ i) | fl |\n\nResult: `fl`. With `[\"dog\", \"car\"]` the first letters differ, so the prefix is empty.",
+      "commonMistakes": "- **Comparing past the end of a shorter word.** Always check `i < len(w)` before `w[i]`.\n- **Forgetting the empty result.** When nothing is shared the prefix is `\"\"` — decide how to print it (this platform's problems ask for `-`).\n- **Moving only one pointer.** In the palindrome check both pointers must move inward every step, or the loop never ends.",
+      "checks": [
+        "palindrome_pointers",
+        "lcp_stop",
+        "lcp_output"
+      ],
+      "practice": [
+        "Valid Palindrome",
+        "Longest Common Prefix"
+      ],
+      "orderIndex": 3
+    }
+  ]
+}
