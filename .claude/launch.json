@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "@technical-platform/web"],
       "port": 5173
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev", "-w", "@technical-platform/api"],
+      "port": 4000
+    },
+    {
+      "name": "execution-service",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@technical-platform/execution-service"],
+      "port": 4100
     }
   ]
 }
