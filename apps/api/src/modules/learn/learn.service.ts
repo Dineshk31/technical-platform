@@ -4,7 +4,7 @@ import type { Prisma } from '../../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { isMcqAnswerCorrect } from '../scoring/scoring.util.js';
 import { toStudentCheck, toStudentLessonDetail, toStudentLessonListItem } from './dto/lesson.dto.js';
-import { canSelfComplete, checkProgress, isRequiredCheck, isServedPractice, passedAllChecks } from './lesson-completion.util.js';
+import { canSelfComplete, checkProgress, isRequiredCheck, isServedPractice, passedAllChecks, pickContinueLesson } from './lesson-completion.util.js';
 
 // What the student lesson page needs from each attached question. `isCorrect` on MCQ
 // options is deliberately NOT selected: correctness never leaves the server except as
@@ -229,9 +229,9 @@ export class LearnService {
    * The Learn counterpart to PracticeService.getProgress() — totals, a
    * byTopic breakdown (only topics with at least one published lesson, never
    * a fabricated 20-topic grid), and a single deterministic `continueLesson`
-   * pick: among topics this student has started but not finished, the one
-   * they most recently completed a lesson in, then the next uncompleted
-   * lesson in that topic by orderIndex. Reused by both a future Learn
+   * pick from the student's most recent real activity (see pickContinueLesson):
+   * a lesson they answered checks in but didn't finish, or the next lesson after
+   * the one they most recently completed. Reused by both a future Learn
    * landing page and Student Home's continue-card (see audit §9) — one
    * aggregation, multiple consumers, the same pattern practice/progress
    * already establishes.
@@ -240,7 +240,7 @@ export class LearnService {
    * a recommendation ("Learn Arrays") can open the exact lesson to do next.
    */
   async getProgress(userId: string) {
-    const [publishedLessons, myProgress] = await Promise.all([
+    const [publishedLessons, myProgress, myCheckActivity] = await Promise.all([
       this.prisma.lesson.findMany({
         where: { isPublished: true },
         select: { id: true, topic: true, title: true, orderIndex: true },
@@ -250,6 +250,8 @@ export class LearnService {
         where: { userId },
         select: { lessonId: true, completedAt: true },
       }),
+      // Answering a check counts as working on a lesson, so a half-done lesson is resumable.
+      this.prisma.lessonCheckResponse.findMany({ where: { userId }, select: { lessonId: true, answeredAt: true } }),
     ]);
 
     const completedAtById = new Map(myProgress.map((p) => [p.lessonId, p.completedAt]));
@@ -275,30 +277,14 @@ export class LearnService {
       }))
       .sort((a, b) => b.total - a.total || a.topic.localeCompare(b.topic));
 
-    // A topic "in progress": at least one completed lesson, at least one not.
-    let continueLesson: { lessonId: string; title: string; topic: string; lastActivityAt: Date } | null = null;
-    let latestCompletionAt = -Infinity;
-    let inProgressTopic: string | null = null;
-    for (const [topic, s] of stats) {
-      if (s.completed === 0 || s.completed >= s.total) continue;
-      const topicLessons = publishedLessons.filter((l) => l.topic === topic);
-      const latestInTopic = Math.max(
-        ...topicLessons.filter((l) => completedAtById.has(l.id)).map((l) => completedAtById.get(l.id)!.getTime()),
-      );
-      if (latestInTopic > latestCompletionAt) {
-        latestCompletionAt = latestInTopic;
-        inProgressTopic = topic;
-      }
-    }
-    if (inProgressTopic) {
-      const next = stats.get(inProgressTopic)!.nextLesson;
-      if (next) {
-        // Exposed so Student Home can compare recency against Practice's own
-        // continueQuestion pick — "what did you touch most recently," not a
-        // fixed pillar order (see docs/PHASE_16_LEARN_ARCHITECTURE_AUDIT.md §9).
-        continueLesson = { lessonId: next.id, title: next.title, topic: inProgressTopic, lastActivityAt: new Date(latestCompletionAt) };
-      }
-    }
+    // Exposed with lastActivityAt so Student Home can compare recency against
+    // Practice's own continueQuestion pick — "what did you touch most recently," not a
+    // fixed pillar order (see docs/PHASE_16_LEARN_ARCHITECTURE_AUDIT.md §9).
+    const continueLesson = pickContinueLesson(
+      publishedLessons,
+      completedAtById,
+      myCheckActivity.map((r) => ({ lessonId: r.lessonId, at: r.answeredAt })),
+    );
 
     return { totalLessons, completedLessons, byTopic, continueLesson };
   }

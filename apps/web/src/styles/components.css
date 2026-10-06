@@ -1176,6 +1176,102 @@ a.stat-card-link .stat-card-hint {
 .lesson-section-title:first-child {
   margin-top: 0;
 }
+.lesson-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  font-size: var(--text-small);
+  color: var(--color-muted);
+}
+.lesson-meta-done {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-success);
+  font-weight: 600;
+}
+.lesson-meta-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+/* Prose reads best at ~70 characters a line; code blocks and tables keep the full width. */
+.lesson-content .markdown > p,
+.lesson-content .markdown > ul,
+.lesson-content .markdown > ol,
+.lesson-content .markdown > blockquote {
+  max-width: 72ch;
+}
+.lesson-content .markdown {
+  font-size: 0.95rem;
+}
+.practice-tier + .practice-tier {
+  margin-top: var(--space-4);
+}
+.practice-tier-title {
+  font-size: var(--text-label);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  margin: 0 0 var(--space-1);
+}
+.lesson-more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+.lesson-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+.lesson-pager-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+}
+.lesson-pager-link:hover {
+  border-color: var(--color-primary);
+}
+.lesson-pager-link.next {
+  grid-column: 2;
+  text-align: right;
+  align-items: flex-end;
+}
+.lesson-pager-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-label);
+  color: var(--color-muted);
+}
+.lesson-pager-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .lesson-pager {
+    grid-template-columns: 1fr;
+  }
+  .lesson-pager-link.next {
+    grid-column: 1;
+  }
+}
 .lesson-objectives ul {
   list-style: none;
   margin: 0;
@@ -1459,4 +1555,40 @@ a.stat-card-link .stat-card-hint {
 }
 .review-checklist li.blocking {
   color: var(--color-error);
+}
+
+/* Optional "lesson available" note on a topic-filtered problem list. */
+.explorer-lesson-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-small);
+  color: var(--color-text-secondary);
+}
+.explorer-lesson-hint svg {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--color-primary);
+}
+.review-checklist li.ok-muted {
+  color: var(--color-text-secondary);
+}
+.review-checklist li.ok-muted svg {
+  color: var(--color-muted);
+}
+
+/* Admin "Preview as student" — same lesson styles, framed so it's clearly a preview. */
+.lesson-preview {
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+  background: var(--color-bg);
+}
+.lesson-preview-practice {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: var(--space-1);
 }

@@ -407,3 +407,63 @@
   background: var(--color-surface);
   margin-top: var(--space-4);
 }
+
+/* ---------- Practice workspace: related lesson in the problem panel ---------- */
+
+.workspace-panel-tabs {
+  margin: calc(var(--space-2) * -1) 0 var(--space-4);
+}
+.workspace-panel-tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.workspace-lesson-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.workspace-lesson-note {
+  font-size: var(--text-small);
+  color: var(--color-muted);
+  margin: 0 0 var(--space-4);
+}
+.workspace-lesson-note a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.workspace-lesson-objectives {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-3) 2rem;
+  background: var(--color-surface-secondary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-small);
+}
+.workspace-lesson-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-small);
+  color: var(--color-muted);
+}
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-button:hover {
+  background: none;
+  color: var(--color-primary-hover);
+}

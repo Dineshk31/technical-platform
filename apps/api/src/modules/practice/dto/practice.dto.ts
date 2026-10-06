@@ -85,3 +85,41 @@ export function toPracticeQuestionDetail(
     drafts: drafts.map((d) => ({ language: d.language, code: d.code, updatedAt: d.updatedAt })),
   };
 }
+
+export type RelatedLessonCandidate = {
+  id: string;
+  topic: string;
+  title: string;
+  summary: string;
+  orderIndex: number;
+  /** true when the lesson's author attached this exact problem as practice. */
+  attachesProblem: boolean;
+};
+
+/**
+ * The lessons a student can open from a coding problem ("stuck? read the concept"). Lessons
+ * whose author attached this very problem come first — they were written for it — then,
+ * for each of the problem's topics not already covered, that topic's first lesson as an
+ * introduction. Published lessons only (the caller filters), at most `max`, and never a
+ * prerequisite: the workspace just offers them.
+ */
+export function pickRelatedLessons(problemTopics: string[], candidates: RelatedLessonCandidate[], max = 3) {
+  const topicRank = (topic: string) => {
+    const i = problemTopics.indexOf(topic);
+    return i === -1 ? problemTopics.length : i;
+  };
+  const ordered = [...candidates].sort((a, b) => topicRank(a.topic) - topicRank(b.topic) || a.orderIndex - b.orderIndex);
+  const attached = ordered.filter((l) => l.attachesProblem);
+  const coveredTopics = new Set(attached.map((l) => l.topic));
+  const introductions = problemTopics
+    .filter((topic) => !coveredTopics.has(topic))
+    .map((topic) => ordered.find((l) => l.topic === topic))
+    .filter((l): l is RelatedLessonCandidate => l !== undefined);
+  return [...attached, ...introductions].slice(0, max).map((l) => ({
+    id: l.id,
+    topic: l.topic,
+    title: l.title,
+    summary: l.summary,
+    reason: l.attachesProblem ? ('ATTACHED' as const) : ('TOPIC' as const),
+  }));
+}

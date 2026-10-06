@@ -4,6 +4,7 @@ import { Prisma } from '../../../generated/prisma/index.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   computePracticeStatus,
+  pickRelatedLessons,
   toPracticeQuestionDetail,
   toPracticeQuestionListItem,
   type PracticeQuestionStatus,
@@ -107,23 +108,43 @@ export class PracticeService {
   }
 
   /** The practice workspace's question payload — restricted content (public test
-   * cases only, no reference solutions), this student's status, and their saved
-   * drafts for every language they've touched on this question. */
+   * cases only, no reference solutions), this student's status, their saved
+   * drafts for every language they've touched on this question, and the published
+   * lessons that explain it (offered, never required — see pickRelatedLessons). */
   async getQuestionDetail(userId: string, questionId: string) {
     const question = await this.prisma.question.findUnique({ where: { id: questionId }, include: DETAIL_INCLUDE });
     if (!question || question.type !== 'CODING' || !question.codingQuestion || question.approvalStatus !== 'APPROVED') {
       throw new NotFoundException('Question not found');
     }
 
-    const [mySubmissions, drafts] = await Promise.all([
+    const [mySubmissions, drafts, lessonCandidates] = await Promise.all([
       this.prisma.submission.findMany({ where: { userId, questionId }, select: { kind: true, status: true } }),
       this.prisma.practiceCodeDraft.findMany({
         where: { userId, questionId },
         select: { language: true, code: true, updatedAt: true },
       }),
+      // Published lessons only — the same visibility gate LearnService applies.
+      this.prisma.lesson.findMany({
+        where: {
+          isPublished: true,
+          OR: [{ questionLinks: { some: { questionId, role: 'PRACTICE' } } }, { topic: { in: question.topics } }],
+        },
+        select: {
+          id: true,
+          topic: true,
+          title: true,
+          summary: true,
+          orderIndex: true,
+          questionLinks: { where: { questionId, role: 'PRACTICE' }, select: { questionId: true } },
+        },
+      }),
     ]);
 
-    return toPracticeQuestionDetail(question, computePracticeStatus(mySubmissions), drafts);
+    const relatedLessons = pickRelatedLessons(
+      question.topics,
+      lessonCandidates.map(({ questionLinks, ...l }) => ({ ...l, attachesProblem: questionLinks.length > 0 })),
+    );
+    return { ...toPracticeQuestionDetail(question, computePracticeStatus(mySubmissions), drafts), relatedLessons };
   }
 
   /** The only write path for practice code drafts — mirrors

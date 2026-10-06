@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, CircleAlert, Plus, X } from 'lucide-react';
-import { CODING_TOPICS, type Topic } from '@technical-platform/shared';
+import { ArrowLeft, Check, CircleAlert, Eye, Info, Pencil, Plus, X } from 'lucide-react';
+import { CODING_TOPICS, groupByPracticeTier, lessonQualityIssues, type Topic } from '@technical-platform/shared';
 import { TopicOptions } from '../components/TopicOptions';
 import { ApiError } from '../lib/api-client';
 import {
@@ -19,6 +19,7 @@ import { ErrorState } from '../components/ErrorState';
 import { LoadingRow } from '../components/Skeleton';
 import { MarkdownField } from '../components/MarkdownField';
 import { LessonQuestionPicker, type PickedQuestion } from '../components/LessonQuestionPicker';
+import { LessonBody } from '../components/LessonBody';
 
 const MAX_OBJECTIVES = 8;
 
@@ -67,6 +68,7 @@ export function AdminLessonFormPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
 
   function applyLesson(l: AdminLessonDetail) {
     setLesson(l);
@@ -183,6 +185,19 @@ export function AdminLessonFormPage() {
     : [];
   const blocked = checklist.some((c) => c.required && !c.ok);
 
+  // Editorial advice on the *current* form state (unsaved edits included) — never blocks
+  // saving or publishing; the shared rules also drive `npm run content:check`.
+  const suggestions = lessonQualityIssues({
+    topic,
+    objectives,
+    concept,
+    example,
+    commonMistakes,
+    checkCount: checks.length,
+    practiceCount: practice.length,
+  });
+  const previewObjectives = objectives.map((o) => o.trim()).filter(Boolean);
+
   return (
     <div className="dashboard-body">
       {confirmDialog}
@@ -191,14 +206,59 @@ export function AdminLessonFormPage() {
       </Link>
       <div className="page-header">
         <h1 style={{ margin: 0 }}>{isEdit ? `Edit: ${lesson?.title ?? ''}` : 'New lesson'}</h1>
-        {isEdit && lesson && (
-          <div className="action-row" style={{ marginBottom: 0 }}>
+        <div className="action-row" style={{ marginBottom: 0 }}>
+          {isEdit && lesson && (
             <Badge variant={lesson.isPublished ? 'success' : 'neutral'}>{lesson.isPublished ? 'Published' : 'Draft'}</Badge>
-          </div>
-        )}
+          )}
+          <button type="button" className="btn-secondary btn-small btn-icon" aria-pressed={previewing} onClick={() => setPreviewing((v) => !v)}>
+            {previewing ? <Pencil size={13} /> : <Eye size={13} />} {previewing ? 'Back to editing' : 'Preview as student'}
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      {previewing && (
+        <div className="lesson-page lesson-preview" aria-label="Student preview">
+          <p className="field-hint" style={{ marginTop: 0 }}>
+            Preview of your current edits (including unsaved ones), rendered exactly as students see it. Knowledge checks are shown on the
+            real page with server grading.
+          </p>
+          <header className="lesson-header">
+            <p className="lesson-eyebrow">{topic}</p>
+            <h1 style={{ margin: 0 }}>{title || 'Untitled lesson'}</h1>
+            {summary && <p className="lesson-summary">{summary}</p>}
+          </header>
+          {concept.trim() ? (
+            <LessonBody objectives={previewObjectives} concept={concept} example={example} commonMistakes={commonMistakes} />
+          ) : (
+            <div className="card">
+              <p className="field-hint">Write the explanation to see it here.</p>
+            </div>
+          )}
+          <section className="card">
+            <h2 className="lesson-section-title">Practice</h2>
+            {practice.length === 0 ? (
+              <p className="field-hint" style={{ marginTop: 0 }}>
+                No problems attached — students will see a link to all {topic} problems.
+              </p>
+            ) : (
+              groupByPracticeTier(practice).map((group) => (
+                <div key={group.tier} className="practice-tier">
+                  <h3 className="practice-tier-title">{group.label}</h3>
+                  <ul className="lesson-preview-practice">
+                    {group.items.map((p) => (
+                      <li key={p.questionId}>
+                        {p.title} <span className="activity-row-meta">· {p.difficulty}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )}
+          </section>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} hidden={previewing}>
         <div className="card">
           <div className="form-section">
             <h3>1. Basic information</h3>
@@ -276,8 +336,9 @@ export function AdminLessonFormPage() {
           <div className="form-section">
             <h3>6. Knowledge checks</h3>
             <p className="field-hint" style={{ marginTop: 0 }}>
-              MCQs the student must answer correctly to complete the lesson. Graded on the server; the explanation is shown after they
-              answer. Questions still in review can be attached to a draft — approve them before publishing.
+              Optional MCQs that test understanding — tracing, edge cases, complexity — rather than recall. Answering them all correctly
+              completes the lesson; they never block practice. Graded on the server, and the explanation is shown only after the student
+              answers. Questions still in review can be attached to a draft — approve them before publishing.
             </p>
             <LessonQuestionPicker kind="CHECK" topic={topic} picked={checks} onChange={setChecks} />
           </div>
@@ -285,11 +346,29 @@ export function AdminLessonFormPage() {
           <div className="form-section">
             <h3>7. Practice what you just learned</h3>
             <p className="field-hint" style={{ marginTop: 0 }}>
-              Specific coding problems offered once the lesson is passed. Only problems whose reference solution passed verification can be
-              attached.
+              Coding problems shown with the lesson at all times, grouped for students by difficulty: Easy as “Apply the concept”, Medium as
+              “Build confidence”, Hard as “Challenge yourself”. Only problems whose reference solution passed verification can be attached.
+              Once the lesson is published, each problem&apos;s workspace also links back to it.
             </p>
             <LessonQuestionPicker kind="PRACTICE" topic={topic} picked={practice} onChange={setPractice} />
           </div>
+
+          {suggestions.length > 0 && (
+            <div className="form-section">
+              <h3>Suggestions</h3>
+              <p className="field-hint" style={{ marginTop: 0 }}>
+                Editorial advice only — none of these stop you saving or publishing.
+              </p>
+              <ul className="review-checklist">
+                {suggestions.map((s) => (
+                  <li key={s.message} className={s.level === 'warning' ? 'optional' : 'ok-muted'}>
+                    {s.level === 'warning' ? <CircleAlert size={14} aria-hidden="true" /> : <Info size={14} aria-hidden="true" />}
+                    <span>{s.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="form-section">

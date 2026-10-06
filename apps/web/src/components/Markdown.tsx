@@ -19,9 +19,9 @@ const LANGUAGES: Record<string, { prism: string; label: string }> = {
   sql: { prism: 'sql', label: 'SQL' },
 };
 
-function CodeBlock({ language, code }: { language?: string; code: string }) {
+export function CodeBlock({ language, code, fallbackLabel = 'Example' }: { language?: string; code: string; fallbackLabel?: string }) {
   const lang = language ? LANGUAGES[language.toLowerCase()] : undefined;
-  const label = lang?.label ?? (language && language !== 'text' ? language : 'Example');
+  const label = lang?.label ?? (language && language !== 'text' ? language : fallbackLabel);
   return (
     <figure className="md-code">
       <figcaption className="md-code-lang">{label}</figcaption>

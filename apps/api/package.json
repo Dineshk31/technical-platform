@@ -25,7 +25,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
-    "content:load": "node scripts/load-content.mjs"
+    "content:load": "node scripts/load-content.mjs",
+    "content:check": "node scripts/check-content.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.52.0",

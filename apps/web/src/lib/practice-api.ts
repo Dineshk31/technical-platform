@@ -107,6 +107,9 @@ export interface PracticeQuestionDetail {
   publicTestCases: { id: string; input: string; expectedOutput: string }[];
   starterCode: Partial<Record<ProgrammingLanguageCode, string>>;
   drafts: PracticeDraftDto[];
+  /** Published lessons that explain this problem — offered, never required. ATTACHED =
+   * the lesson's author picked this problem; TOPIC = an introduction to one of its topics. */
+  relatedLessons: { id: string; topic: string; title: string; summary: string; reason: 'ATTACHED' | 'TOPIC' }[];
 }
 
 export function getPracticeQuestion(id: string) {

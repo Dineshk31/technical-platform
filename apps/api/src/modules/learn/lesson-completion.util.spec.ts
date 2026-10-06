@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isMcqAnswerCorrect } from '../scoring/scoring.util.js';
-import { canSelfComplete, checkProgress, isRequiredCheck, isServedPractice, passedAllChecks } from './lesson-completion.util.js';
+import { canSelfComplete, checkProgress, isRequiredCheck, isServedPractice, passedAllChecks, pickContinueLesson } from './lesson-completion.util.js';
 
 describe('knowledge-check grading (shared MCQ rule)', () => {
   it('single answer: only the exact correct option is right', () => {
@@ -49,5 +49,42 @@ describe('lesson completion rule', () => {
     expect(passedAllChecks({ total: 0, passed: 0 })).toBe(false);
     expect(canSelfComplete({ total: 0, passed: 0 })).toBe(true);
     expect(canSelfComplete({ total: 2, passed: 2 })).toBe(false);
+  });
+});
+
+describe('continue learning', () => {
+  const lessons = [
+    { id: 'a1', topic: 'Arrays', title: 'A1' },
+    { id: 'a2', topic: 'Arrays', title: 'A2' },
+    { id: 'h1', topic: 'Hashing', title: 'H1' },
+    { id: 'h2', topic: 'Hashing', title: 'H2' },
+  ];
+  const t = (minutes: number) => new Date(Date.UTC(2026, 0, 1, 0, minutes));
+
+  it('suggests nothing to a student who has never touched Learn', () => {
+    expect(pickContinueLesson(lessons, new Map(), [])).toBeNull();
+  });
+
+  it('resumes a lesson whose checks were answered partway, even if it was never completed', () => {
+    const pick = pickContinueLesson(lessons, new Map(), [{ lessonId: 'h1', at: t(5) }]);
+    expect(pick).toEqual({ lessonId: 'h1', title: 'H1', topic: 'Hashing', lastActivityAt: t(5) });
+  });
+
+  it('after a completion, moves on to the next unfinished lesson in that topic', () => {
+    const pick = pickContinueLesson(lessons, new Map([['a1', t(3)]]), [{ lessonId: 'a1', at: t(2) }]);
+    expect(pick).toMatchObject({ lessonId: 'a2', lastActivityAt: t(3) });
+  });
+
+  it('follows the most recent activity across topics, and skips a finished topic', () => {
+    const completed = new Map([
+      ['a1', t(1)],
+      ['a2', t(9)],
+    ]);
+    // Arrays is finished (most recent), so the older, unfinished Hashing check wins.
+    expect(pickContinueLesson(lessons, completed, [{ lessonId: 'h2', at: t(4) }])).toMatchObject({ lessonId: 'h2', topic: 'Hashing' });
+  });
+
+  it('ignores activity on lessons that are no longer published', () => {
+    expect(pickContinueLesson(lessons, new Map(), [{ lessonId: 'gone', at: t(1) }])).toBeNull();
   });
 });

@@ -42,7 +42,7 @@ export function WeakAreasCard({ areas, lessonsByTopic }: { areas: WeakArea[]; le
                 : `/student/learn/${encodeURIComponent(a.topic)}`;
               return (
                 <Link to={to}>
-                  <button className="btn-secondary btn-small">{learn.nextLessonId ? `Learn ${a.topic} first →` : `Review ${a.topic} →`}</button>
+                  <button className="btn-secondary btn-small">{learn.nextLessonId ? `Read the ${a.topic} lesson →` : `Review ${a.topic} →`}</button>
                 </Link>
               );
             })()}

@@ -16,3 +16,4 @@ export * from './types/api-error.types.js';
 export * from './types/pagination.types.js';
 export * from './interfaces/ai-provider.interface.js';
 export * from './utils/starter-templates.js';
+export * from './utils/lesson-quality.js';

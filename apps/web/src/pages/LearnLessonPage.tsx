@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, Code2, ListChecks, Target } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { ArrowDown, ArrowLeft, ArrowRight, CheckCircle2, Code2, ListChecks } from 'lucide-react';
+import { groupByPracticeTier } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import {
   completeLesson,
@@ -12,7 +13,7 @@ import {
 } from '../lib/learn-api';
 import { ErrorState } from '../components/ErrorState';
 import { Skeleton } from '../components/Skeleton';
-import { Markdown } from '../components/Markdown';
+import { LessonBody } from '../components/LessonBody';
 import { KnowledgeCheckCard } from '../components/KnowledgeCheckCard';
 
 const PRACTICE_STATUS: Record<string, { label: string; pill: string }> = {
@@ -21,16 +22,24 @@ const PRACTICE_STATUS: Record<string, { label: string; pill: string }> = {
   NOT_ATTEMPTED: { label: 'Not started', pill: 'pending' },
 };
 
+const WORDS_PER_MINUTE = 200;
+
+function readingMinutes(lesson: StudentLessonDetail): number {
+  const text = [lesson.concept, lesson.example ?? '', lesson.commonMistakes ?? ''].join(' ');
+  return Math.max(1, Math.round(text.split(/\s+/).filter(Boolean).length / WORDS_PER_MINUTE));
+}
+
+const lessonPath = (l: { topic: string; id: string }) => `/student/learn/${encodeURIComponent(l.topic)}/lessons/${l.id}`;
+
 /**
- * The lesson experience (§P16-C, Phase 18): what you'll learn → the content (safe
- * Markdown with highlighted code) → a server-graded knowledge check → a real
- * completion moment → "Practice what you just learned", the specific problems the
- * author attached, each with this student's own solved status. A lesson without
- * checks keeps the plain "Mark complete" step.
+ * The lesson experience: what you'll learn → the content (safe Markdown with highlighted
+ * code) → an optional, server-graded knowledge check → the practice problems the author
+ * attached. Practice is always visible and grouped from easiest to hardest — a lesson is
+ * a companion to coding, never a gate in front of it, so nothing here waits for the
+ * checks to be passed. Previous/next lesson links are always available.
  */
 export function LearnLessonPage() {
   const { topic, id } = useParams<{ topic: string; id: string }>();
-  const navigate = useNavigate();
 
   const [lesson, setLesson] = useState<StudentLessonDetail | null>(null);
   const [siblings, setSiblings] = useState<StudentLessonListItem[]>([]);
@@ -38,6 +47,7 @@ export function LearnLessonPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!id || !topic) return;
@@ -47,6 +57,8 @@ export function LearnLessonPage() {
       .then(([l, list]) => {
         setLesson(l);
         setSiblings(list);
+        // The app shell scrolls its own content area, not the window — start each lesson at the top.
+        rootRef.current?.closest('.app-main-scroll')?.scrollTo({ top: 0 });
       })
       .catch((err) => setError(err instanceof ApiError && err.status === 404 ? 'Lesson not found' : 'Failed to load this lesson'))
       .finally(() => setLoading(false));
@@ -93,7 +105,7 @@ export function LearnLessonPage() {
 
   if (loading) {
     return (
-      <div className="dashboard-body">
+      <div className="dashboard-body lesson-page" ref={rootRef}>
         <Skeleton height="2rem" />
         <Skeleton height="12rem" />
       </div>
@@ -112,13 +124,16 @@ export function LearnLessonPage() {
 
   const orderedSiblings = [...siblings].sort((a, b) => a.orderIndex - b.orderIndex);
   const currentIndex = orderedSiblings.findIndex((l) => l.id === lesson.id);
+  const previousLesson = currentIndex > 0 ? orderedSiblings[currentIndex - 1] : undefined;
   const nextLesson = currentIndex >= 0 ? orderedSiblings[currentIndex + 1] : undefined;
   const hasChecks = lesson.checksTotal > 0;
+  const hasPractice = lesson.practice.length > 0;
   const firstUnsolved = lesson.practice.find((p) => p.status !== 'SOLVED');
   const checkPct = hasChecks ? Math.round((lesson.checksPassed / lesson.checksTotal) * 100) : 0;
+  const topicProblemsPath = `/student/practice/problems?topic=${encodeURIComponent(topic)}`;
 
   return (
-    <div className="dashboard-body lesson-page">
+    <div className="dashboard-body lesson-page" ref={rootRef}>
       <Link to={`/student/learn/${encodeURIComponent(topic)}`} className="back-link">
         <ArrowLeft size={14} /> {topic}
       </Link>
@@ -131,39 +146,26 @@ export function LearnLessonPage() {
         )}
         <h1 style={{ margin: 0 }}>{lesson.title}</h1>
         <p className="lesson-summary">{lesson.summary}</p>
+        <div className="lesson-meta">
+          <span>{readingMinutes(lesson)} min read</span>
+          {hasChecks && (
+            <span>
+              {lesson.checksTotal} knowledge check{lesson.checksTotal === 1 ? '' : 's'}
+            </span>
+          )}
+          {lesson.completed && (
+            <span className="lesson-meta-done">
+              <CheckCircle2 size={13} aria-hidden="true" /> Completed
+            </span>
+          )}
+          <a href="#practice-heading" className="lesson-meta-jump">
+            <ArrowDown size={13} aria-hidden="true" />
+            {hasPractice ? `Skip to practice (${lesson.practice.length})` : 'Skip to practice'}
+          </a>
+        </div>
       </header>
 
-      {lesson.objectives.length > 0 && (
-        <section className="card lesson-objectives" aria-labelledby="objectives-heading">
-          <h2 id="objectives-heading" className="lesson-section-title">
-            <Target size={17} aria-hidden="true" /> What you'll learn
-          </h2>
-          <ul>
-            {lesson.objectives.map((o) => (
-              <li key={o}>
-                <CheckCircle2 size={15} aria-hidden="true" />
-                <span>{o}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <article className="card lesson-content">
-        <Markdown>{lesson.concept}</Markdown>
-        {lesson.example && (
-          <>
-            <h2 className="lesson-section-title">Worked example</h2>
-            <Markdown>{lesson.example}</Markdown>
-          </>
-        )}
-        {lesson.commonMistakes && (
-          <>
-            <h2 className="lesson-section-title">Common mistakes</h2>
-            <Markdown>{lesson.commonMistakes}</Markdown>
-          </>
-        )}
-      </article>
+      <LessonBody objectives={lesson.objectives} concept={lesson.concept} example={lesson.example} commonMistakes={lesson.commonMistakes} />
 
       {hasChecks && (
         <section className="card" aria-labelledby="check-heading">
@@ -188,7 +190,8 @@ export function LearnLessonPage() {
           </div>
           {!lesson.completed && (
             <p className="field-hint" style={{ marginTop: 0 }}>
-              Answer every question correctly to complete this lesson. You can try again as many times as you need.
+              Answer every question correctly to mark this lesson complete. Wrong answers can be retried, and the practice problems below
+              are open whether or not you finish these.
             </p>
           )}
           <div className="kc-list">
@@ -221,64 +224,77 @@ export function LearnLessonPage() {
             </div>
           </div>
           <div className="practice-completion-actions">
-            {firstUnsolved ? (
-              <Link to={`/student/practice/problems/${firstUnsolved.questionId}`}>
-                <button type="button" className="btn-on-accent btn-icon">
-                  <Code2 size={15} /> Solve {firstUnsolved.title} <ArrowRight size={15} />
-                </button>
-              </Link>
-            ) : (
-              lesson.practice.length === 0 && (
-                <Link to={`/student/practice/problems?topic=${encodeURIComponent(topic)}`}>
-                  <button type="button" className="btn-on-accent btn-icon">
-                    <Code2 size={15} /> Practice {topic} problems <ArrowRight size={15} />
-                  </button>
-                </Link>
-              )
-            )}
-            {nextLesson && (
-              <button
-                type="button"
-                className="btn-secondary btn-small btn-icon practice-completion-secondary"
-                onClick={() => navigate(`/student/learn/${encodeURIComponent(topic)}/lessons/${nextLesson.id}`)}
-              >
-                Next lesson: {nextLesson.title} <ArrowRight size={13} />
-              </button>
-            )}
-            <Link to={`/student/learn/${encodeURIComponent(topic)}`}>
-              <button type="button" className="btn-secondary btn-small btn-icon practice-completion-secondary">
-                Back to {topic}
+            <Link to={firstUnsolved ? `/student/practice/problems/${firstUnsolved.questionId}` : topicProblemsPath}>
+              <button type="button" className="btn-on-accent btn-icon">
+                <Code2 size={15} /> {firstUnsolved ? `Solve ${firstUnsolved.title}` : `Practice ${topic} problems`} <ArrowRight size={15} />
               </button>
             </Link>
           </div>
         </div>
       )}
 
-      {lesson.completed && lesson.practice.length > 0 && (
-        <section className="card" aria-labelledby="practice-heading">
-          <h2 id="practice-heading" className="lesson-section-title">
-            <Code2 size={17} aria-hidden="true" /> Practice what you just learned
-          </h2>
-          <p className="field-hint" style={{ marginTop: 0 }}>
-            Picked for this lesson. Your code is judged against hidden tests, just like in an assessment.
-          </p>
-          <div className="activity-list">
-            {lesson.practice.map((p) => (
-              <Link
-                key={p.questionId}
-                to={`/student/practice/problems/${p.questionId}`}
-                className="activity-row"
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
-                <div className="activity-row-main">
-                  <span className="activity-row-title">{p.title}</span>
-                  <span className="activity-row-meta">{p.difficulty}</span>
+      <section className="card" aria-labelledby="practice-heading">
+        <h2 id="practice-heading" className="lesson-section-title">
+          <Code2 size={17} aria-hidden="true" /> Practice
+        </h2>
+        {hasPractice ? (
+          <>
+            <p className="field-hint" style={{ marginTop: 0 }}>
+              Picked for this lesson, easiest first. Your code is judged against hidden tests, just like in an assessment.
+            </p>
+            {groupByPracticeTier(lesson.practice).map((group) => (
+              <div key={group.tier} className="practice-tier">
+                <h3 className="practice-tier-title">{group.label}</h3>
+                <div className="activity-list">
+                  {group.items.map((p) => (
+                    <Link
+                      key={p.questionId}
+                      to={`/student/practice/problems/${p.questionId}`}
+                      className="activity-row"
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <div className="activity-row-main">
+                        <span className="activity-row-title">{p.title}</span>
+                        <span className="activity-row-meta">{p.difficulty}</span>
+                      </div>
+                      <span className={`exam-status-pill ${PRACTICE_STATUS[p.status].pill}`}>{PRACTICE_STATUS[p.status].label}</span>
+                    </Link>
+                  ))}
                 </div>
-                <span className={`exam-status-pill ${PRACTICE_STATUS[p.status].pill}`}>{PRACTICE_STATUS[p.status].label}</span>
-              </Link>
+              </div>
             ))}
-          </div>
-        </section>
+          </>
+        ) : (
+          <p className="field-hint" style={{ marginTop: 0 }}>
+            No problems are attached to this lesson yet.
+          </p>
+        )}
+        <Link to={topicProblemsPath} className="lesson-more-link">
+          All {topic} problems <ArrowRight size={13} aria-hidden="true" />
+        </Link>
+      </section>
+
+      {(previousLesson || nextLesson) && (
+        <nav className="lesson-pager" aria-label="Lessons in this topic">
+          {previousLesson ? (
+            <Link to={lessonPath(previousLesson)} className="lesson-pager-link">
+              <span className="lesson-pager-label">
+                <ArrowLeft size={13} aria-hidden="true" /> Previous
+              </span>
+              <span className="lesson-pager-title">{previousLesson.title}</span>
+            </Link>
+          ) : (
+            <span />
+          )}
+          {nextLesson && (
+            <Link to={lessonPath(nextLesson)} className="lesson-pager-link next">
+              <span className="lesson-pager-label">
+                Next <ArrowRight size={13} aria-hidden="true" />
+              </span>
+              <span className="lesson-pager-title">{nextLesson.title}</span>
+            </Link>
+          )}
+        </nav>
       )}
     </div>
   );

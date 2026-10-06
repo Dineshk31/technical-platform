@@ -14,18 +14,34 @@
  *   CONTENT_ADMIN_EMAIL=... CONTENT_ADMIN_PASSWORD=... \
  *   npm run content:load -w @technical-platform/api -- content/arrays-track.json
  *
- * API_URL defaults to http://localhost:4000/api/v1. Credentials are only ever read
- * from the environment — never put them in a content file.
+ * --update-drafts  instead of loading, copies edited lesson text (summary, objectives, explanation,
+ *                  worked example, common mistakes) from the file into lessons that
+ *                  already exist as DRAFTS. Only fields that differ are sent; question
+ *                  links are left alone. Published lessons are never changed — they are
+ *                  listed so a person can update them in the editor deliberately.
+ * --dry-run        with --update-drafts: report what would change, write nothing.
+ *
+ * Run `npm run content:check` first. API_URL defaults to http://localhost:4000/api/v1.
+ * Credentials are only ever read from the environment — never put them in a content file.
  */
 import { readFile } from 'node:fs/promises';
 
 const API = process.env.API_URL ?? 'http://localhost:4000/api/v1';
-const file = process.argv[2];
+const args = process.argv.slice(2);
+const file = args.find((a) => !a.startsWith('--'));
+const updateDrafts = args.includes('--update-drafts');
+const dryRun = args.includes('--dry-run');
 const email = process.env.CONTENT_ADMIN_EMAIL;
 const password = process.env.CONTENT_ADMIN_PASSWORD;
 
 if (!file || !email || !password) {
-  console.error('Usage: CONTENT_ADMIN_EMAIL=... CONTENT_ADMIN_PASSWORD=... node scripts/load-content.mjs <track.json>');
+  console.error(
+    'Usage: CONTENT_ADMIN_EMAIL=... CONTENT_ADMIN_PASSWORD=... node scripts/load-content.mjs <track.json> [--update-drafts [--dry-run]]',
+  );
+  process.exit(1);
+}
+if (dryRun && !updateDrafts) {
+  console.error('--dry-run only applies to --update-drafts.');
   process.exit(1);
 }
 
@@ -47,6 +63,57 @@ if (login.status >= 300) {
   process.exit(1);
 }
 const token = login.body.accessToken;
+
+if (updateDrafts) {
+  await syncDraftLessons();
+  process.exit(0);
+}
+
+/** --update-drafts: push edited lesson text into existing DRAFT lessons, nothing else. */
+async function syncDraftLessons() {
+  const TEXT_FIELDS = ['summary', 'objectives', 'concept', 'example', 'commonMistakes'];
+  // The API trims strings and stores an omitted optional field as null.
+  const normalise = (field, value) =>
+    field === 'objectives' ? JSON.stringify((value ?? []).map((o) => o.trim())) : (value ?? '').trim();
+
+  const list = await call('GET', `/lessons?topic=${encodeURIComponent(track.topic)}&pageSize=100`, undefined, token);
+  const existing = list.body.data;
+  let updated = 0;
+  const problems = [];
+  for (const lesson of track.lessons) {
+    const match = existing.find((l) => l.title === lesson.title);
+    if (!match) {
+      console.log(`? lesson  ${lesson.title} (not in the database — run without --update-drafts to create it)`);
+      continue;
+    }
+    const current = (await call('GET', `/lessons/${match.id}`, undefined, token)).body;
+    const changed = TEXT_FIELDS.filter((f) => normalise(f, lesson[f]) !== normalise(f, current[f]));
+    if (changed.length === 0) {
+      console.log(`= lesson  ${lesson.title} (up to date)`);
+      continue;
+    }
+    if (current.isPublished) {
+      console.log(`! lesson  ${lesson.title} is PUBLISHED — not changed (${changed.join(', ')} differ; update it in the editor)`);
+      continue;
+    }
+    if (dryRun) {
+      console.log(`~ lesson  ${lesson.title} (would update: ${changed.join(', ')})`);
+      continue;
+    }
+    const patch = Object.fromEntries(changed.map((f) => [f, lesson[f]]));
+    const res = await call('PATCH', `/lessons/${match.id}`, patch, token);
+    if (res.status !== 200) problems.push(`update "${lesson.title}": ${res.status} ${JSON.stringify(res.body?.error ?? res.body)}`);
+    else {
+      updated++;
+      console.log(`~ lesson  ${lesson.title} (updated: ${changed.join(', ')}; still a draft)`);
+    }
+  }
+  console.log(dryRun ? '\nDry run — nothing was written.' : `\n${updated} draft lesson(s) updated. Nothing was published.`);
+  if (problems.length > 0) {
+    console.error(`\n${problems.length} problem(s):\n- ${problems.join('\n- ')}`);
+    process.exit(1);
+  }
+}
 
 async function findQuestion(title) {
   const res = await call('GET', `/questions?pageSize=100&search=${encodeURIComponent(title)}`, undefined, token);

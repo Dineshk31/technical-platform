@@ -308,6 +308,40 @@ describe('Learn: lessons, knowledge checks and practice (e2e)', () => {
     });
   });
 
+  describe('lessons stay optional and resumable', () => {
+    it('serves practice problems before any knowledge check is answered — lessons never gate practice', async () => {
+      const lesson = await lessonAs(bobToken);
+      expect(lesson.body.completed).toBe(false);
+      expect(lesson.body.practice.map((p: { questionId: string }) => p.questionId)).toEqual([verifiedCoding]);
+      const problem = await request(server).get(`/api/v1/practice/questions/${verifiedCoding}`).set('Authorization', `Bearer ${bobToken}`);
+      expect(problem.status).toBe(200);
+    });
+
+    it('a lesson answered partway is offered as "continue learning"', async () => {
+      expect((await answer(bobToken, singleCheck.id, [singleCheck.wrong])).body.isCorrect).toBe(false);
+      const progress = await request(server).get('/api/v1/learn/progress').set('Authorization', `Bearer ${bobToken}`);
+      expect(progress.body.continueLesson).toMatchObject({ lessonId, topic: 'Arrays' });
+    });
+  });
+
+  describe('lessons from the coding workspace', () => {
+    it('a practice problem lists the published lessons that attach it — never drafts — and no answers', async () => {
+      const draft = await request(server)
+        .post('/api/v1/lessons')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ topic: 'Arrays', title: `Unreleased ${runId}`, summary: 's', concept: 'c', practiceQuestionIds: [verifiedCoding] });
+      expect(draft.status).toBe(201);
+      lessonIds.push(draft.body.id);
+
+      const res = await request(server).get(`/api/v1/practice/questions/${verifiedCoding}`).set('Authorization', `Bearer ${aliceToken}`);
+      expect(res.status).toBe(200);
+      const related = res.body.relatedLessons as { id: string; reason: string; topic: string }[];
+      expect(related[0]).toMatchObject({ id: lessonId, reason: 'ATTACHED', topic: 'Arrays' });
+      expect(related.map((l) => l.id)).not.toContain(draft.body.id);
+      expect(JSON.stringify(related)).not.toContain('isCorrect');
+    });
+  });
+
   describe('practice what you just learned', () => {
     it("shows SOLVED after the student's own accepted practice submission", async () => {
       const submit = await request(server)

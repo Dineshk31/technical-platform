@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Code2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Code2 } from 'lucide-react';
 import { CODING_TOPICS, DIFFICULTY_LEVELS, PROGRAMMING_LANGUAGES } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
+import { getLearnProgress, type LearnTopicProgress } from '../lib/learn-api';
 import { listPracticeQuestions, type PracticeQuestionListItem, type PracticeSortOption } from '../lib/practice-api';
 import { DifficultyBadge } from '../components/ApprovalBadge';
 import { Badge } from '../components/Badge';
@@ -40,6 +41,14 @@ export function PracticeExplorerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+  // Optional context only — if Learn fails to load, the problem list is unaffected.
+  const [lessonsByTopic, setLessonsByTopic] = useState<Map<string, LearnTopicProgress>>(new Map());
+  useEffect(() => {
+    getLearnProgress()
+      .then((p) => setLessonsByTopic(new Map(p.byTopic.map((t) => [t.topic, t]))))
+      .catch(() => undefined);
+  }, []);
+  const topicLessons = topic ? lessonsByTopic.get(topic) : undefined;
 
   async function refresh() {
     const requestId = ++requestIdRef.current;
@@ -168,6 +177,23 @@ export function PracticeExplorerPage() {
           </select>
         </div>
 
+        {topicLessons && (
+          <p className="explorer-lesson-hint">
+            <BookOpen size={14} aria-hidden="true" />
+            <span>
+              {topicLessons.total} {topic} lesson{topicLessons.total === 1 ? '' : 's'} available if you want the concept first —{' '}
+              <Link
+                to={
+                  topicLessons.nextLessonId
+                    ? `/student/learn/${encodeURIComponent(topic)}/lessons/${topicLessons.nextLessonId}`
+                    : `/student/learn/${encodeURIComponent(topic)}`
+                }
+              >
+                {topicLessons.nextLessonId ? topicLessons.nextLessonTitle : `Review ${topic}`}
+              </Link>
+            </span>
+          </p>
+        )}
         {error && <ErrorState message={error} />}
         {loading ? (
           <SkeletonTable rows={6} columns={5} />

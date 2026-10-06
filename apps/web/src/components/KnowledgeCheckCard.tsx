@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { CheckCircle2, CircleAlert, RotateCcw } from 'lucide-react';
 import { ApiError } from '../lib/api-client';
 import { answerLessonCheck, type LessonCheckAnswerResult, type StudentLessonCheck } from '../lib/learn-api';
-import { Markdown } from './Markdown';
+import { CodeBlock, Markdown } from './Markdown';
+import { guessSnippetLanguage } from '../lib/snippet-language';
 
 /**
  * One knowledge check inside a lesson (Phase 18). Graded on the server — the page
@@ -57,11 +58,7 @@ export function KnowledgeCheckCard({
           {check.questionText}
           {check.multiple && <span className="field-hint"> (select all that apply)</span>}
         </legend>
-        {check.codeSnippet && (
-          <pre className="example-block" style={{ whiteSpace: 'pre-wrap' }}>
-            {check.codeSnippet}
-          </pre>
-        )}
+        {check.codeSnippet && <CodeBlock language={guessSnippetLanguage(check.codeSnippet)} code={check.codeSnippet} fallbackLabel="Code" />}
         <div className="kc-options">
           {check.options.map((o) => {
             const isSelected = selected.includes(o.id);

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import '../lib/monaco-setup';
-import { ArrowLeft, History, Play, RotateCcw, Send } from 'lucide-react';
+import { ArrowLeft, BookOpen, FileText, History, Play, RotateCcw, Send } from 'lucide-react';
 import { getGenericStarterCode, type ProgrammingLanguageCode } from '@technical-platform/shared';
 import { ApiError } from '../lib/api-client';
 import { pollSubmission, type SubmissionDetailDto } from '../lib/attempts-api';
@@ -22,6 +22,7 @@ import { QUESTION_STATUS_LABELS, questionStatusPillClass } from '../lib/verdict'
 import { ExecutionResultPanel } from './exam/ExecutionResultPanel';
 import { PracticeCompletionPanel } from './practice/PracticeCompletionPanel';
 import { PracticeSubmissionHistoryPanel } from './practice/PracticeSubmissionHistoryPanel';
+import { WorkspaceLessonPanel } from './practice/WorkspaceLessonPanel';
 import { SaveIndicator, type SaveState } from './exam/SaveIndicator';
 import type { SubmissionHistoryItemDto } from '../lib/attempts-api';
 
@@ -62,6 +63,9 @@ export function PracticeWorkspacePage() {
   const [nextProblem, setNextProblem] = useState<PracticeQuestionListItem | null>(null);
   const [nextProblemLoading, setNextProblemLoading] = useState(false);
 
+  // The problem panel can show the related lesson instead of the description — the
+  // editor is a sibling, so switching never touches the student's code.
+  const [problemTab, setProblemTab] = useState<'description' | 'lesson'>('description');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState<SubmissionHistoryItemDto[]>([]);
@@ -86,6 +90,7 @@ export function PracticeWorkspacePage() {
     setNextProblemLoading(false);
     setHistoryOpen(false);
     setHistory([]);
+    setProblemTab('description');
     (async () => {
       try {
         const q = await getPracticeQuestion(questionId);
@@ -307,6 +312,32 @@ export function PracticeWorkspacePage() {
       <div className="exam-body">
         <main className="exam-main">
           <div className="exam-problem-panel">
+            {question.relatedLessons.length > 0 && (
+              <div className="tabs workspace-panel-tabs" role="tablist" aria-label="Problem panel">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={problemTab === 'description'}
+                  className={`tab${problemTab === 'description' ? ' active' : ''}`}
+                  onClick={() => setProblemTab('description')}
+                >
+                  <FileText size={14} aria-hidden="true" /> Description
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={problemTab === 'lesson'}
+                  className={`tab${problemTab === 'lesson' ? ' active' : ''}`}
+                  onClick={() => setProblemTab('lesson')}
+                >
+                  <BookOpen size={14} aria-hidden="true" /> Lesson
+                </button>
+              </div>
+            )}
+            {problemTab === 'lesson' && question.relatedLessons.length > 0 ? (
+              <WorkspaceLessonPanel lessons={question.relatedLessons} />
+            ) : (
+            <>
             <div className="page-header">
               <h2 style={{ margin: 0 }}>{question.title}</h2>
               <DifficultyBadge difficulty={question.difficulty} />
@@ -369,6 +400,18 @@ export function PracticeWorkspacePage() {
                 <pre>{tc.expectedOutput}</pre>
               </div>
             ))}
+
+            {question.relatedLessons.length > 0 && (
+              <p className="workspace-lesson-hint">
+                <BookOpen size={14} aria-hidden="true" /> Need the concept?{' '}
+                <button type="button" className="link-button" onClick={() => setProblemTab('lesson')}>
+                  Read “{question.relatedLessons[0].title}”
+                </button>{' '}
+                without leaving your code.
+              </p>
+            )}
+            </>
+            )}
           </div>
 
           {language && (
